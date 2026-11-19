@@ -214,6 +214,65 @@ def _card_key(name: str) -> str:
     return re.sub(r"[^가-힣A-Za-z]", "", str(name or ""))[:2]
 
 
+def _hm_minutes(hm):
+    """'16:30' → 990분. 시각이 없거나 형식이 다르면 None."""
+    m = re.search(r"(\d{1,2}):(\d{2})", str(hm or ""))
+    if not m:
+        return None
+    hour, minute = int(m.group(1)), int(m.group(2))
+    if hour > 23 or minute > 59:
+        return None
+    return hour * 60 + minute
+
+
+def session_window(window):
+    """'10:00~16:30' → ('10:00', '16:30'). 형식이 다르면 (None, None)."""
+    m = re.search(r"(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})", str(window or ""))
+    if not m:
+        return None, None
+    return m.group(1), m.group(2)
+
+
+def closed_at(window, stamp_hm):
+    """세션 마감 시각을 지난 실행이면 마감 시각('16:30'), 아직이면 None.
+
+    마감된 세션에 실행 시각(예: 20:27)을 찍으면 실제로 없던 시각의 종가
+    ('20:27 종가')를 표기하게 되므로, 표기는 세션 마감 시각으로 고정한다.
+    """
+    _start, end = session_window(window)
+    stamp_min, end_min = _hm_minutes(stamp_hm), _hm_minutes(end)
+    if stamp_min is None or end_min is None:
+        return None
+    return end if stamp_min > end_min else None
+
+
+def _freeze_text(text, hm):
+    """마감된 세션의 시간 표기를 마감 시각으로 고정 — '20:27 기준' → '16:30 마감 기준'."""
+    if not text or not hm:
+        return text
+    out = _retime(text, hm)
+    return re.sub(r"(\d{1,2}:\d{2})\s*(?:장전|장중|장후|마감\s*)?기준",
+                  lambda m: f"{m.group(1)} 마감 기준", out)
+
+
+def _freeze_block(value, hm):
+    """세션 블록(문자열·목록·딕트) 안의 시간 표기를 마감 시각으로 고정."""
+    if isinstance(value, str):
+        return _freeze_text(value, hm)
+    if isinstance(value, list):
+        return [_freeze_block(v, hm) for v in value]
+    if isinstance(value, dict):
+        return {k: _freeze_block(v, hm) for k, v in value.items()}
+    return value
+
+
+def _is_turnover_card(card: dict) -> bool:
+    """cmain이 업종 등락률이 아니라 거래대금(조·억)을 보여주는 카드인지."""
+    if re.search(r"[조억]", str(card.get("cmain") or "")):
+        return True
+    return "자금" in str(card.get("csub") or "")
+
+
 INDUSTRY_SHORT = {
     "방송과엔터테인먼트": "방송·엔터",
     "호텔,레스토랑,레저": "호텔·레저",
@@ -1392,9 +1451,19 @@ def merge_entry(new, old):
             out["context"] = ctx
 
     stamp_hm = (re.match(r"(\d{1,2}:\d{2})", str(new.get("stamp") or "")) or [None, None])[1]
+    krx_window = next((s.get("window") for s in (old.get("sessions") or [])
+                       if isinstance(s, dict) and s.get("key") == "krx"), None) \
+        or next((s.get("window") for s in (new.get("sessions") or [])
+                 if isinstance(s, dict) and s.get("key") == "krx"), None)
+    krx_closed = closed_at(krx_window, stamp_hm)
     if isinstance(out.get("rangeLabels"), dict) and stamp_hm:
         labels = dict(out["rangeLabels"])
-        if labels.get("title"):
+        if krx_closed:
+            # 정규장이 끝난 뒤에는 실행 시각(20:27)이 아니라 정규장 구간을 쓴다
+            labels["title"] = f"당일 정규장({krx_window}) 범위"
+            labels["close"] = "종가"
+        elif labels.get("title") and "~" not in str(labels["title"]):
+            # '정규장(10:00~16:30)'처럼 고정된 구간은 실행 시각으로 바꾸지 않는다
             labels["title"] = _retime(labels["title"], stamp_hm)
         out["rangeLabels"] = labels
 
@@ -1429,11 +1498,14 @@ def merge_entry(new, old):
             sessions.append(s)
             continue
         m = dict(prev)
+        # 이미 마감된 세션(정규장 마감 후·애프터장 마감 후)은 실행 시각이 아니라
+        # 세션 마감 시각으로 표기를 고정한다 — '20:27 종가' 같은 표기를 막는다.
+        frozen = closed_at(m.get("window") or s.get("window"), stamp_hm)
         # 정규장 세션만 기준시각·순위표를 실시간으로 교체 (장전·애프터장 서사는 유지)
         if s.get("key") == "krx":
             for key in ("strip", "up", "value"):
                 if s.get(key):
-                    m[key] = s[key]
+                    m[key] = _freeze_block(s[key], frozen) if frozen else s[key]
         elif not m.get("up") and s.get("up"):
             m["up"] = s["up"]
             m["value"] = s.get("value")
@@ -1441,12 +1513,17 @@ def merge_entry(new, old):
         for card in m.get("cards") or []:
             card = dict(card)
             metric = (new.get("_industry_metric") or {}).get(_card_key(card.get("name")))
-            if metric:
+            # 거래대금(조·억)·'자금' 카드는 업종 등락률(+2.61%)로 덮지 않는다
+            if metric and not _is_turnover_card(card):
                 card["cmain"] = f"{metric['chg']:+.2f}%"
                 card["metric_chg"] = metric["chg"]
                 if re.match(r"^\d+\s*종목", str(card.get("csub") or "")):
                     card["csub"] = f"{metric['rise']}종목 상승"
             if card.get("stocks"):
+                # 애프터장은 20:00 마감 뒤 네이버가 'NXT 애프터 집계'가 아닌 다른 기준
+                # (정규장 일별 합계)로 값을 돌려줘 검증된 NXT 거래대금(예: SK하이닉스 1.17조)이
+                # 3.0조로 덮인다. 마감된 애프터 카드는 거래대금을 건드리지 않는다.
+                keep_turnover = frozen is not None and s.get("key") == "aft"
                 updated = []
                 for stock in card["stocks"]:
                     live = (new.get("_prices", {}).get(str(stock.get("ticker")))
@@ -1457,17 +1534,19 @@ def merge_entry(new, old):
                         stock["price"] = live.get("price_text") or stock.get("price")
                         if live.get("chg") is not None:
                             stock["chg"] = live["chg"]
-                        if live.get("turnover"):
+                        if live.get("turnover") and not keep_turnover:
                             stock["turnover"] = live["turnover"]
                     updated.append(stock)
                 card["stocks"] = updated
-                if card.get("metric_chg") is not None and card.get("foot"):
+            if card.get("metric_chg") is not None:
+                if card.get("foot"):
                     card["foot"] = re.sub(r"(업종\s*)[+-]?\d+\.\d+%",
                                           lambda m: f"{m.group(1)}{card['metric_chg']:+.2f}%",
                                           card["foot"])
-                    card.pop("metric_chg", None)
-                if stamp_hm and card.get("foot"):
-                    card["foot"] = _retime(card["foot"], stamp_hm)
+                card.pop("metric_chg", None)
+            if stamp_hm and card.get("foot"):
+                card["foot"] = (_freeze_text(card["foot"], frozen) if frozen
+                                else _retime(card["foot"], stamp_hm))
             cards.append(card)
         if cards:
             m["cards"] = cards
