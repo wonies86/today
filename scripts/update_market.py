@@ -1358,6 +1358,30 @@ def merge_entry(new, old):
         if key in old:
             out[key] = old[key]
 
+    # 애프터장 마감 서사(수동·에이전트 병합, mode="full")는 스크립트가 만들 수 없으므로
+    # 이미 들어 있으면 자동 갱신이 덮어쓰지 않도록 그대로 유지한다.
+    old_aft = next((s for s in (old.get("sessions") or [])
+                    if isinstance(s, dict) and s.get("key") == "aft"), None)
+    if isinstance(old_aft, dict) and old_aft.get("mode") == "full":
+        merged = []
+        for s in (out.get("sessions") or []):
+            merged.append(old_aft if (isinstance(s, dict) and s.get("key") == "aft") else s)
+        if merged:
+            out["sessions"] = merged
+        for key in ("asOf", "stamp", "priceBasis"):
+            if old.get(key):
+                out[key] = old[key]
+        # 관찰 5선의 정규장 시·고·저·종가(day)·정규장 종가(krxClose/krxChg)는
+        # 애프터장 마감 뒤 자동 갱신에서 NXT 값으로 덮이므로 사람이 확인한 값을 유지한다.
+        keep = {w.get("name"): w for w in (old.get("watchlist") or []) if isinstance(w, dict)}
+        for w in (out.get("watchlist") or []):
+            src = keep.get(w.get("name"))
+            if not src:
+                continue
+            for f in ("day", "krxClose", "krxChg"):
+                if src.get(f) is not None:
+                    w[f] = src[f]
+
     # 수급 순환 시나리오: 기존 서사는 그대로 두고 종목 숫자만 실시간 값으로
     old_ctx = old.get("context")
     if isinstance(old_ctx, dict) and isinstance(old_ctx.get("rotation"), dict):
