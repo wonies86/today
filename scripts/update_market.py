@@ -1,0 +1,1419 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+국내 증시 수급 대시보드 — data.json 실시간 자동 갱신
+=====================================================
+
+· 표준 라이브러리만 사용합니다 (pip install 불필요, GitHub Actions에서 3~5초).
+· 네이버 금융 공개 엔드포인트에서 실시간 시세·수급·업종·순위를 받아
+  index.html이 읽는 data.json 을 갱신합니다.
+· 주말·휴장일에는 아무 것도 하지 않고 종료합니다(커밋 없음).
+· 이미 있는 날짜 항목은 서사(context·articles·카드 문장 등)를 보존하고
+  숫자(지수·수급·시세·지표)만 새 값으로 바꿉니다.
+· 새 날짜는 실시간 데이터로 요약을 새로 만듭니다.
+· 어떤 엔드포인트가 실패해도 스크립트는 죽지 않습니다(이전 값 유지 + 경고).
+
+사용법
+  python3 scripts/update_market.py            # 자동 (주말·휴장일·거래시간 판단)
+  python3 scripts/update_market.py --force    # 수동 강제 갱신 (workflow_dispatch)
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import re
+import sys
+import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+# ---------------------------------------------------------------- 기본 설정
+KST = timezone(timedelta(hours=9))
+ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = ROOT / "data.json"
+
+API = "https://m.stock.naver.com/api"
+POLL_BASE = "https://polling.finance.naver.com/api/realtime/domestic"
+POLL = POLL_BASE + "/index"
+FCHART = "https://fchart.stock.naver.com/sise.nhn"
+
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
+HEADERS = {
+    "User-Agent": UA,
+    "Referer": "https://m.stock.naver.com/",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+}
+
+MAX_DATES = 20          # 보관할 최대 거래일 수 (data.json 용량 관리)
+CHART_DAYS = 130        # 일봉 조회 개수 (60일선·RSI·MACD 계산용)
+
+WARNINGS: list[str] = []
+
+
+def log(*args) -> None:
+    print(*args, flush=True)
+
+
+def warn(msg: str) -> None:
+    WARNINGS.append(msg)
+    print(f"  ! {msg}", flush=True)
+
+
+# ---------------------------------------------------------------- HTTP 유틸
+def get_text(url: str, encoding: str = "utf-8", timeout: int = 12, tries: int = 3):
+    """URL 본문을 문자열로. 실패하면 None (예외로 죽지 않음)."""
+    last = None
+    for attempt in range(tries):
+        try:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=timeout) as res:
+                return res.read().decode(encoding, "replace")
+        except Exception as exc:            # noqa: BLE001 - 네트워크 오류 전부 흡수
+            last = exc
+            time.sleep(0.5 * (attempt + 1))
+    warn(f"요청 실패 {url.split('?')[0]} ({type(last).__name__})")
+    return None
+
+
+def get_json(url: str, timeout: int = 12, tries: int = 3):
+    text = get_text(url, "utf-8", timeout, tries)
+    if text is None:
+        return None
+    try:
+        return json.loads(text)
+    except Exception:                       # noqa: BLE001
+        warn(f"JSON 파싱 실패 {url.split('?')[0]}")
+        return None
+
+
+# ---------------------------------------------------------------- 숫자/포맷
+def to_int(value):
+    """'1,234' / '+2,758' / '-1,561' / 1234 → int, 실패 시 None."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    s = str(value).strip().replace(",", "").replace("+", "")
+    if s in ("", "-", "N/A"):
+        return None
+    try:
+        return int(float(s))
+    except ValueError:
+        return None
+
+
+def to_float(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip().replace(",", "").replace("+", "").replace("%", "")
+    if s in ("", "-", "N/A"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def comma(n) -> str:
+    if n is None:
+        return "—"
+    return f"{int(round(n)):,}"
+
+
+def eok_text(v) -> str:
+    if v is None:
+        return "—"
+    return f"{int(v):+,}억"
+
+
+def turnover_text(eok_value) -> str:
+    """억 원 숫자 → '7,866억' / '4.0조'."""
+    if eok_value is None:
+        return "—"
+    v = float(eok_value)
+    if v >= 10000:
+        return f"{v / 10000:.1f}조"
+    if v >= 1000:
+        return f"{int(round(v)):,}억"
+    if v >= 10:
+        return f"{int(round(v))}억"
+    return f"{v:.1f}억"
+
+
+def hangeul_turnover(stock: dict) -> str:
+    """네이버가 주는 '7,196억원' / '1조 1,829억원' → '7,196억' / '1조 1,829억'."""
+    raw = stock.get("accumulatedTradingValueKrwHangeul")
+    if raw:
+        return str(raw).replace("원", "").strip()
+    value = to_int(stock.get("accumulatedTradingValueRaw"))
+    if value:
+        return turnover_text(value / 1e8)
+    return "—"
+
+
+def pct_text(v) -> str:
+    if v is None:
+        return "—"
+    return f"{v:+.2f}%"
+
+
+# ---------------------------------------------------------------- 업종 그룹
+GROUP_RULES = [
+    ("semi", ("삼성전자", "SK하이닉스", "SK스퀘어", "한미반도체", "DB하이텍", "이오테크닉스",
+              "주성엔지니어링", "원익", "리노공업", "HPSP", "티씨케이", "솔브레인",
+              "동진쎄미켐", "네패스", "제주반도체", "에이디테크놀로지", "가온칩스",
+              "에이피알", "유진테크", "피에스케이", "케이씨텍", "월덱스", "하나머티리얼즈")),
+    ("parts", ("삼성전기", "LG이노텍", "대덕전자", "비에이치", "이수페타시스", "심텍",
+               "해성디에스", "코리아써키트", "인터플렉스", "엘컴텍", "티엘비")),
+    ("enter", ("CJ ENM", "JYP", "에스엠", "하이브", "YG", "스튜디오드래곤", "하나투어",
+               "모두투어", "롯데관광", "호텔신라", "파라다이스", "제주항공", "진에어",
+               "티웨이", "강원랜드", "초록뱀", "에이스토리", "콘텐트리중앙", "쇼박스",
+               "키이스트", "SM", "F&F", "삼화네트웍스", "판타지오", "iMBC", "아이엠비씨")),
+    ("robot", ("로봇", "두산로보틱스", "레인보우로보틱스", "에이엘로봇", "휴림로봇",
+               "유진로봇", "클로봇", "로보티즈", "로보스타")),
+    ("bio", ("바이오", "제약", "셀트리온", "유한양행", "알테오젠", "HLB", "SK바이오팜",
+             "삼천당제약", "한미약품", "종근당", "대웅제약", "녹십자", "휴젤", "메디톡스")),
+]
+
+GROUP_LABEL = {
+    "semi": "반도체",
+    "parts": "전자부품",
+    "enter": "엔터·여행",
+    "robot": "AI로봇",
+    "bio": "바이오",
+    "etc": "기타",
+}
+
+ETF_PREFIX = ("KODEX", "TIGER", "ARIRANG", "ACE ", "PLUS ", "HANARO", "KBSTAR",
+              "RISE ", "SOL ", "TIME ", "BNK", "히어로즈", "마이다스", "WON ", "파워")
+
+
+def _retime(text, hm):
+    """'종목 시세 10:44 · 업종 등락 10:50 기준' → 현재 시각으로."""
+    if not text or not hm:
+        return text
+    return re.sub(r"(?<!\d)\d{1,2}:\d{2}(?!\d)", hm, str(text))
+
+
+def _card_key(name: str) -> str:
+    """'방송·엔터' → '방송' — 업종명과 앞 두 글자로 맞춘다."""
+    return re.sub(r"[^가-힣A-Za-z]", "", str(name or ""))[:2]
+
+
+INDUSTRY_SHORT = {
+    "방송과엔터테인먼트": "방송·엔터",
+    "호텔,레스토랑,레저": "호텔·레저",
+    "반도체와반도체장비": "반도체",
+    "디스플레이장비및부품": "디스플레이",
+    "전자장비와기기": "전자장비",
+    "생명과학도구및서비스": "바이오",
+    "건강관리장비와용품": "헬스케어",
+    "무역회사와판매업체": "유통",
+    "음식료품": "음식료",
+    "전기제품": "전기제품",
+    "운송장비·부품": "운송장비",
+    "종이와목재": "종이목재",
+    "기계·장비": "기계",
+    "IT서비스": "IT서비스",
+    "통신서비스": "통신",
+    "오락·문화": "엔터",
+}
+
+
+def short_industry(name: str) -> str:
+    """카드 헤더용 짧은 업종명 — '방송과엔터테인먼트' → '방송·엔터'."""
+    n = str(name or "").strip()
+    if n in INDUSTRY_SHORT:
+        return INDUSTRY_SHORT[n]
+    n2 = n.replace(",", "·")
+    if len(n2) > 10:
+        parts = [p for p in n2.split("·") if p]
+        if len(parts) >= 2:
+            return parts[0][:6] + "·" + parts[1][:4]
+        return n2[:8]
+    return n2
+
+
+def group_key(name: str) -> str:
+    plain = str(name).replace(" ", "").upper()
+    for key, words in GROUP_RULES:
+        for word in words:
+            if word.replace(" ", "").upper() in plain:
+                return key
+    return "etc"
+
+
+def is_etf(name: str) -> bool:
+    upper = str(name).upper()
+    if any(upper.startswith(prefix.upper()) for prefix in ETF_PREFIX):
+        return True
+    return any(word in name for word in ("레버리지", "인버스", "선물", "합성"))
+
+
+# ---------------------------------------------------------------- 수집
+def fetch_index(market: str):
+    """KOSPI / KOSDAQ 실시간 지수."""
+    data = get_json(f"{POLL}/{market}")
+    if not data or not data.get("datas"):
+        return None
+    idx = data["datas"][0]
+    return {
+        "market": market,
+        "name": idx.get("stockName") or market,
+        "value": idx.get("closePrice"),
+        "chg": to_float(idx.get("fluctuationsRatioRaw") or idx.get("fluctuationsRatio")),
+        "diff": to_int(idx.get("compareToPreviousClosePriceRaw")),
+        "open": idx.get("openPrice"),
+        "high": idx.get("highPrice"),
+        "low": idx.get("lowPrice"),
+        "prevClose": to_int(idx.get("closePriceRaw")) - (to_int(idx.get("compareToPreviousClosePriceRaw")) or 0)
+        if to_int(idx.get("closePriceRaw")) is not None else None,
+        "volume": idx.get("accumulatedTradingVolume"),
+        "turnover_eok": (to_int(idx.get("accumulatedTradingValueRaw")) or 0) / 1e8 or None,
+        "status": idx.get("marketStatus"),
+        "traded_at": idx.get("localTradedAt"),
+    }
+
+
+def fetch_realtime_stocks(codes):
+    """여러 종목 실시간 시세 (KRX 정규장 기준 · 30개씩 묶어 요청)."""
+    out = {}
+    codes = [str(c) for c in codes if c]
+    for i in range(0, len(codes), 30):
+        chunk = codes[i:i + 30]
+        data = get_json(f"{POLL_BASE}/stock/" + ",".join(chunk))
+        for d in (data or {}).get("datas") or []:
+            code = d.get("itemCode")
+            price = to_int(d.get("closePriceRaw"))
+            diff = to_int(d.get("compareToPreviousClosePriceRaw")) or 0
+            exchange = (d.get("stockExchangeType") or {}).get("nameKor") or ""
+            out[code] = {
+                "code": code,
+                "name": d.get("stockName"),
+                "market": "KOSPI" if "코스피" in exchange else ("KOSDAQ" if "코스닥" in exchange else exchange),
+                "price": price,
+                "open": to_int(d.get("openPriceRaw")),
+                "high": to_int(d.get("highPriceRaw")),
+                "low": to_int(d.get("lowPriceRaw")),
+                "chg": to_float(d.get("fluctuationsRatioRaw")),
+                "volume": to_int(d.get("accumulatedTradingVolumeRaw")),
+                "value_eok": (to_int(d.get("accumulatedTradingValueRaw")) or 0) / 1e8 or None,
+                "prevClose": (price - diff) if price is not None else None,
+                "traded_at": d.get("localTradedAt"),
+            }
+    return out
+
+
+def fetch_trend(market: str):
+    """투자자별 당일 누적 순매수 (억 원)."""
+    data = get_json(f"{API}/index/{market}/trend")
+    if not isinstance(data, dict):
+        return None
+    return {
+        "market": market,
+        "bizdate": data.get("bizdate"),
+        "individual": to_int(data.get("personalValue")),
+        "foreign": to_int(data.get("foreignValue")),
+        "institution": to_int(data.get("institutionalValue")),
+    }
+
+
+def fetch_industries():
+    data = get_json(f"{API}/stocks/industry")
+    groups = (data or {}).get("groups") or []
+    rows = []
+    for g in groups:
+        rate = to_float(g.get("changeRate"))
+        if rate is None or float(g.get("totalCount") or 0) < 3:
+            continue
+        rows.append({
+            "no": g.get("no"),
+            "name": g.get("name"),
+            "chg": rate,
+            "rise": to_int(g.get("riseCount")) or 0,
+            "fall": to_int(g.get("fallCount")) or 0,
+            "total": to_int(g.get("totalCount")) or 0,
+        })
+    rows.sort(key=lambda x: x["chg"], reverse=True)
+    return rows
+
+
+def fetch_industry_stocks(no):
+    data = get_json(f"{API}/stocks/industry/{no}?page=1&pageSize=30")
+    return (data or {}).get("stocks") or []
+
+
+def fetch_rank(kind: str, market: str, size: int = 40):
+    data = get_json(f"{API}/stocks/{kind}/{market}?page=1&pageSize={size}")
+    return (data or {}).get("stocks") or []
+
+
+def fetch_market_values(market: str, pages=(1, 2, 3)):
+    out = []
+    for page in pages:
+        data = get_json(f"{API}/stocks/marketValue/{market}?page={page}&pageSize=100")
+        out.extend((data or {}).get("stocks") or [])
+    return out
+
+
+def fetch_chart(code: str, count: int = CHART_DAYS):
+    """일봉 [{'d','o','h','l','c','v'}] — 실패 시 None."""
+    url = f"{FCHART}?symbol={code}&timeframe=day&count={count}&requestType=0"
+    text = get_text(url, "euc-kr", timeout=15)
+    if not text:
+        return None
+    rows = []
+    for m in re.finditer(r'item data="([^"]+)"', text):
+        parts = m.group(1).split("|")
+        if len(parts) < 6:
+            continue
+        try:
+            rows.append({
+                "d": parts[0],
+                "o": int(parts[1]),
+                "h": int(parts[2]),
+                "l": int(parts[3]),
+                "c": int(parts[4]),
+                "v": int(parts[5]),
+            })
+        except ValueError:
+            continue
+    return rows or None
+
+
+# ---------------------------------------------------------------- 지표 계산
+def ema(values, period):
+    k = 2 / (period + 1)
+    out = [values[0]]
+    for v in values[1:]:
+        out.append(v * k + out[-1] * (1 - k))
+    return out
+
+
+def rsi(closes, period=14):
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(diff, 0))
+        losses.append(max(-diff, 0))
+    if len(gains) < period:
+        return None
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0
+    return 100 - 100 / (1 + avg_gain / avg_loss)
+
+
+def atr(rows, period=14):
+    trs = []
+    for i in range(1, len(rows)):
+        trs.append(max(rows[i]["h"] - rows[i]["l"],
+                       abs(rows[i]["h"] - rows[i - 1]["c"]),
+                       abs(rows[i]["l"] - rows[i - 1]["c"])))
+    if len(trs) < period:
+        return None
+    value = sum(trs[:period]) / period
+    for tr in trs[period:]:
+        value = (value * (period - 1) + tr) / period
+    return value
+
+
+def indicators(rows, today_str):
+    """완료된 일봉만으로 지표 계산 (오늘 부분 봉 제외)."""
+    hist = [r for r in rows if r["d"] != today_str]
+    if len(hist) < 30:
+        hist = rows[:-1] if len(rows) > 2 else rows
+    closes = [r["c"] for r in hist]
+    if len(closes) < 20:
+        return None
+
+    def ma(n):
+        return sum(closes[-n:]) / n if len(closes) >= n else None
+
+    ma5, ma20, ma60 = ma(5), ma(20), ma(60)
+    sd = math.sqrt(sum((c - ma20) ** 2 for c in closes[-20:]) / 20) if ma20 else None
+    bb_up = ma20 + 2 * sd if sd else None
+    bb_lo = ma20 - 2 * sd if sd else None
+
+    macd_line, macd_sig = None, None
+    if len(closes) >= 35:
+        e12, e26 = ema(closes, 12), ema(closes, 26)
+        macd_series = [a - b for a, b in zip(e12, e26)]
+        macd_line = macd_series[-1]
+        macd_sig = ema(macd_series, 9)[-1]
+
+    stoch = None
+    if len(hist) >= 20:
+        window = hist[-14:]
+        hh = max(r["h"] for r in window)
+        ll = min(r["l"] for r in window)
+        if hh > ll:
+            stoch = 100 * (hist[-1]["c"] - ll) / (hh - ll)
+
+    return {
+        "ma5": ma5,
+        "ma20": ma20,
+        "ma60": ma60,
+        "bbUp": bb_up,
+        "bbLo": bb_lo,
+        "rsi": rsi(closes),
+        "macd": macd_line,
+        "macdSig": macd_sig,
+        "stoch": stoch,
+        "atr": atr(hist),
+        "pct1m": (closes[-1] / closes[-21] - 1) * 100 if len(closes) > 21 else None,
+        "hi60": max(r["h"] for r in hist[-60:]) if len(hist) >= 20 else None,
+        "lo60": min(r["l"] for r in hist[-60:]) if len(hist) >= 20 else None,
+        "prevDate": hist[-1]["d"],
+        "prevClose": hist[-1]["c"],
+        "closes": closes,
+    }
+
+
+def signal_rows(ind, price):
+    """모달의 '지표 스냅샷' 8칸."""
+    if not ind:
+        return []
+    rows = []
+    for label, key, name in (("20일선", "ma20", "20일선"), ("60일선", "ma60", "60일선")):
+        ma = ind.get(key)
+        if ma:
+            gap = (price / ma - 1) * 100 if price else 0
+            side = "위" if gap >= 0 else "아래"
+            rows.append({"k": label, "v": f"{comma(ma)}원 · {abs(gap):.1f}% {side}"})
+    if ind.get("rsi") is not None:
+        r = ind["rsi"]
+        tone = "과매수권" if r >= 70 else ("과매도권" if r <= 30 else
+                                          ("중립선 위" if r >= 50 else "중립선 아래"))
+        rows.append({"k": "RSI(14)", "v": f"{r:.1f} · {tone}"})
+    if ind.get("macd") is not None:
+        rows.append({"k": "MACD", "v": f"{ind['macd']:,.0f} · 시그널 {ind['macdSig']:,.0f}"})
+    if ind.get("bbUp") and ind.get("bbLo") and price:
+        pb = (price - ind["bbLo"]) / (ind["bbUp"] - ind["bbLo"]) * 100
+        zone = "밴드 상단 쪽" if pb >= 70 else ("밴드 하단 쪽" if pb <= 30 else "밴드 중간")
+        rows.append({"k": "볼린저 %B", "v": f"{pb:.0f} · {zone}"})
+    if ind.get("stoch") is not None:
+        k = ind["stoch"]
+        tone = "과열권" if k >= 80 else ("과매도권" if k <= 20 else "중립")
+        rows.append({"k": "스토캐스틱", "v": f"%K {k:.1f} · {tone}"})
+    if ind.get("atr") and price:
+        rows.append({"k": "ATR 변동성", "v": f"일 {ind['atr'] / price * 100:.2f}%"})
+    if ind.get("pct1m") is not None:
+        rows.append({"k": "최근 1개월", "v": f"{ind['pct1m']:+.1f}%"})
+    return rows
+
+
+def technical_text(name, info, ind, quote):
+    """새 종목용 기술적 분석 서사(지표·시세에서 기계적으로 생성)."""
+    if not ind:
+        return {}
+    price = to_int(quote.get("price")) if quote else None
+    day = quote.get("day") or {}
+    trend = (f"{comma(ind['prevClose'])}원({ind['prevDate'][4:6]}/{ind['prevDate'][6:]}) 종가 이후 "
+             f"오늘은 {comma(day.get('open'))}원 출발, {comma(day.get('high'))}원~{comma(day.get('low'))}원 "
+             f"범위에서 {comma(price)}원입니다. "
+             f"20일선 {comma(ind.get('ma20'))}원 대비 "
+             f"{(price / ind['ma20'] - 1) * 100:+.1f}%, 60일선 {comma(ind.get('ma60'))}원 대비 "
+             f"{(price / ind['ma60'] - 1) * 100:+.1f}% 위치입니다." if price else "")
+    support = " · ".join(x for x in [
+        f"{comma(day.get('low'))}원(오늘 저가)" if day.get("low") else "",
+        f"{comma(ind.get('lo60'))}원(60일 최저)" if ind.get("lo60") else "",
+        f"{comma(ind.get('ma20'))}원(20일선)" if ind.get("ma20") else "",
+    ] if x)
+    resistance = " · ".join(x for x in [
+        f"{comma(day.get('high'))}원(오늘 고가)" if day.get("high") else "",
+        f"{comma(ind.get('hi60'))}원(60일 최고)" if ind.get("hi60") else "",
+        f"{comma(ind.get('ma60'))}원(60일선)" if ind.get("ma60") else "",
+    ] if x)
+    volume = (f"거래량 {comma(quote.get('volume'))}주, 거래대금 {quote.get('turnover') or '—'}. "
+              f"시가 {comma(day.get('open'))}원 → 고가 {comma(day.get('high'))}원 → "
+              f"저가 {comma(day.get('low'))}원 → 현재 {comma(price)}원." if price else "")
+    checkpoint = "① " + " ② ".join(x for x in [
+        f"{comma(day.get('low'))}원(오늘 저가) 유지 여부" if day.get("low") else "",
+        f"{comma(ind.get('ma20'))}원(20일선) 회복 여부" if ind.get("ma20") else "",
+        f"거래대금 {quote.get('turnover') or '—'} 흐름이 이어지는지" if quote else "",
+    ] if x)
+    return {
+        "trend": trend,
+        "support": support,
+        "resistance": resistance,
+        "volumeFlow": volume,
+        "checkpoint": checkpoint,
+        "signals": signal_rows(ind, price),
+    }
+
+
+# ---------------------------------------------------------------- 지수 → 대시보드
+def market_state(kospi_chg):
+    if kospi_chg is None:
+        return "혼조"
+    if kospi_chg >= 0.3:
+        return "상승장"
+    if kospi_chg <= -0.3:
+        return "하락장"
+    return "보합장"
+
+
+def time_bucket(now: datetime):
+    """(stamp 접미사, asOf 표현, 기본 세션)"""
+    hm = now.strftime("%H:%M")
+    minutes = now.hour * 60 + now.minute
+    if minutes < 9 * 60:
+        return hm, "장전", "pre"
+    if minutes < 15 * 60 + 30:
+        return hm, "장중", "krx"
+    if minutes < 20 * 60:
+        return hm, "장후", "aft"
+    return hm, "마감", "aft"
+
+
+def flow_caption(trend):
+    if not trend:
+        return ""
+    parts_neg, parts_pos = [], []
+    for name, value in (("외국인", trend.get("foreign")),
+                        ("기관", trend.get("institution")),
+                        ("개인", trend.get("individual"))):
+        if value is None:
+            continue
+        (parts_pos if value > 0 else parts_neg).append(f"{name} {value:+,}억")
+    if parts_neg and parts_pos:
+        return " · ".join(parts_neg) + " vs " + " · ".join(parts_pos)
+    return " · ".join(parts_neg + parts_pos)
+
+
+def build_flows(trends):
+    flows = []
+    for market in ("코스피", "코스닥"):
+        t = trends.get("KOSPI" if market == "코스피" else "KOSDAQ")
+        if not t:
+            continue
+        rows = []
+        for name, key in (("기관", "institution"), ("외국인", "foreign"), ("개인", "individual")):
+            value = t.get(key)
+            if value is None:
+                continue
+            rows.append({"name": name, "eok": value})
+        if not rows:
+            continue
+        flows.append({"market": market, "caption": flow_caption(t), "rows": rows})
+    return flows
+
+
+def build_indices(kospi, kosdaq, trends):
+    out = []
+    for raw, market in ((kospi, "코스피"), (kosdaq, "코스닥")):
+        if not raw:
+            continue
+        t = trends.get("KOSPI" if market == "코스피" else "KOSDAQ") or {}
+        sub = []
+        for name, key in (("기관", "institution"), ("외국인", "foreign"), ("개인", "individual")):
+            value = t.get(key)
+            if value is None:
+                continue
+            sub.append({"k": name, "v": eok_text(value), "cls": "up" if value > 0 else "down"})
+        chg = raw.get("chg")
+        if chg is None:
+            note = ""
+        elif chg > 0:
+            note = f"장중 {chg:+.2f}% · 상승 흐름"
+        else:
+            note = f"장중 {chg:+.2f}% · {raw.get('low') or ''}원 저점"
+        out.append({
+            "name": market,
+            "value": raw.get("value") or "",
+            "chg": chg,
+            "badge": raw.get("market"),
+            "note": note,
+            "sub": sub,
+        })
+    return out
+
+
+# ---------------------------------------------------------------- 세션 카드
+def build_rank_up(up_stocks, turned_at):
+    items = []
+    for s in up_stocks:
+        name = s.get("stockName")
+        if not name or s.get("stockEndType") != "stock" or is_etf(name):
+            continue
+        chg = to_float(s.get("fluctuationsRatio"))
+        if chg is None:
+            continue
+        note = None
+        price_state = (s.get("compareToPreviousPrice") or {}).get("text")
+        if price_state == "상한":
+            note = "상한가"
+        elif price_state == "하한":
+            note = "하한가"
+        items.append({
+            "name": name,
+            "g": group_key(name),
+            "chg": round(chg, 2),
+            "tv": hangeul_turnover(s),
+            "note": note,
+        })
+        if len(items) >= 12:
+            break
+    return {
+        "kind": "count",
+        "title": "상승률 상위",
+        "tag": "확산",
+        "caption": "종목 수로 보는 확산",
+        "sub": f"상승률 상위 {len(items)}종목 · {turned_at} 기준",
+        "items": items,
+    }
+
+
+def build_rank_value(value_stocks, turned_at):
+    items = []
+    for i, s in enumerate(value_stocks, start=1):
+        name = s.get("stockName")
+        chg = to_float(s.get("fluctuationsRatio"))
+        eok = (to_int(s.get("accumulatedTradingValueRaw")) or 0) / 1e8
+        item = {
+            "name": name,
+            "g": group_key(name),
+            "chg": round(chg, 2) if chg is not None else None,
+            "tv": hangeul_turnover(s),
+            "eok": int(round(eok)),
+        }
+        state = (s.get("compareToPreviousPrice") or {}).get("text")
+        if state == "상한":
+            item["note"] = "상한가"
+        if s.get("newlyListed"):
+            item["note"] = "신규상장"
+        items.append(item)
+        if len(items) >= 13:
+            break
+    return {
+        "kind": "value",
+        "title": "거래대금 상위",
+        "tag": "자금",
+        "caption": "거래대금 비중으로 보는 자금",
+        "sub": f"거래대금 상위 {len(items)}종목 · {turned_at} 기준",
+        "items": items,
+    }
+
+
+def sector_card(medal, accent, industry, stocks, turned_at):
+    picks = sorted(stocks, key=lambda s: to_int(s.get("accumulatedTradingValueRaw")) or 0,
+                   reverse=True)[:4]
+    rows = []
+    for s in picks:
+        chg = to_float(s.get("fluctuationsRatio"))
+        rows.append({
+            "name": s.get("stockName"),
+            "ticker": s.get("itemCode"),
+            "price": s.get("closePrice") or "",
+            "chg": round(chg, 2) if chg is not None else None,
+            "turnover": hangeul_turnover(s),
+        })
+    rate = industry["chg"]
+    return {
+        "medal": medal,
+        "accent": accent,
+        "name": short_industry(industry["name"]),
+        "cmain": f"{rate:+.2f}%",
+        "csub": f"{industry['rise']}종목 상승",
+        "issue": f"<b>{short_industry(industry['name'])} {rate:+.2f}%</b> — 상승 업종 상위, "
+                 f"{industry['total']}종목 중 {industry['rise']}종목 상승",
+        "stocks": rows,
+        "foot": f"종목 시세 {turned_at} · 업종 등락 {turned_at} 기준",
+    }
+
+
+def build_sessions(now, kospi, kosdaq, trends, industries, up_stocks, value_stocks,
+                   industry_stocks, turned_at):
+    stamp_hm, phase, default_session = time_bucket(now)
+    k_chg = (kospi or {}).get("chg")
+    q_chg = (kosdaq or {}).get("chg")
+    k_trend = trends.get("KOSPI") or {}
+    q_trend = trends.get("KOSDAQ") or {}
+
+    # --- 장전 ---
+    pre_cards = [{
+        "medal": "🥇",
+        "accent": "violet",
+        "name": "오늘의 출발",
+        "cmain": f"코스피 {(kospi or {}).get('value') or '—'}",
+        "csub": f"{pct_text(k_chg)} 현재",
+        "issue": (f"코스피는 시가 {(kospi or {}).get('open') or '—'}로 출발해 "
+                  f"현재 {(kospi or {}).get('value') or '—'} ({pct_text(k_chg)})입니다."),
+        "stats": [
+            {"k": "시가", "v": (kospi or {}).get("open") or "—"},
+            {"k": "고가", "v": (kospi or {}).get("high") or "—"},
+            {"k": "저가", "v": (kospi or {}).get("low") or "—"},
+        ],
+        "foot": f"네이버 금융 실시간 · {turned_at}",
+    }, {
+        "medal": "🥈",
+        "accent": "indigo",
+        "name": "수급 스냅샷",
+        "cmain": f"외국인 {eok_text(k_trend.get('foreign'))}",
+        "csub": "코스피 누적",
+        "issue": (f"코스피는 외국인 {eok_text(k_trend.get('foreign'))} · "
+                  f"기관 {eok_text(k_trend.get('institution'))} · "
+                  f"개인 {eok_text(k_trend.get('individual'))}입니다."),
+        "notes": [
+            f"코스피 거래대금 {turnover_text((kospi or {}).get('turnover_eok'))} · "
+            f"코스닥 {turnover_text((kosdaq or {}).get('turnover_eok'))}",
+            f"코스닥 외국인 {eok_text(q_trend.get('foreign'))} · 기관 {eok_text(q_trend.get('institution'))} · "
+            f"개인 {eok_text(q_trend.get('individual'))}",
+            f"코스피 {pct_text(k_chg)} · 코스닥 {pct_text(q_chg)}",
+        ],
+        "foot": f"{turned_at} 누적 기준",
+    }]
+    pre = {
+        "key": "pre",
+        "tab": "장전 이슈",
+        "code": "PRE",
+        "name": "장전",
+        "window": "08:00~08:50",
+        "mode": "summary",
+        "strip": f"{turned_at} 기준 · 코스피 {pct_text(k_chg)} · 코스닥 {pct_text(q_chg)} · NXT 프리마켓 08:00~08:50",
+        "cards": pre_cards,
+        "note": "프리마켓 수급은 NXT 체결분 기준이며, 정규장 수급과는 별도로 집계됩니다.",
+    }
+
+    # --- 정규장 ---
+    cards = []
+    accents = ("rose", "amber")
+    medals = ("🥇", "🥈")
+    for industry in (industries or [])[:2]:
+        stocks = industry_stocks.get(industry["no"]) or []
+        if stocks:
+            cards.append(sector_card(medals[len(cards)], accents[len(cards)], industry, stocks, turned_at))
+    if not cards:
+        # 업종 데이터를 못 받았을 때: 거래대금 상위 종목으로 대체 카드
+        picks = value_stocks[:4]
+        if picks:
+            cards.append({
+                "medal": "🥇",
+                "accent": "rose",
+                "name": "거래대금 주도",
+                "cmain": hangeul_turnover(picks[0]),
+                "csub": "거래대금 1위",
+                "issue": f"<b>{picks[0].get('stockName')}</b>가 거래대금 1위입니다. 업종 데이터를 받지 못해 종목 기준으로 대체했습니다.",
+                "stocks": [{
+                    "name": s.get("stockName"),
+                    "price": s.get("closePrice") or "",
+                    "chg": to_float(s.get("fluctuationsRatio")),
+                    "turnover": hangeul_turnover(s),
+                } for s in picks],
+                "foot": f"종목 시세 {turned_at} 기준",
+            })
+    krx = {
+        "key": "krx",
+        "tab": "정규장 · 수급",
+        "code": "정규장",
+        "name": "정규장",
+        "window": "09:00~15:30",
+        "mode": "full",
+        "strip": (f"{turned_at} 기준 · 코스피 {pct_text(k_chg)} · 코스닥 {pct_text(q_chg)} · "
+                  f"거래대금 상위 {len(value_stocks[:13])}종목"),
+        "cards": cards,
+        "up": build_rank_up(up_stocks, turned_at),
+        "value": build_rank_value(value_stocks, turned_at),
+    }
+
+    # --- 애프터장 ---
+    aft = {
+        "key": "aft",
+        "tab": "애프터장 · 테마",
+        "code": "AFT",
+        "name": "애프터장",
+        "window": "15:40~20:00",
+        "mode": "summary",
+        "noCta": True,
+        "strip": f"{turned_at} 기준 · 정규장 15:30 마감 · NXT 애프터마켓 15:40~20:00",
+        "cards": [{
+            "medal": "🌙",
+            "accent": "violet",
+            "name": "애프터장 시간표",
+            "cmain": "15:40~20:00",
+            "csub": "NXT 애프터마켓",
+            "issue": ("정규장은 15:30 마감하고, <b>NXT 애프터마켓은 15:40~20:00</b>에 이어집니다. "
+                      "애프터장 체결분은 다음 정규장 시가에 영향을 줄 수 있습니다."),
+            "stats": [
+                {"k": "정규장", "v": "09:00~15:30"},
+                {"k": "애프터", "v": "15:40~20:00"},
+                {"k": "NXT 정규", "v": "09:00:30~15:20"},
+            ],
+            "foot": "한국거래소·넥스트레이드 거래시간",
+        }, {
+            "medal": "📊",
+            "accent": "indigo",
+            "name": "정규장 마감 스냅샷",
+            "cmain": f"코스피 {pct_text(k_chg)}",
+            "csub": f"코스닥 {pct_text(q_chg)}",
+            "issue": (f"정규장 기준 코스피 {(kospi or {}).get('value') or '—'} ({pct_text(k_chg)}), "
+                      f"코스닥 {(kosdaq or {}).get('value') or '—'} ({pct_text(q_chg)})입니다."),
+            "notes": [
+                f"코스피 고가 {(kospi or {}).get('high') or '—'} · 저가 {(kospi or {}).get('low') or '—'}",
+                f"거래대금 코스피 {turnover_text((kospi or {}).get('turnover_eok'))} · "
+                f"코스닥 {turnover_text((kosdaq or {}).get('turnover_eok'))}",
+                f"투자자별(코스피) 외국인 {eok_text(k_trend.get('foreign'))} · "
+                f"기관 {eok_text(k_trend.get('institution'))} · 개인 {eok_text(k_trend.get('individual'))}",
+            ],
+            "foot": f"{turned_at} 자동 갱신 기준",
+        }],
+        "note": "애프터장(NXT) 세부 테마별 수급은 정규장 마감 후 다음 갱신에서 채워집니다.",
+    }
+
+    return [pre, krx, aft], default_session
+
+
+# ---------------------------------------------------------------- 관찰 5선
+def build_watch_item(rank, info, quote, ind, why):
+    return {
+        "rank": rank,
+        "name": info.get("name") or quote.get("name"),
+        "ticker": info.get("code"),
+        "market": quote.get("market") or "",
+        "sector": GROUP_LABEL.get(group_key(info.get("name") or ""), "기타"),
+        "price": comma(quote.get("price")),
+        "turnover": info.get("turnover") or quote.get("turnover") or "—",
+        "turnoverRank": quote.get("turnoverRank") or "",
+        "chg": quote.get("chg"),
+        "prevClose": comma(quote.get("prevClose") or info.get("prevClose")),
+        "day": {
+            "open": quote.get("day", {}).get("open") or info.get("open"),
+            "high": quote.get("day", {}).get("high") or info.get("high"),
+            "low": quote.get("day", {}).get("low") or info.get("low"),
+            "close": quote.get("day", {}).get("close") or quote.get("price"),
+        },
+        "why": why,
+        "technical": technical_text(info.get("name"), info, ind, quote),
+    }
+
+
+# ---------------------------------------------------------------- 문맥(context)
+def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry):
+    k_chg = (kospi or {}).get("chg")
+    q_chg = (kosdaq or {}).get("chg")
+    k_trend = trends.get("KOSPI") or {}
+    top = industries[0] if industries else None
+    losers = [i for i in industries if i["chg"] < 0]
+    worst = min(losers, key=lambda x: x["chg"]) if losers else None
+    leaders = value_stocks[:3]
+
+    headline = (f"코스피 <em>{pct_text(k_chg)}</em> · 코스닥 <em>{pct_text(q_chg)}</em> — "
+                + (f"자금은 <em>{top['name']}</em>에 몰렸습니다." if top and top["chg"] > 0
+                   else "업종 전반이 약세입니다.") if k_chg is not None else "실시간 시세를 불러오지 못했습니다.")
+
+    reasons = []
+    reasons.append({
+        "title": f"지수 — 코스피 {(kospi or {}).get('value') or '—'} ({pct_text(k_chg)}), "
+                 f"코스닥 {(kosdaq or {}).get('value') or '—'} ({pct_text(q_chg)})",
+        "body": (f"코스피는 시가 {(kospi or {}).get('open') or '—'}로 출발, "
+                 f"고가 {(kospi or {}).get('high') or '—'} · 저가 {(kospi or {}).get('low') or '—'} 범위에서 "
+                 f"현재 {(kospi or {}).get('value') or '—'}입니다. "
+                 f"코스피는 외국인 {eok_text(k_trend.get('foreign'))}, 기관 {eok_text(k_trend.get('institution'))}, "
+                 f"개인 {eok_text(k_trend.get('individual'))} 순매수 구조입니다."),
+    })
+    if top:
+        reasons.append({
+            "title": f"{top['name']} {top['chg']:+.2f}% — 상승 업종 1위"
+                     + (f", {worst['name']} {worst['chg']:+.2f}%는 하위" if worst else ""),
+            "body": (f"{top['total']}종목 중 {top['rise']}종목이 올랐습니다. "
+                     + (f"반대로 {worst['name']}은 {worst['chg']:+.2f}%로 "
+                        f"{worst['total']}종목 중 {worst['fall']}종목이 내렸습니다. " if worst else "")
+                     + "업종 등락은 지수보다 테마 자금 흐름을 먼저 보여줍니다."),
+        })
+    if leaders:
+        names = ", ".join(f"{s.get('stockName')} {hangeul_turnover(s)}" for s in leaders)
+        reasons.append({
+            "title": "거래대금 집중 — " + ", ".join(s.get("stockName") or "" for s in leaders),
+            "body": (f"거래대금 상위는 {names} 순입니다. "
+                     f"코스피 거래대금은 {turnover_text((kospi or {}).get('turnover_eok'))}, "
+                     f"코스닥은 {turnover_text((kosdaq or {}).get('turnover_eok'))}입니다."),
+        })
+
+    ctx = {
+        "kicker": "오늘 달라진 이유",
+        "headline": headline,
+        "reasons": reasons,
+    }
+
+    if prev_entry:
+        p_idx = {i.get("name"): i for i in prev_entry.get("indices") or []}
+        p_k, p_q = p_idx.get("코스피"), p_idx.get("코스닥")
+        paras = []
+        if p_k:
+            paras.append(f"코스피는 {p_k.get('value')} ({pct_text(p_k.get('chg'))})로 마감했습니다."
+                         + (f" 코스닥은 {p_q.get('value')} ({pct_text(p_q.get('chg'))})." if p_q else ""))
+        p_flow = (prev_entry.get("flows") or [{}])[0]
+        if p_flow.get("caption"):
+            paras.append(f"직전 거래일 수급은 {p_flow.get('caption')}였습니다.")
+        ctx["prev"] = {
+            "tag": prev_entry.get("shortLabel") or prev_entry.get("date"),
+            "title": prev_entry.get("label") or "직전 거래일",
+            "paras": paras or [prev_entry.get("label") or ""],
+        }
+
+    checkpoints = []
+    if kospi:
+        checkpoints.append(f"코스피 오늘 저가 {(kospi or {}).get('low') or '—'} 지지 여부 — 이탈 시 다음 지지선 확인")
+        checkpoints.append(f"외국인 {eok_text(k_trend.get('foreign'))} · 기관 {eok_text(k_trend.get('institution'))} "
+                           f"매매가 순매수로 돌아서는지")
+    if top:
+        checkpoints.append(f"{top['name']} {top['chg']:+.2f}% 흐름이 오후까지 이어지는지(차익실현 여부)")
+    if leaders:
+        checkpoints.append(f"거래대금 1위 {leaders[0].get('stockName')} "
+                           f"({hangeul_turnover(leaders[0])})의 가격 흐름")
+    checkpoints.append("정규장 15:30 마감 후 NXT 애프터마켓(15:40~20:00) 수급")
+    ctx["next"] = {"tag": "체크포인트", "title": "오늘 남은 시간", "items": checkpoints}
+    return ctx
+
+
+def build_stages(now, date_str, default_session):
+    hm = now.strftime("%H:%M")
+    minutes = now.hour * 60 + now.minute
+    stages = [{
+        "time": hm,
+        "name": "실시간 자동 갱신",
+        "status": "done",
+        "statusShort": "완료",
+        "statusText": f"{date_str} {hm} 자동 갱신",
+    }]
+    if minutes < 15 * 60 + 30:
+        stages.append({"time": "15:30", "name": "정규장 마감", "status": "waiting",
+                       "statusShort": "대기", "statusText": "정규장 15:30 마감"})
+    else:
+        stages.append({"time": "15:30", "name": "정규장 마감", "status": "done",
+                       "statusShort": "완료", "statusText": "정규장 15:30 마감"})
+    stages.append({"time": "20:05", "name": "NXT 마감 요약", "status": "scheduled",
+                   "statusShort": "예정", "statusText": f"{date_str} 20:05 자동 갱신"})
+    return stages
+
+
+# ---------------------------------------------------------------- 항목 조립
+DEFAULT_DISCLAIMER = ("본 대시보드는 당일 거래대금·수급·재료 기반 객관적 관찰 정리이며, "
+                      "특정 종목 매수·투자 추천이 아닙니다.")
+
+
+def build_new_entry(now, kospi, kosdaq, trends, industries, industry_stocks,
+                    up_stocks, value_stocks, watch_quotes, prev_entry):
+    date_str = now.strftime("%Y-%m-%d")
+    stamp_hm, phase, default_session = time_bucket(now)
+    k_chg = (kospi or {}).get("chg")
+    sessions, default_session = build_sessions(
+        now, kospi, kosdaq, trends, industries, up_stocks, value_stocks,
+        industry_stocks, stamp_hm)
+
+    prev_date = None
+    for q in watch_quotes.values():
+        if q.get("prevDate"):
+            prev_date = q["prevDate"]
+            break
+    if prev_date:
+        indicator_basis = f"{prev_date[:4]}-{prev_date[4:6]}-{prev_date[6:]} 종가"
+    else:
+        indicator_basis = "직전 거래일 종가"
+
+    weekday = "월화수목금토일"[now.weekday()]
+    label = f"{date_str} ({weekday})"
+
+    watchlist = []
+    for i, q in enumerate(list(watch_quotes.values())[:5], start=1):
+        chg = q.get("chg")
+        why = (f"거래대금 {q.get('turnover')}으로 {q.get('turnoverRank') or '상위'}"
+               f" — 오늘 가장 많은 자금이 오간 종목입니다. 현재 {q.get('price') and comma(q['price'])}원 "
+               f"({pct_text(chg)}).")
+        watchlist.append(build_watch_item(i, {"name": q.get("name"), "code": q.get("code")}, q,
+                                          q.get("ind"), why))
+
+    return {
+        "date": date_str,
+        "updatedAt": now.isoformat(timespec="seconds"),
+        "defaultSession": default_session,
+        "label": label,
+        "shortLabel": now.strftime("%m/%d"),
+        "asOf": f"{date_str} {stamp_hm} {phase} 기준",
+        "stamp": f"{stamp_hm} {phase}",
+        "marketState": market_state(k_chg),
+        "priceBasis": f"{stamp_hm} {phase} 시세 기준",
+        "indicatorBasis": indicator_basis,
+        "rangeLabels": {"title": f"당일 {stamp_hm}까지 범위", "close": "현재가"},
+        "axis": ["08:00", "15:30", "20:00"],
+        "indices": build_indices(kospi, kosdaq, trends),
+        "flows": build_flows(trends),
+        "sessions": sessions,
+        "context": build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry),
+        "articles": [],
+        "stages": build_stages(now, date_str, default_session),
+        "watchlist": watchlist,
+        "disclaimer": DEFAULT_DISCLAIMER,
+    }
+
+
+def merge_entry(new, old):
+    """기존 날짜 항목의 서사는 보존하고 숫자만 새 값으로."""
+    out = {k: v for k, v in new.items() if not k.startswith("_")}
+    if not old:
+        return out
+    for key in ("label", "shortLabel", "defaultSession", "context", "articles",
+                "disclaimer", "rangeLabels", "axis", "stages"):
+        if key in old:
+            out[key] = old[key]
+
+    stamp_hm = (re.match(r"(\d{1,2}:\d{2})", str(new.get("stamp") or "")) or [None, None])[1]
+    if isinstance(out.get("rangeLabels"), dict) and stamp_hm:
+        labels = dict(out["rangeLabels"])
+        if labels.get("title"):
+            labels["title"] = _retime(labels["title"], stamp_hm)
+        out["rangeLabels"] = labels
+
+    # 지수: 이름으로 값만 갱신, 기존에만 있는 지수(수능일 시간표 등)는 유지
+    new_names = {ix.get("name") for ix in new.get("indices", [])}
+    merged = []
+    old_by_name = {ix.get("name"): ix for ix in old.get("indices") or []}
+    for ix in new.get("indices", []):
+        prev = old_by_name.get(ix.get("name"))
+        if not prev:
+            merged.append(ix)
+            continue
+        m = dict(prev)
+        m["value"] = ix["value"]
+        m["chg"] = ix["chg"]
+        if ix.get("sub"):
+            m["sub"] = ix["sub"]
+        if not m.get("note"):
+            m["note"] = ix.get("note", "")
+        merged.append(m)
+    for ix in old.get("indices") or []:
+        if ix.get("name") not in new_names:
+            merged.append(ix)
+    out["indices"] = merged
+
+    # 세션: 카드 서사 유지, 순위표·기준시각·수급만 갱신
+    old_sessions = {s.get("key"): s for s in old.get("sessions") or []}
+    sessions = []
+    for s in new.get("sessions", []):
+        prev = old_sessions.get(s.get("key"))
+        if not prev:
+            sessions.append(s)
+            continue
+        m = dict(prev)
+        # 정규장 세션만 기준시각·순위표를 실시간으로 교체 (장전·애프터장 서사는 유지)
+        if s.get("key") == "krx":
+            for key in ("strip", "up", "value"):
+                if s.get(key):
+                    m[key] = s[key]
+        elif not m.get("up") and s.get("up"):
+            m["up"] = s["up"]
+            m["value"] = s.get("value")
+        cards = []
+        for card in m.get("cards") or []:
+            card = dict(card)
+            metric = (new.get("_industry_metric") or {}).get(_card_key(card.get("name")))
+            if metric:
+                card["cmain"] = f"{metric['chg']:+.2f}%"
+                card["metric_chg"] = metric["chg"]
+                if re.match(r"^\d+\s*종목", str(card.get("csub") or "")):
+                    card["csub"] = f"{metric['rise']}종목 상승"
+            if card.get("stocks"):
+                updated = []
+                for stock in card["stocks"]:
+                    live = (new.get("_prices", {}).get(str(stock.get("ticker")))
+                            if stock.get("ticker") else None) \
+                        or new.get("_prices", {}).get(stock.get("name"))
+                    if live:
+                        stock = dict(stock)
+                        stock["price"] = live.get("price_text") or stock.get("price")
+                        if live.get("chg") is not None:
+                            stock["chg"] = live["chg"]
+                        if live.get("turnover"):
+                            stock["turnover"] = live["turnover"]
+                    updated.append(stock)
+                card["stocks"] = updated
+                if card.get("metric_chg") is not None and card.get("foot"):
+                    card["foot"] = re.sub(r"(업종\s*)[+-]?\d+\.\d+%",
+                                          lambda m: f"{m.group(1)}{card['metric_chg']:+.2f}%",
+                                          card["foot"])
+                    card.pop("metric_chg", None)
+                if stamp_hm and card.get("foot"):
+                    card["foot"] = _retime(card["foot"], stamp_hm)
+            cards.append(card)
+        if cards:
+            m["cards"] = cards
+        sessions.append(m)
+    out["sessions"] = sessions
+
+    # 관찰 5선: 가격·지표 갱신, 선정 이유·섹터 서사 유지
+    live_watch = {w.get("ticker"): w for w in new.get("watchlist") or []}
+    merged_watch = []
+    for item in old.get("watchlist") or []:
+        fresh = live_watch.get(item.get("ticker"))
+        if not fresh:
+            merged_watch.append(item)
+            continue
+        m = dict(item)
+        for key in ("price", "chg", "prevClose", "day", "turnover", "rank"):
+            if fresh.get(key) not in (None, "", "—"):
+                m[key] = fresh[key]
+        tech = dict(item.get("technical") or {})
+        if fresh.get("technical"):
+            tech["signals"] = fresh["technical"].get("signals") or tech.get("signals", [])
+            for key in ("trend", "support", "resistance", "checkpoint"):
+                if not tech.get(key):
+                    tech[key] = fresh["technical"].get(key, "")
+            # 거래량·캔들 흐름만은 순수 수치 요약이라 실시간 값으로 매번 교체
+            if fresh["technical"].get("volumeFlow"):
+                tech["volumeFlow"] = fresh["technical"]["volumeFlow"]
+        m["technical"] = tech
+        merged_watch.append(m)
+    # 기존 목록에 없던 신규 종목은 뒤에 붙임
+    used = {w.get("ticker") for w in merged_watch}
+    for w in new.get("watchlist") or []:
+        if w.get("ticker") not in used:
+            merged_watch.append(w)
+    out["watchlist"] = merged_watch[:5]
+    return out
+
+
+# ---------------------------------------------------------------- 메인
+DYNAMIC_KEYS = ("updatedAt", "stamp", "asOf", "priceBasis", "rangeLabels")
+
+
+def _without_dynamic(entry):
+    """시각 표기만 다른지 비교하기 위한 사본."""
+    clone = json.loads(json.dumps(entry, ensure_ascii=False))
+    for key in DYNAMIC_KEYS:
+        clone.pop(key, None)
+    return clone
+
+
+def main(argv):
+    force = "--force" in argv
+    now = datetime.now(KST)
+    date_str = now.strftime("%Y-%m-%d")
+    log(f"[update_market] {now.strftime('%Y-%m-%d %H:%M:%S')} KST · force={force}")
+
+    if now.weekday() >= 5 and not force:
+        log("  · 주말 — 갱신하지 않습니다.")
+        return 0
+
+    minutes = now.hour * 60 + now.minute
+    if not force and not (8 * 60 <= minutes <= 21 * 60):
+        log("  · 국내 거래시간(08:00~21:00 KST) 밖 — 갱신하지 않습니다.")
+        return 0
+
+    started = time.time()
+
+    # 1) 지수·수급
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        f_kospi = pool.submit(fetch_index, "KOSPI")
+        f_kosdaq = pool.submit(fetch_index, "KOSDAQ")
+        f_t_kospi = pool.submit(fetch_trend, "KOSPI")
+        f_t_kosdaq = pool.submit(fetch_trend, "KOSDAQ")
+        f_ind = pool.submit(fetch_industries)
+        kospi, kosdaq = f_kospi.result(), f_kosdaq.result()
+        trends = {"KOSPI": f_t_kospi.result(), "KOSDAQ": f_t_kosdaq.result()}
+        industries = f_ind.result()
+
+    if not kospi and not kosdaq:
+        log("  · 지수 데이터를 받지 못했습니다. 갱신 중단(다음 실행에서 재시도).")
+        return 1
+
+    traded_at = (kospi or kosdaq or {}).get("traded_at") or ""
+    if not force and not traded_at.startswith(date_str):
+        log(f"  · 오늘({date_str}) 거래 데이터가 아직 없습니다(휴장일이거나 개장 전). "
+            f"마지막 거래 {traded_at[:16]} — 갱신하지 않습니다.")
+        return 0
+
+    # 2) 종목 유니버스 + 순위
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        f_mv = [pool.submit(fetch_market_values, m) for m in ("KOSPI", "KOSDAQ")]
+        f_up = {m: pool.submit(fetch_rank, "up", m, 40) for m in ("KOSPI", "KOSDAQ")}
+        f_down = {m: pool.submit(fetch_rank, "down", m, 30) for m in ("KOSPI", "KOSDAQ")}
+        f_industry_stocks = {}
+        for ind in (industries or [])[:2]:
+            f_industry_stocks[ind["no"]] = pool.submit(fetch_industry_stocks, ind["no"])
+        universe = []
+        for f in f_mv:
+            universe.extend(f.result() or [])
+        up_all = []
+        for m, f in f_up.items():
+            up_all.extend(f.result() or [])
+        for m, f in f_down.items():
+            universe.extend(f.result() or [])
+        industry_stocks = {no: (f.result() or []) for no, f in f_industry_stocks.items()}
+
+    quotes = {}
+    for stock in universe:
+        code = stock.get("itemCode")
+        if not code or code in quotes:
+            continue
+        quotes[code] = stock
+    stocks_only = [s for s in quotes.values()
+                   if s.get("stockEndType") == "stock" and not is_etf(s.get("stockName") or "")]
+    value_sorted = sorted(stocks_only,
+                          key=lambda s: to_int(s.get("accumulatedTradingValueRaw")) or 0,
+                          reverse=True)
+    up_sorted = [s for s in up_all if s.get("stockEndType") == "stock" and not is_etf(s.get("stockName") or "")]
+
+    # 3) 기존 data.json
+    old_data = []
+    if DATA_PATH.exists():
+        try:
+            loaded = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                old_data = loaded
+        except Exception as exc:            # noqa: BLE001
+            warn(f"기존 data.json 파싱 실패({type(exc).__name__}) — 새로 작성합니다.")
+    old_entry = next((d for d in old_data if d.get("date") == date_str), None)
+    prev_entry = next((d for d in old_data if str(d.get("date")) < date_str), None)
+
+    # 4) 관찰 5선 대상: 기존 항목의 티커 유지, 없으면 거래대금 상위
+    targets = []
+    if old_entry and old_entry.get("watchlist"):
+        for w in old_entry["watchlist"]:
+            if w.get("ticker"):
+                targets.append((w["ticker"], w.get("name"), w.get("rank")))
+    if len(targets) < 5:
+        known = {t[0] for t in targets}
+        for s in value_sorted:
+            if s.get("itemCode") in known:
+                continue
+            targets.append((s["itemCode"], s.get("stockName"), len(targets) + 1))
+            if len(targets) >= 5:
+                break
+
+    # 5) 관찰 종목 + 카드 종목 시세 (폴링 실시간 배치) + 관찰 종목 일봉
+    card_codes, old_card_names = [], set()
+    if old_entry:
+        for sess in old_entry.get("sessions") or []:
+            for card in sess.get("cards") or []:
+                for st in card.get("stocks") or []:
+                    if st.get("ticker"):
+                        card_codes.append(str(st["ticker"]))
+                    elif st.get("name"):
+                        old_card_names.add(st["name"])
+
+    code_to_name = {s.get("itemCode"): s.get("stockName")
+                    for s in quotes.values() if s.get("stockName") and s.get("itemCode")}
+    for name in old_card_names:
+        for code, stock_name in code_to_name.items():
+            if stock_name == name:
+                card_codes.append(code)
+                break
+
+    target_codes = [code for code, _, _ in targets]
+    all_codes = list(dict.fromkeys(target_codes + card_codes))
+    realtime = fetch_realtime_stocks(all_codes) if all_codes else {}
+
+    watch_quotes = {}
+    price_map = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        f_chart = {code: pool.submit(fetch_chart, code) for code, _, _ in targets}
+        for code, name, rank in targets:
+            live = realtime.get(code) or {}
+            stock = quotes.get(code) or {}
+            rows = f_chart[code].result() or []
+            price = live.get("price") or to_int(stock.get("closePriceRaw"))
+            chg = live.get("chg")
+            if chg is None:
+                chg = to_float(stock.get("fluctuationsRatio"))
+            day = {}
+            if live.get("open"):
+                day = {"open": live.get("open"), "high": live.get("high") or live.get("open"),
+                       "low": live.get("low") or live.get("open"), "close": price}
+            elif rows:
+                last = rows[-1]
+                day = {"open": last["o"], "high": last["h"], "low": last["l"], "close": price or last["c"]}
+            ind = indicators(rows, now.strftime("%Y%m%d")) if rows else None
+            rank_no = None
+            for i, s in enumerate(value_sorted, start=1):
+                if s.get("itemCode") == code:
+                    rank_no = i
+                    break
+            turnover = (turnover_text(live.get("value_eok")) if live.get("value_eok")
+                        else (hangeul_turnover(stock) if stock else "—"))
+            watch_quotes[code] = {
+                "code": code,
+                "name": live.get("name") or name or stock.get("stockName"),
+                "market": live.get("market") or ("KOSPI" if str(stock.get("sosok")) == "0" else "KOSDAQ"),
+                "price": price,
+                "price_text": comma(price),
+                "chg": round(chg, 2) if chg is not None else None,
+                "prevClose": live.get("prevClose") or (rows[-2]["c"] if rows and len(rows) > 1 else None),
+                "day": day,
+                "volume": live.get("volume") or (rows[-1]["v"] if rows else None),
+                "turnover": turnover,
+                "turnoverRank": f"전체 {rank_no}위" if rank_no and rank_no <= 20 else "",
+                "ind": ind,
+                "prevDate": ind.get("prevDate") if ind else None,
+                "rank": rank,
+            }
+
+    # 카드 속 종목 시세도 같은 실시간 배치에서 (티커 우선, 없으면 이름 매칭)
+    for code in card_codes:
+        live = realtime.get(code)
+        if not live:
+            continue
+        price_map[code] = {
+            "price_text": comma(live.get("price")),
+            "chg": round(live["chg"], 2) if live.get("chg") is not None else None,
+            "turnover": turnover_text(live.get("value_eok")) if live.get("value_eok") else None,
+        }
+        if live.get("name"):
+            price_map[live["name"]] = price_map[code]
+
+    # 6) 새 항목 작성
+    new_entry = build_new_entry(now, kospi, kosdaq, trends, industries, industry_stocks,
+                                up_sorted, value_sorted, watch_quotes, prev_entry)
+    industry_metric = {}
+    for ind in industries or []:
+        industry_metric.setdefault(_card_key(ind["name"]),
+                                   {"chg": ind["chg"], "rise": ind["rise"], "fall": ind["fall"]})
+    new_entry["_prices"] = price_map
+    new_entry["_industry_metric"] = industry_metric
+    entry = merge_entry(new_entry, old_entry)
+    entry.pop("_prices", None)
+    entry.pop("_industry_metric", None)
+    entry["updatedAt"] = now.isoformat(timespec="seconds")
+
+    # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
+    if old_entry and _without_dynamic(entry) == _without_dynamic(old_entry):
+        log("  · 시세가 그대로 — data.json 변경 없음.")
+        return 0
+    by_date = {d.get("date"): d for d in old_data if d.get("date")}
+    by_date[date_str] = entry
+    data = [by_date[k] for k in sorted(by_date, reverse=True)][:MAX_DATES]
+
+    text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
+    if text == previous:
+        log("  · 변경 없음 — data.json 그대로 둡니다.")
+        return 0
+    DATA_PATH.write_text(text, encoding="utf-8")
+
+    elapsed = time.time() - started
+    log(f"  · data.json 갱신 완료 ({len(data)}개 날짜, {len(text) / 1024:.1f}KB, {elapsed:.1f}초)")
+    log(f"    코스피 {(kospi or {}).get('value')} ({pct_text((kospi or {}).get('chg'))}) · "
+        f"코스닥 {(kosdaq or {}).get('value')} ({pct_text((kosdaq or {}).get('chg'))})")
+    if industries:
+        log("    상승 업종: " + ", ".join(f"{i['name']} {i['chg']:+.2f}%" for i in industries[:3]))
+    log("    관찰 5선: " + ", ".join(f"{w['name']} {w['price']}" for w in entry.get("watchlist", [])))
+    if WARNINGS:
+        log(f"    경고 {len(WARNINGS)}건(위 목록) — 해당 부분은 이전 값 또는 대체 값으로 채웠습니다.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -2724,6 +2724,68 @@ const REPORT_DATA = [
     });
   }
 
+  /* ---------------- data.json 실시간 갱신 ----------------
+     · http(s)로 열면 ./data.json 을 캐시 없이 받아 내장 REPORT_DATA 를 교체한다.
+     · file:// 이거나 받지 못하면 내장 데이터 그대로 동작한다.
+     ---------------------------------------------------------- */
+  const LIVE_FIELDS = ["date", "sessions", "indices"];
+
+  function looksLikeReport(r) {
+    return r && typeof r === "object" && typeof r.date === "string" &&
+      Array.isArray(r.sessions) && r.sessions.length > 0;
+  }
+
+  async function loadLiveData() {
+    if (!location.protocol.startsWith("http")) return false;
+    let res;
+    try {
+      res = await fetch("./data.json?_v=" + Date.now(), { cache: "no-store" });
+    } catch (e) {
+      return false;
+    }
+    if (!res || !res.ok) return false;
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      return false;
+    }
+    if (!Array.isArray(data)) return false;
+
+    const valid = data
+      .filter(looksLikeReport)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    if (!valid.length) return false;
+
+    /* 내장 데이터가 더 최신이면(예: 배포 지연) 덮어쓰지 않는다 */
+    const newestBefore = REPORT_DATA.length ? REPORT_DATA[0].date : null;
+    if (newestBefore && valid[0].date < newestBefore) return false;
+
+    const onNewest = !activeDate || activeDate === newestBefore;
+    REPORT_DATA.length = 0;
+    valid.forEach((r) => REPORT_DATA.push(r));
+
+    const keep = REPORT_DATA.some((r) => r.date === activeDate);
+    if (onNewest || !keep) {
+      activeDate = REPORT_DATA[0].date;
+      activeSession = REPORT_DATA[0].defaultSession || activeSession;
+    }
+    return true;
+  }
+
+  async function liveRefresh(options) {
+    const quiet = !!(options && options.quiet);
+    const started = Date.now();
+    const ok = await loadLiveData();
+    if (ok) render();
+    if (!quiet) {
+      /* 스피너가 깜빡이지 않도록 최소 노출 시간 */
+      const wait = Math.max(0, 240 - (Date.now() - started));
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+    }
+    return ok;
+  }
+
   /* ---------------- 상단 새로고침 ---------------- */
   function wireRefresh() {
     const btn = $("#btn-refresh");
@@ -2739,19 +2801,26 @@ const REPORT_DATA = [
     } catch (e) { /* file:// 등에서는 무시 */ }
 
     let busy = false;
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       if (busy) return;
       busy = true;
       btn.classList.add("is-spinning");
       btn.setAttribute("aria-busy", "true");
-      /* 회전 피드백을 한 박자 보여준 뒤 새로고침 */
-      setTimeout(reloadFresh, 240);
-      /* 로딩이 막혀도 버튼이 잠긴 채로 남지 않게 */
-      setTimeout(() => {
-        busy = false;
-        btn.classList.remove("is-spinning");
-        btn.removeAttribute("aria-busy");
-      }, 2600);
+      /* data.json 만 다시 받아 화면을 갈아끼운다 (페이지 전체 재로딩 없음) */
+      let ok = false;
+      try {
+        ok = await liveRefresh();
+      } catch (e) {
+        ok = false;
+      }
+      if (!ok) {
+        /* data.json 이 없거나(내장 데이터만 배포) 실패한 경우엔 기존 방식 */
+        reloadFresh();
+        return;
+      }
+      busy = false;
+      btn.classList.remove("is-spinning");
+      btn.removeAttribute("aria-busy");
     });
   }
 
@@ -2790,7 +2859,10 @@ const REPORT_DATA = [
   function renderArticles(report) {
     const box = $("#articleList");
     box.innerHTML = "";
-    (report.articles || []).forEach((a) => {
+    const articleSec = box.closest("section");
+    const articles = report.articles || [];
+    if (articleSec) articleSec.hidden = articles.length === 0;
+    articles.forEach((a) => {
       const link = el("a", "article");
       link.href = a.url;
       link.target = "_blank";
@@ -2845,10 +2917,16 @@ const REPORT_DATA = [
   wireTechnicalDialog();
   wireRefresh();
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", render);
-  } else {
+  function start() {
     render();
+    /* 첫 화면은 내장 데이터로 즉시 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
+    if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();
 </script>
