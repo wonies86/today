@@ -1,0 +1,55 @@
+name: 시세 자동 갱신
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/15 23 * * 0-4"
+    - cron: "*/15 0-11 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-market
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 파이썬 버전 확인
+        run: python3 --version
+
+      - name: data.json 갱신
+        env:
+          TZ: Asia/Seoul
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 scripts/update_market.py --force
+          else
+            python3 scripts/update_market.py
+          fi
+
+      - name: 변경분 커밋·푸시
+        run: |
+          if [ -z "$(git status --porcelain data.json)" ]; then
+            echo "변경 없음 — 커밋하지 않습니다."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          STAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')
+          git add data.json
+          git commit -m "data: 시세 자동 갱신 ${STAMP} KST"
+          for i in 1 2 3; do
+            git push && break
+            echo "푸시 재시도 $i"
+            git pull --rebase --autostash || true
+            sleep 3
+          done
