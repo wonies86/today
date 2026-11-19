@@ -939,11 +939,74 @@ def _rot_stocks(rows):
     } for r in rows[:ROT_MAX_STOCKS]]
 
 
-def build_rotation(value_stocks):
+def _rotation_macro(kospi, kosdaq, trends, industries):
+    """'큰 판의 배경' — 지수·수급·업종 실데이터만으로 한 상자를 만든다.
+
+    뉴욕·달러처럼 이 스크립트가 받아오지 않는 값은 넣지 않는다(확인된 값만).
+    """
+    facts = []
+    k = kospi or {}
+    q = kosdaq or {}
+    if k.get("value") or q.get("value"):
+        facts.append({
+            "k": "지수",
+            "v": (f"코스피 {k.get('value') or '—'} ({pct_text(k.get('chg'))}) · "
+                  f"코스닥 {q.get('value') or '—'} ({pct_text(q.get('chg'))})"),
+        })
+    k_trend = (trends or {}).get("KOSPI") or {}
+    q_trend = (trends or {}).get("KOSDAQ") or {}
+    if k_trend:
+        line = (f"코스피 외국인 {eok_text(k_trend.get('foreign'))} · "
+                f"기관 {eok_text(k_trend.get('institution'))} · "
+                f"개인 {eok_text(k_trend.get('individual'))}")
+        if q_trend.get("foreign") is not None:
+            line += f" / 코스닥 외국인 {eok_text(q_trend.get('foreign'))}"
+        facts.append({"k": "수급", "v": line})
+    if industries:
+        best = industries[0]
+        losers = [i for i in industries if i["chg"] < 0]
+        worst = min(losers, key=lambda x: x["chg"]) if losers else None
+        facts.append({
+            "k": "업종",
+            "v": (f"상승 1위 {INDUSTRY_SHORT.get(best['name'], best['name'])} {best['chg']:+.2f}%"
+                  + (f" · 하위 {INDUSTRY_SHORT.get(worst['name'], worst['name'])} {worst['chg']:+.2f}%"
+                     if worst else "")),
+        })
+    if not facts:
+        return None
+    title = (f"{INDUSTRY_SHORT.get(industries[0]['name'], industries[0]['name'])}로 쏠린 자금 — "
+             "지수와 따로 움직이는 하루"
+             if industries else "지수·수급으로 보는 오늘의 배경")
+    return {"label": "큰 판의 배경", "title": title, "facts": facts}
+
+
+def _rotation_risk(kospi, kosdaq, trends, sessions=None):
+    """'체크 변수' — 시간표와 수급 리스크를 오늘 데이터로 채운다."""
+    items = []
+    k = kospi or {}
+    k_trend = (trends or {}).get("KOSPI") or {}
+    if k.get("low"):
+        items.append(f"코스피 오늘 저가 {k.get('low')} 지지 여부 — 이탈하면 다음 지지선 확인")
+    if k_trend.get("foreign") is not None:
+        items.append(f"외국인 코스피 {eok_text(k_trend.get('foreign'))} 순매도가 줄어드는지")
+    krx = next((s for s in sessions or [] if s.get("key") == "krx"), None)
+    aft = next((s for s in sessions or [] if s.get("key") == "aft"), None)
+    if krx and krx.get("window"):
+        tail = f" → 애프터마켓 {aft['window']}" if aft and aft.get("window") else ""
+        items.append(f"정규장 {krx['window']} 마감{tail}까지 수급이 유지되는지")
+    else:
+        items.append("정규장 마감 후 NXT 애프터마켓까지 수급이 이어지는지")
+    return {"label": "체크 변수", "title": "시간표와 수급 리스크", "items": items}
+
+
+def build_rotation(value_stocks, kospi=None, kosdaq=None, trends=None,
+                   industries=None, sessions=None):
     """거래대금 상위권에서 2종목 이상이 함께 오간 섹터로 수급 순환(A→B·C)을 만든다.
 
-    · A = 오늘 가장 많은 자금이 몰린 섹터(거래대금 합계 1위)
-    · B·C = 상위 ROT_WINDOW위 안에 2종목 이상이 있는 다른 섹터, 평균 등락 높은 순
+    · macro     = 큰 판의 배경(지수·수급·업종 실데이터)
+    · A         = 오늘 가장 많은 자금이 몰린 섹터(거래대금 합계 1위)
+    · B·C       = 상위 ROT_WINDOW위 안에 2종목 이상이 있는 다른 섹터, 평균 등락 높은 순
+    · riskCheck = 시간표·수급 리스크
     · 확인되지 않은 재료·수치는 쓰지 않는다(거래대금·등락률만).
     """
     rows = [r for r in _ranked_values(value_stocks) if r["rank"] <= ROT_WINDOW]
@@ -966,7 +1029,8 @@ def build_rotation(value_stocks):
         a_trigger = (f"섹터 평균이 이미 {a_avg:+.2f}%로 밀렸습니다. 대표 종목이 전일 종가를 "
                      "회복하지 못하면 자금이 B·C 쪽으로 옮겨가는 흐름이 이어집니다.")
     rot = {
-        "title": "A 빠지면 볼 B·C",
+        "title": "수급 순환 시나리오",
+        "tagline": "큰 판 → A → B·C",
         "a": {
             "label": "A",
             "sector": GROUP_LABEL.get(a_key, a_key),
@@ -996,12 +1060,25 @@ def build_rotation(value_stocks):
             "trigger": ("섹터 평균 등락이 플러스로 유지될 때 후보로 봅니다." if avg >= 0
                         else "낙폭과대 반등 후보 — 대표 종목이 전일 종가를 회복할 때 유효합니다."),
         })
+    macro = _rotation_macro(kospi, kosdaq, trends, industries)
+    if macro:
+        rot["macro"] = macro
+    risk = _rotation_risk(kospi, kosdaq, trends, sessions)
+    if risk:
+        rot["riskCheck"] = risk
     return rot
 
 
 def _refresh_rotation(rot, ranks):
-    """수급 순환 시나리오의 서사는 두고 종목 숫자(현재가 등락·거래대금·순위)만 갱신한다."""
+    """수급 순환 시나리오의 서사는 두고 종목 숫자(현재가 등락·거래대금·순위)만 갱신한다.
+
+    · 통째로 복제한 뒤 stocks 의 숫자만 바꾸므로 macro·riskCheck·title·tagline·note 는
+      손대지 않고 그대로 보존된다(아래에서 한 번 더 명시적으로 보장).
+    """
     clone = json.loads(json.dumps(rot, ensure_ascii=False))
+    for key in ("title", "tagline", "macro", "riskCheck", "note"):
+        if key in rot and key not in clone:
+            clone[key] = json.loads(json.dumps(rot[key], ensure_ascii=False))
     blocks = [clone.get("a") or {}] + [c for c in clone.get("candidates") or [] if isinstance(c, dict)]
     for block in blocks:
         for st in block.get("stocks") or []:
@@ -1018,7 +1095,8 @@ def _refresh_rotation(rot, ranks):
 
 
 # ---------------------------------------------------------------- 문맥(context)
-def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry):
+def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry,
+                  sessions=None):
     k_chg = (kospi or {}).get("chg")
     q_chg = (kosdaq or {}).get("chg")
     k_trend = trends.get("KOSPI") or {}
@@ -1091,9 +1169,14 @@ def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_ent
     if leaders:
         checkpoints.append(f"거래대금 1위 {leaders[0].get('stockName')} "
                            f"({hangeul_turnover(leaders[0])})의 가격 흐름")
-    checkpoints.append("정규장 15:30 마감 후 NXT 애프터마켓(15:40~20:00) 수급")
+    krx_s = next((s for s in sessions or [] if s.get("key") == "krx"), None)
+    aft_s = next((s for s in sessions or [] if s.get("key") == "aft"), None)
+    if krx_s and aft_s and krx_s.get("window") and aft_s.get("window"):
+        checkpoints.append(f"정규장 {krx_s['window']} 마감 후 NXT 애프터마켓({aft_s['window']}) 수급")
+    else:
+        checkpoints.append("정규장 15:30 마감 후 NXT 애프터마켓(15:40~20:00) 수급")
     ctx["next"] = {"tag": "체크포인트", "title": "오늘 남은 시간", "items": checkpoints}
-    rotation = build_rotation(value_stocks)
+    rotation = build_rotation(value_stocks, kospi, kosdaq, trends, industries, sessions)
     if rotation:
         ctx["rotation"] = rotation
     return ctx
@@ -1172,7 +1255,8 @@ def build_new_entry(now, kospi, kosdaq, trends, industries, industry_stocks,
         "indices": build_indices(kospi, kosdaq, trends),
         "flows": build_flows(trends),
         "sessions": sessions,
-        "context": build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry),
+        "context": build_context(now, kospi, kosdaq, trends, industries, value_stocks,
+                                 prev_entry, sessions),
         "_value_ranks": {r["name"]: r for r in _ranked_values(value_stocks)[:ROT_RANK_MAP]},
         "articles": [],
         "stages": build_stages(now, date_str, default_session),
