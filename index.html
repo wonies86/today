@@ -4338,7 +4338,8 @@ const REPORT_DATA = [
      · 접기/펼치기 상태는 화면을 다시 그려도 유지한다.
      ============================================================ */
   const TONES = { down: 1, up: 1, info: 1 };
-  let issueOpen = true;
+  /* null = 자동 (좁은 화면은 접힌 채, 넓은 화면은 펼친 채) — 사용자가 직접 접거나 펴면 그 값을 따른다 */
+  let issueOpen = null;
 
   const hasIssue = (it) => !!it && typeof it === "object" &&
     !!(it.title || (it.reasons && it.reasons.length) || (it.facts && it.facts.length));
@@ -4381,7 +4382,8 @@ const REPORT_DATA = [
       '<a href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' +
       esc(l.label || "원문") + "</a>").join(" · ");
 
-    let h = '<details class="issue" data-tone="' + tone + '"' + (issueOpen ? " open" : "") + ">" +
+    let h = '<details class="issue" data-tone="' + tone + '"' +
+      ((issueOpen === null ? window.innerWidth >= 640 : issueOpen) ? " open" : "") + ">" +
       '<summary class="issue-sum">' +
         '<span class="issue-top">' +
           '<span class="issue-badge">' + esc(it.badge || "시장 이슈") + "</span>" +
