@@ -5730,14 +5730,16 @@ const REPORT_DATA = [
 
   function qaNoneHTML(report, q) {
     const names = (QA_STATE.quickLabels || []).slice(0, 5);
+    const allCount = (report.allStocks || []).length;
     return '<div class="qa-card qa-miss">' +
       '<div class="qa-top"><div class="qa-id">' +
         '<span class="qa-name">"' + esc(q) + '"</span>' +
         '<span class="qa-sub">오늘 data.json에 없음 · ' + esc(qaTimeLabel(report)) + " 기준</span>" +
       "</div></div>" +
       '<p class="qa-miss-t">오늘 시세 데이터(data.json)엔 없어요 — 실시간 뉴스·공시 확인이 필요합니다</p>' +
-      '<p class="qa-p" style="margin-top:6px">오늘 data.json의 상위 수급 종목·섹터 카드와 전 종목 시세 인덱스(' +
-        (report.allStocks || []).length + '종목) 어디에도 없는 이름이라, 숫자를 추측하지 않습니다. 아래 질문을 그대로 보내면 실시간으로 확인해요.</p>' +
+      '<p class="qa-p" style="margin-top:6px">오늘 data.json의 상위 수급 종목·섹터 카드' +
+        (allCount ? "와 전 종목 시세 인덱스(" + allCount + "종목)" : "") +
+        " 어디에도 없는 이름이라, 숫자를 추측하지 않습니다. 아래 질문을 그대로 보내면 실시간으로 확인해요.</p>" +
       (names.length
         ? '<span class="qa-k">오늘 데이터에 있는 종목</span><div class="qa-tags">' +
           names.map((n) => '<button type="button" class="qa-tag" data-qa-q="' + esc(n) + '">' + esc(n) + "</button>").join("") +
