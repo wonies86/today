@@ -1685,6 +1685,8 @@
 }
 #viewSimple .qa-tag.role, #viewDetail .qa-tag.role{border-color:#ffe0e8;background:#fff1f5;color:#be123c}
 #viewSimple .qa-tag.warn, #viewDetail .qa-tag.warn{border-color:#f6e0b8;background:#fff6e8;color:#b45309}
+#viewSimple .qa-tag.src, #viewDetail .qa-tag.src{border-color:#d5e3ff;background:#eef4ff;color:#1d4ed8}
+#viewSimple .qa-tag.plain, #viewDetail .qa-tag.plain{border-color:#e5e9f0;background:#f7f8fb;color:#5a657a}
 #viewSimple button.qa-tag, #viewDetail button.qa-tag{cursor:pointer;font-family:inherit}
 
 #viewSimple .qa-stats, #viewDetail .qa-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}
@@ -5324,6 +5326,16 @@ const REPORT_DATA = [
     return m[2] === "조" ? n * 10000 : n;
   }
 
+  /* 억 원 숫자 → "7,866억" / "4.0조" (update_market.py turnover_text와 같은 규칙) */
+  function qaTurnoverText(eok) {
+    if (eok == null || isNaN(Number(eok))) return "";
+    const v = Number(eok);
+    if (v >= 10000) return (v / 10000).toFixed(1) + "조";
+    if (v >= 1000) return Math.round(v).toLocaleString("ko-KR") + "억";
+    if (v >= 10) return Math.round(v) + "억";
+    return v.toFixed(1) + "억";
+  }
+
   /* "한한령 · 엔터·레저·화장품" → ["한한령","엔터","레저","화장품"] */
   function qaTokens(s) {
     return String(s == null ? "" : s).replace(/[·,\/()\[\]{}]/g, " ").split(/\s+/)
@@ -5432,6 +5444,22 @@ const REPORT_DATA = [
           { name: x.name, ticker: x.ticker, price: x.price, chg: x.chg, turnover: x.turnover },
           2, card.name, qaStripTags(card.issue), null));
       });
+    });
+
+    /* 4) 전 종목 시세 인덱스(allStocks) — 상위 50·카드에 없는 종목도 검증된 숫자로 찾는다 */
+    (report.allStocks || []).forEach((row) => {
+      if (!row || !row[1]) return;
+      const name = String(row[1]).trim();
+      const sector = String(row[6] || "").trim();
+      const s = addStock({
+        name: name,
+        ticker: String(row[0] || ""),
+        market: String(row[2] || ""),
+        price: row[3] == null ? "" : Number(row[3]).toLocaleString("ko-KR"),
+        chg: row[4] == null ? null : Number(row[4]),
+        turnover: qaTurnoverText(row[5])
+      }, 0, "", "", null);
+      if (s && s.prio === 0) { s.src = "all"; if (sector) s.sectorText = sector; }
     });
 
     stocks.forEach((s) => { s.tokens = qaTokens(s.name); });
@@ -5593,6 +5621,43 @@ const REPORT_DATA = [
     return h;
   }
 
+  /* 전 종목 시세 인덱스에서 찾은 종목 — data.json 기록값만 보여주는 검증 카드 */
+  function qaIndexStockHTML(report, s, otherStocks) {
+    const price = s.price ? (String(s.price).slice(-1) === "원" ? s.price : s.price + "원") : "—";
+    const sub = [s.ticker, s.market].filter(Boolean).join(" · ");
+    const sector = s.sectorText || "—";
+
+    let h = '<div class="qa-card">' +
+      '<div class="qa-top"><div class="qa-id">' +
+        '<span class="qa-name">' + esc(s.name) + "</span>" +
+        (sub ? '<span class="qa-sub">' + esc(sub) + "</span>" : "") +
+      "</div>" +
+      '<div class="qa-num">' +
+        (price ? '<span class="qa-px">' + esc(price) + "</span>" : "") +
+        '<span class="qa-pct ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
+      "</div></div>" +
+      '<div class="qa-tags"><span class="qa-tag src">전 종목 시세 인덱스(data.json)</span></div>' +
+      '<div class="qa-stats">' +
+        '<div class="qa-stat"><i>거래대금</i><b>' + esc(s.turnover || "—") + "</b></div>" +
+        '<div class="qa-stat"><i>업종</i><b>' + esc(sector) + "</b></div>" +
+        '<div class="qa-stat"><i>시세 기준</i><b>' + esc(report.stamp || "—") + "</b></div>" +
+      "</div>" +
+      '<p class="qa-p" style="margin-top:8px">상위 수급 카드에는 없지만, data.json 전 종목 시세 인덱스에서 찾은 종목입니다. ' +
+        "현재가·등락률·거래대금·업종은 아래 시각 기준 기록값 그대로입니다.</p>";
+
+    h += qaAskHTML(report, s.name, "stock");
+
+    if (otherStocks && otherStocks.length) {
+      h += '<span class="qa-k">비슷한 이름</span><div class="qa-tags">' +
+        otherStocks.map((x) => '<button type="button" class="qa-tag" data-qa-q="' + esc(x.name) + '">' +
+          esc(x.name) + " " + sPct(x.chg) + "</button>").join("") + "</div>";
+    }
+
+    h += '<p class="qa-note">출처: 오늘 data.json · 전 종목 시세 인덱스(코스피·코스닥 ' +
+      (report.allStocks || []).length + '종목) · 숫자는 기록값 그대로이며 추정치가 아닙니다.</p></div>';
+    return h;
+  }
+
   function qaSectorHTML(report, sec, others) {
     const idx = QA_STATE.idx;
     const rows = idx.stocks.filter((s) => (s.sectors || []).indexOf(sec.name) >= 0)
@@ -5670,8 +5735,9 @@ const REPORT_DATA = [
         '<span class="qa-name">"' + esc(q) + '"</span>' +
         '<span class="qa-sub">오늘 data.json에 없음 · ' + esc(qaTimeLabel(report)) + " 기준</span>" +
       "</div></div>" +
-      '<p class="qa-miss-t">오늘 상위 수급 데이터(data.json)엔 없어요 — 실시간 뉴스·공시 확인이 필요합니다</p>' +
-      '<p class="qa-p" style="margin-top:6px">data.json은 오늘 거래대금·수급 상위 종목과 섹터만 담고 있어서, 여기 없는 종목은 숫자를 추측하지 않습니다. 아래 질문을 그대로 보내면 실시간으로 확인해요.</p>' +
+      '<p class="qa-miss-t">오늘 시세 데이터(data.json)엔 없어요 — 실시간 뉴스·공시 확인이 필요합니다</p>' +
+      '<p class="qa-p" style="margin-top:6px">오늘 data.json의 상위 수급 종목·섹터 카드와 전 종목 시세 인덱스(' +
+        (report.allStocks || []).length + '종목) 어디에도 없는 이름이라, 숫자를 추측하지 않습니다. 아래 질문을 그대로 보내면 실시간으로 확인해요.</p>' +
       (names.length
         ? '<span class="qa-k">오늘 데이터에 있는 종목</span><div class="qa-tags">' +
           names.map((n) => '<button type="button" class="qa-tag" data-qa-q="' + esc(n) + '">' + esc(n) + "</button>").join("") +
@@ -5743,7 +5809,9 @@ const REPORT_DATA = [
 
     box.className = "qa-res has";
     if (res.type === "stock") {
-      box.innerHTML = qaStockHTML(report, res.stock, res.others, res.sectors);
+      box.innerHTML = res.stock && res.stock.src === "all"
+        ? qaIndexStockHTML(report, res.stock, res.others)
+        : qaStockHTML(report, res.stock, res.others, res.sectors);
     } else if (res.type === "sector") {
       box.innerHTML = qaSectorHTML(report, res.sector, res.others);
     } else if (res.type === "list") {

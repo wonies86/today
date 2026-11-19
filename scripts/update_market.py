@@ -54,6 +54,11 @@ HEADERS = {
 MAX_DATES = 20          # 보관할 최대 거래일 수 (data.json 용량 관리)
 CHART_DAYS = 130        # 일봉 조회 개수 (60일선·RSI·MACD 계산용)
 
+# 전 종목 시세 인덱스(allStocks) — 📋 바로묻기가 상위 50 밖 종목도 찾도록
+ALL_STOCK_CAP = 300     # 시장별 최대 종목 수 (KOSPI 300 + KOSDAQ 300)
+ALL_MV_KEEP = 150       # 시가총액 상위 150위 안이면 거래대금과 무관하게 우선 포함
+ALL_STOCKS_MARK = "__ALLSTOCKS_JSON__"   # data.json 한 줄 압축 저장용 자리표시자
+
 WARNINGS: list[str] = []
 
 
@@ -363,6 +368,84 @@ def fetch_market_values(market: str, pages=(1, 2, 3)):
         data = get_json(f"{API}/stocks/marketValue/{market}?page={page}&pageSize=100")
         out.extend((data or {}).get("stocks") or [])
     return out
+
+
+def fetch_sector_map():
+    """종목코드 → 업종(짧은 이름). 네이버 업종 그룹 79개 목록에서 종목을 모은다."""
+    data = get_json(f"{API}/stocks/industry?page=1&pageSize=100")
+    groups = [g for g in (data or {}).get("groups") or [] if g.get("no") is not None]
+    if not groups:
+        return {}
+
+    def one(group):
+        rows = []
+        total = to_int(group.get("totalCount")) or 0
+        pages = 2 if total > 100 else 1
+        for page in range(1, pages + 1):
+            got = (get_json(f"{API}/stocks/industry/{group['no']}?page={page}&pageSize=100", tries=1) or {})
+            rows.extend(got.get("stocks") or [])
+        return group.get("name") or "", rows
+
+    mapping: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = [pool.submit(one, g) for g in groups]
+        for fut in futures:
+            name, rows = fut.result()
+            short = short_industry(name) if name else ""
+            for st in rows:
+                code = st.get("itemCode")
+                if code and short and code not in mapping:
+                    mapping[code] = short
+    return mapping
+
+
+def build_all_stocks(mv_by_market, movers, sector_map):
+    """KOSPI·KOSDAQ 전 종목 시세 인덱스 — [[코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종]].
+
+    소스: 시가총액 상위 500(KOSPI·KOSDAQ 각각) + 당일 상승·하락 상위(movers),
+    그중 시가총액 150위 안은 무조건, 나머지는 거래대금 순으로 시장당 300종목까지.
+    """
+    movers_by_market = {"KOSPI": [], "KOSDAQ": []}
+    for s in movers or []:
+        exchange = (s.get("stockExchangeType") or {}).get("nameKor") or ""
+        market = "KOSPI" if "코스피" in exchange else ("KOSDAQ" if "코스닥" in exchange else "")
+        if market:
+            movers_by_market[market].append(s)
+
+    rows = []
+    for market in ("KOSPI", "KOSDAQ"):
+        cand: dict[str, dict] = {}
+        for i, s in enumerate(mv_by_market.get(market) or []):
+            code = s.get("itemCode")
+            if not code or s.get("stockEndType") != "stock":
+                continue
+            cand[code] = {"s": s, "mv": i}
+        for s in movers_by_market[market]:
+            code = s.get("itemCode")
+            if not code or s.get("stockEndType") != "stock":
+                continue
+            cand.setdefault(code, {"s": s, "mv": 10 ** 6})
+
+        def order(v):
+            big = 0 if v["mv"] < ALL_MV_KEEP else 1
+            trade = -(to_int(v["s"].get("accumulatedTradingValueRaw")) or 0)
+            return (big, trade)
+
+        picked = []
+        for v in sorted(cand.values(), key=order)[:ALL_STOCK_CAP]:
+            s = v["s"]
+            name = str(s.get("stockName") or "").strip()[:24]
+            price = to_int(s.get("closePriceRaw"))
+            if not name or not price or is_etf(name):
+                continue
+            chg = to_float(s.get("fluctuationsRatio"))
+            value_eok = round((to_int(s.get("accumulatedTradingValueRaw")) or 0) / 1e8)
+            picked.append([s.get("itemCode"), name, market, price,
+                           round(chg, 2) if chg is not None else None,
+                           value_eok, sector_map.get(s.get("itemCode"), "")])
+        picked.sort(key=lambda r: -r[5])
+        rows.extend(picked)
+    return rows
 
 
 def fetch_chart(code: str, count: int = CHART_DAYS):
@@ -1451,18 +1534,19 @@ def main(argv):
 
     # 2) 종목 유니버스 + 순위
     with ThreadPoolExecutor(max_workers=8) as pool:
-        f_mv = [pool.submit(fetch_market_values, m) for m in ("KOSPI", "KOSDAQ")]
-        f_up = {m: pool.submit(fetch_rank, "up", m, 40) for m in ("KOSPI", "KOSDAQ")}
+        f_mv = {m: pool.submit(fetch_market_values, m, (1, 2, 3, 4, 5)) for m in ("KOSPI", "KOSDAQ")}
+        f_up = {m: pool.submit(fetch_rank, "up", m, 100) for m in ("KOSPI", "KOSDAQ")}
+        f_sector = pool.submit(fetch_sector_map)
         f_down = {m: pool.submit(fetch_rank, "down", m, 30) for m in ("KOSPI", "KOSDAQ")}
         f_industry_stocks = {}
         for ind in (industries or [])[:2]:
             f_industry_stocks[ind["no"]] = pool.submit(fetch_industry_stocks, ind["no"])
-        universe = []
-        for f in f_mv:
-            universe.extend(f.result() or [])
+        mv_by_market = {m: (f.result() or []) for m, f in f_mv.items()}
         up_all = []
         for m, f in f_up.items():
             up_all.extend(f.result() or [])
+        sector_map = f_sector.result() or {}
+        universe = mv_by_market["KOSPI"] + mv_by_market["KOSDAQ"]
         for m, f in f_down.items():
             universe.extend(f.result() or [])
         industry_stocks = {no: (f.result() or []) for no, f in f_industry_stocks.items()}
@@ -1596,6 +1680,9 @@ def main(argv):
                                    {"chg": ind["chg"], "rise": ind["rise"], "fall": ind["fall"]})
     new_entry["_prices"] = price_map
     new_entry["_industry_metric"] = industry_metric
+    all_stocks = build_all_stocks(mv_by_market, up_all, sector_map)
+    if all_stocks:
+        new_entry["allStocks"] = all_stocks
     entry = merge_entry(new_entry, old_entry)
     entry.pop("_prices", None)
     entry.pop("_industry_metric", None)
@@ -1609,8 +1696,20 @@ def main(argv):
     by_date = {d.get("date"): d for d in old_data if d.get("date")}
     by_date[date_str] = entry
     data = [by_date[k] for k in sorted(by_date, reverse=True)][:MAX_DATES]
+    # 전 종목 시세 인덱스는 최신 날짜에만 — 지난 날짜 항목은 용량 관리를 위해 비운다
+    for d in data:
+        if d is not entry and d.get("date") != date_str:
+            d.pop("allStocks", None)
 
+    # allStocks는 종목 수가 많아 한 줄 압축(다른 필드는 그대로 읽기 좋게 들여쓰기 유지)
+    rows = entry.pop("allStocks", None)
+    if rows:
+        entry["allStocks"] = ALL_STOCKS_MARK
     text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    if rows:
+        compact = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+        text = text.replace(f'"{ALL_STOCKS_MARK}"', compact, 1)
+        entry["allStocks"] = rows
     previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
     if text == previous:
         log("  · 변경 없음 — data.json 그대로 둡니다.")
@@ -1618,7 +1717,9 @@ def main(argv):
     DATA_PATH.write_text(text, encoding="utf-8")
 
     elapsed = time.time() - started
-    log(f"  · data.json 갱신 완료 ({len(data)}개 날짜, {len(text) / 1024:.1f}KB, {elapsed:.1f}초)")
+    log(f"  · data.json 갱신 완료 ({len(data)}개 날짜, {len(text.encode()) / 1024:.1f}KB, {elapsed:.1f}초)")
+    if rows:
+        log(f"    전 종목 시세 인덱스 {len(rows)}종목 · 업종 매핑 {len(sector_map)}건")
     log(f"    코스피 {(kospi or {}).get('value')} ({pct_text((kospi or {}).get('chg'))}) · "
         f"코스닥 {(kosdaq or {}).get('value')} ({pct_text((kosdaq or {}).get('chg'))})")
     if industries:
