@@ -951,6 +951,83 @@
   .ta-foot{padding:10px 14px 12px;border-top:1px solid var(--line);background:var(--bg-soft);font-size:9.5px;line-height:1.5;color:var(--mute);font-weight:600}
 
   /* ============================================================
+     시장 이슈 배너 — 헤더·세션 탭 바로 아래 (심플·상세 공통)
+     data.json 의 session.issue / day.issue 가 있을 때만 그려진다
+     ============================================================ */
+  .issuebar{margin:10px 0 0}
+  .issuebar[hidden]{display:none}
+  .issue{
+    position:relative;
+    border:1px solid var(--line-3);
+    border-radius:var(--radius);
+    background:var(--card);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .issue::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--slate)}
+  .issue[data-tone="down"]::before{background:var(--down)}
+  .issue[data-tone="up"]::before{background:var(--up)}
+  .issue[data-tone="info"]::before{background:var(--violet)}
+  .issue[data-tone="down"]{border-color:#cbd9f7}
+  .issue[data-tone="up"]{border-color:#f9ccd8}
+  .issue[data-tone="info"]{border-color:#ddd0fb}
+
+  .issue-sum{
+    display:block;
+    padding:10px 12px 10px 15px;
+    cursor:pointer;
+    list-style:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .issue-sum::-webkit-details-marker{display:none}
+  .issue-sum:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
+  .issue-top{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+  .issue-badge{
+    flex:none;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:-.02em;
+    padding:2px 7px;
+    border-radius:999px;
+    background:var(--slate-soft);
+    color:var(--slate);
+    white-space:nowrap;
+  }
+  .issue[data-tone="down"] .issue-badge{background:var(--down-soft);color:var(--down)}
+  .issue[data-tone="up"] .issue-badge{background:var(--up-soft);color:var(--rose)}
+  .issue[data-tone="info"] .issue-badge{background:var(--violet-soft);color:var(--violet)}
+  .issue-time{margin-left:auto;font-size:10px;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .issue-caret{flex:none;font-size:10px;color:var(--mute);transition:transform .18s ease}
+  .issue[open] .issue-caret{transform:rotate(180deg)}
+  .issue-title{display:block;font-size:12.5px;font-weight:800;line-height:1.42;color:var(--ink);letter-spacing:-.02em}
+  .issue-title em{font-style:normal;color:var(--down)}
+  .issue[data-tone="up"] .issue-title em{color:var(--rose)}
+  .issue[data-tone="info"] .issue-title em{color:var(--violet)}
+
+  .issue-body{padding:0 12px 11px 15px;border-top:1px solid var(--line-2);margin-top:9px;padding-top:9px}
+  .issue-why{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .issue-why li{display:grid;grid-template-columns:15px minmax(0,1fr);gap:6px;font-size:11px;line-height:1.5;color:var(--ink-2);font-weight:600}
+  .issue-why .n{
+    width:15px;height:15px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-weight:900;font-style:normal;
+    background:var(--bg-soft);border:1px solid var(--line-2);color:var(--mute);
+    margin-top:1px;
+  }
+  .issue-why b{display:block;font-weight:800;color:var(--ink);font-size:11.5px}
+  .issue-facts{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+  .ifchip{
+    font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;
+    background:var(--bg-soft);border:1px solid var(--line-2);color:var(--ink-2);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .ifchip.up{background:var(--up-soft);border-color:#fbd5de;color:var(--rose)}
+  .ifchip.down{background:var(--down-soft);border-color:#d3dffb;color:var(--down)}
+  .issue-note{margin:8px 0 0;font-size:10px;line-height:1.5;color:var(--mute);font-weight:700}
+  .issue-links{margin:6px 0 0;font-size:10px;font-weight:700;color:var(--mute)}
+  .issue-links a{color:var(--violet);text-decoration:none;border-bottom:1px solid #ddd0fb}
+
+  /* ============================================================
      반응형
      ============================================================ */
   @media (max-width:640px){
@@ -982,6 +1059,10 @@
     .articles{grid-template-columns:1fr}
     .ta-dialog{width:calc(100vw - 12px);max-height:92vh;border-radius:16px}
     .ta-scroll{max-height:calc(92vh - 124px)}
+    .issuebar{margin-top:8px}
+    .issue-sum{padding:9px 11px 9px 13px}
+    .issue-body{padding:0 11px 10px 13px;margin-top:8px;padding-top:8px}
+    .issue-title{font-size:12px}
   }
   @media (max-width:359px){
     /* 아주 좁은 화면: 브랜드명 대신 마크만 — 칩들이 겹치지 않게 */
@@ -1020,6 +1101,13 @@
     .ctxmain h3{font-size:17px}
     .reason-body strong{font-size:13px}
     .reason-body p{font-size:12.5px}
+    .issue-sum{padding:13px 16px 13px 19px}
+    .issue-body{padding:0 16px 14px 19px}
+    .issue-title{font-size:14.5px}
+    .issue-why li{font-size:12.5px}
+    .issue-why b{font-size:13px}
+    .ifchip{font-size:11px;padding:3px 8px}
+    .issue-note{font-size:11px}
   }
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important;animation:none !important}
@@ -1820,6 +1908,9 @@
     </div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="세션 선택"></nav>
   </div>
+
+  <!-- ======================= 시장 이슈 배너 (심플·상세 공통) ======================= -->
+  <section class="issuebar" id="issueBar" aria-label="시장 핵심 이슈" aria-live="polite" hidden></section>
 
   <div id="viewDetail">
 
@@ -4232,6 +4323,87 @@ const REPORT_DATA = [
     render();
   }
 
+  /* ============================================================
+     시장 이슈 배너
+     ------------------------------------------------------------
+     · data.json 의 session.issue(세션별) → day.issue(공통) 순으로 읽는다.
+       issue = {
+         badge:"🚨 장전 급락", tone:"down"|"up"|"info",
+         title:"한 줄 핵심 요약", time:"08:50 기준",
+         reasons:[{title, body?}] | ["문장"],
+         facts:[{label, dir?}] | ["문장"],
+         note:"한 줄 체크포인트", links:[{label, url}]
+       }
+     · 이슈가 비어 있으면 배너를 그리지 않는다(기존 화면 유지).
+     · 접기/펼치기 상태는 화면을 다시 그려도 유지한다.
+     ============================================================ */
+  const TONES = { down: 1, up: 1, info: 1 };
+  let issueOpen = true;
+
+  const hasIssue = (it) => !!it && typeof it === "object" &&
+    !!(it.title || (it.reasons && it.reasons.length) || (it.facts && it.facts.length));
+
+  function issueOf(report, session) {
+    if (session && hasIssue(session.issue)) return session.issue;
+    if (report && hasIssue(report.issue)) return report.issue;
+    return null;
+  }
+
+  function renderIssue(report) {
+    const host = $("#issueBar");
+    if (!host) return;
+    const it = issueOf(report, sessionOf(report));
+    if (!it) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    const tone = TONES[it.tone] ? it.tone : "info";
+    const reasons = (it.reasons || []).map((r, i) => {
+      if (r && typeof r === "object") {
+        return '<li><i class="n">' + (i + 1) + "</i><span>" +
+          (r.title ? "<b>" + r.title + "</b>" : "") +
+          (r.body ? esc(r.body) : "") + "</span></li>";
+      }
+      return '<li><i class="n">' + (i + 1) + "</i><span>" + esc(r) + "</span></li>";
+    }).join("");
+
+    const facts = (it.facts || []).map((f) => {
+      if (f && typeof f === "object") {
+        const d = f.dir === "up" || f.dir === "down" ? ' class="ifchip ' + f.dir + '"' : ' class="ifchip"';
+        return "<span" + d + ">" + esc(f.label) + "</span>";
+      }
+      return '<span class="ifchip">' + esc(f) + "</span>";
+    }).join("");
+
+    const links = (it.links || []).filter((l) => l && l.url).map((l) =>
+      '<a href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' +
+      esc(l.label || "원문") + "</a>").join(" · ");
+
+    let h = '<details class="issue" data-tone="' + tone + '"' + (issueOpen ? " open" : "") + ">" +
+      '<summary class="issue-sum">' +
+        '<span class="issue-top">' +
+          '<span class="issue-badge">' + esc(it.badge || "시장 이슈") + "</span>" +
+          (it.time ? '<span class="issue-time">' + esc(it.time) + "</span>" : "") +
+          '<span class="issue-caret" aria-hidden="true">▾</span>' +
+        "</span>" +
+        (it.title ? '<span class="issue-title">' + it.title + "</span>" : "") +
+      "</summary>" +
+      '<div class="issue-body">' +
+        (reasons ? '<ul class="issue-why">' + reasons + "</ul>" : "") +
+        (facts ? '<div class="issue-facts">' + facts + "</div>" : "") +
+        (it.note ? '<p class="issue-note">' + esc(it.note) + "</p>" : "") +
+        (links ? '<p class="issue-links">근거 ' + links + "</p>" : "") +
+      "</div>" +
+    "</details>";
+
+    host.hidden = false;
+    host.innerHTML = h;
+    const det = host.querySelector("details");
+    if (det) det.addEventListener("toggle", () => { issueOpen = det.open; });
+  }
+
   /* ---------------- 섹터 카드 ---------------- */
   function sectorCard(card, maxAbs) {
     const cls = "scard a-" + (card.accent || "violet");
@@ -5928,6 +6100,7 @@ const REPORT_DATA = [
     const report = findReport(activeDate);
     renderChrome(report);
     renderSwitcher(report);
+    renderIssue(report);
     renderSessionBody(report);
     renderContext(report);
     renderWatchlist(report);

@@ -1413,7 +1413,7 @@ def merge_entry(new, old):
     if not old:
         return out
     for key in ("label", "shortLabel", "defaultSession", "context", "articles",
-                "disclaimer", "rangeLabels", "axis", "stages"):
+                "disclaimer", "rangeLabels", "axis", "stages", "issue"):
         if key in old:
             out[key] = old[key]
 
@@ -1498,6 +1498,10 @@ def merge_entry(new, old):
             sessions.append(s)
             continue
         m = dict(prev)
+        # 상단 이슈 배너(session.issue)는 사람이 쓴 서사다 — 자동 갱신은 숫자만 바꾸고
+        # issue 는 건드리지 않는다(dict(prev) 복사로 유지되지만 의도를 명시해 둔다).
+        if prev.get("issue"):
+            m["issue"] = prev["issue"]
         # 이미 마감된 세션(정규장 마감 후·애프터장 마감 후)은 실행 시각이 아니라
         # 세션 마감 시각으로 표기를 고정한다 — '20:27 종가' 같은 표기를 막는다.
         frozen = closed_at(m.get("window") or s.get("window"), stamp_hm)
