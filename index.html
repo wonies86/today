@@ -1598,6 +1598,196 @@
     .datechip .cal{display:none}
   }
 
+/* ============================================================
+   QA 패널 — 종목·섹터 "왜 오르내리나요?" (심플·상세 공통)
+   · data.json(REPORT_DATA)에 있는 값만 표시한다.
+   · 없는 종목은 추측하지 않고 "데이터에 없다"고 말한다.
+   ============================================================ */
+#viewSimple .qa, #viewDetail .qa{
+  max-width:1000px;margin:14px auto 0;
+  background:var(--card,#fff);border:1px solid var(--line,#e3e7f0);
+  border-radius:16px;box-shadow:var(--shadow);
+  padding:12px 12px 11px;
+}
+#viewSimple .qa-head, #viewDetail .qa-head{display:flex;align-items:center;gap:7px;margin:0 0 9px}
+#viewSimple .qa-title, #viewDetail .qa-title{
+  margin:0;min-width:0;font-size:14px;font-weight:800;letter-spacing:-.025em;
+  color:var(--ink,#101828);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-badge, #viewDetail .qa-badge{
+  margin-left:auto;flex:0 0 auto;font-size:9.5px;font-weight:750;letter-spacing:.01em;
+  color:#0f766e;background:#e9f7f4;border:1px solid #d3efe9;
+  border-radius:999px;padding:3px 7px;white-space:nowrap;
+}
+#viewSimple .qa-form, #viewDetail .qa-form{display:flex;flex-direction:column;gap:7px}
+#viewSimple .qa-row, #viewDetail .qa-row{display:flex;gap:6px;align-items:center}
+#viewSimple .qa-input, #viewDetail .qa-input{
+  flex:1 1 auto;min-width:0;height:40px;
+  border:1px solid var(--line-3,#dfe4ef);border-radius:11px;
+  background:#f8f9fc;padding:0 11px;
+  font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink,#101828);
+  -webkit-appearance:none;appearance:none;
+}
+#viewSimple .qa-input::placeholder, #viewDetail .qa-input::placeholder{color:var(--mute,#818da3);font-weight:500;font-size:12.5px}
+#viewSimple .qa-input:focus, #viewDetail .qa-input:focus{
+  outline:0;border-color:#c4b5fd;background:#fff;
+  box-shadow:0 0 0 3px rgba(109,40,217,.10);
+}
+#viewSimple .qa-go, #viewDetail .qa-go{
+  flex:0 0 auto;height:40px;padding:0 14px;border-radius:11px;border:1px solid #5b21b6;
+  background:#6d28d9;color:#fff !important;font-size:13px;font-weight:800;cursor:pointer;
+}
+#viewSimple .qa-go:active, #viewDetail .qa-go:active{transform:translateY(1px)}
+#viewSimple .qa-int, #viewDetail .qa-int{display:flex;gap:5px}
+#viewSimple .qa-ichip, #viewDetail .qa-ichip{
+  flex:1 1 0;min-width:0;border:1px solid transparent;border-radius:9px;
+  background:#f2f4f9;color:var(--ink-2,#44506a);
+  font-family:inherit;font-size:11.5px;font-weight:700;
+  padding:6px 3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-ichip[aria-pressed="true"], #viewDetail .qa-ichip[aria-pressed="true"]{background:#f4efff;border-color:#d8c8ff;color:#5b21b6}
+#viewSimple .qa-quick, #viewDetail .qa-quick{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+#viewSimple .qa-qlab, #viewDetail .qa-qlab{font-size:10px;font-weight:750;color:var(--mute,#818da3);letter-spacing:.01em}
+#viewSimple .qa-qchip, #viewDetail .qa-qchip{
+  border:1px solid var(--line-3,#dfe4ef);border-radius:999px;background:#fff;
+  color:var(--ink-2,#44506a);font-family:inherit;font-size:11.5px;font-weight:700;
+  padding:4px 9px;cursor:pointer;white-space:nowrap;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-qchip:hover, #viewDetail .qa-qchip:hover{border-color:#c4b5fd;color:#5b21b6;background:#faf7ff}
+#viewSimple .qa-go:focus-visible, #viewDetail .qa-go:focus-visible,#viewSimple .qa-ichip:focus-visible, #viewDetail .qa-ichip:focus-visible,#viewSimple .qa-qchip:focus-visible, #viewDetail .qa-qchip:focus-visible,
+#viewSimple .qa-ask:focus-visible, #viewDetail .qa-ask:focus-visible,#viewSimple .qa-rowbtn:focus-visible, #viewDetail .qa-rowbtn:focus-visible,#viewSimple .qa-links a:focus-visible, #viewDetail .qa-links a:focus-visible{
+  outline:2px solid #6d28d9;outline-offset:1px;
+}
+
+/* ---------- 결과 영역 ---------- */
+#viewSimple .qa-res, #viewDetail .qa-res{margin-top:0}
+#viewSimple .qa-res.has, #viewDetail .qa-res.has{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2,#edf0f6)}
+#viewSimple .qa-idle, #viewDetail .qa-idle{margin:9px 2px 0;font-size:11px;line-height:1.5;color:var(--mute,#818da3)}
+#viewSimple .qa-idle b, #viewDetail .qa-idle b{color:var(--ink-2,#44506a);font-weight:750}
+
+#viewSimple .qa-card, #viewDetail .qa-card{
+  background:#fbfbfe;border:1px solid #e7e2f8;border-radius:13px;
+  padding:11px 11px 10px;
+}
+#viewSimple .qa-card + § .qa-card, #viewDetail .qa-card + § .qa-card{margin-top:8px}
+#viewSimple .qa-top, #viewDetail .qa-top{display:flex;align-items:flex-start;gap:8px}
+#viewSimple .qa-id, #viewDetail .qa-id{min-width:0;flex:1 1 auto}
+#viewSimple .qa-name, #viewDetail .qa-name{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink,#101828);overflow-wrap:anywhere}
+#viewSimple .qa-sub, #viewDetail .qa-sub{display:block;margin-top:2px;font-size:10.5px;font-weight:650;color:var(--mute,#818da3);line-height:1.4;overflow-wrap:anywhere}
+#viewSimple .qa-num, #viewDetail .qa-num{flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+#viewSimple .qa-px, #viewDetail .qa-px{display:block;font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--ink,#101828)}
+#viewSimple .qa-pct, #viewDetail .qa-pct{display:block;margin-top:1px;font-size:12.5px;font-weight:800}
+#viewSimple .qa-tags, #viewDetail .qa-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+#viewSimple .qa-tag, #viewDetail .qa-tag{
+  border:1px solid #e4d8ff;background:#f4efff;color:#5b21b6;
+  border-radius:6px;padding:2px 6px;font-size:10px;font-weight:750;white-space:nowrap;
+}
+#viewSimple .qa-tag.role, #viewDetail .qa-tag.role{border-color:#ffe0e8;background:#fff1f5;color:#be123c}
+#viewSimple .qa-tag.warn, #viewDetail .qa-tag.warn{border-color:#f6e0b8;background:#fff6e8;color:#b45309}
+#viewSimple button.qa-tag, #viewDetail button.qa-tag{cursor:pointer;font-family:inherit}
+
+#viewSimple .qa-stats, #viewDetail .qa-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}
+#viewSimple .qa-stat, #viewDetail .qa-stat{min-width:0;background:#fff;border:1px solid var(--line-2,#edf0f6);border-radius:9px;padding:5px 7px}
+#viewSimple .qa-stat i, #viewDetail .qa-stat i{display:block;font-style:normal;font-size:9.5px;font-weight:700;color:var(--mute,#818da3)}
+#viewSimple .qa-stat b, #viewDetail .qa-stat b{
+  display:block;margin-top:1px;font-size:12px;font-weight:800;color:var(--ink,#101828);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-k, #viewDetail .qa-k{display:block;margin:10px 0 3px;font-size:10px;font-weight:800;letter-spacing:.02em;color:var(--ink-2,#44506a)}
+#viewSimple .qa-k:first-child, #viewDetail .qa-k:first-child{margin-top:0}
+#viewSimple .qa-p, #viewDetail .qa-p{margin:0;font-size:12px;line-height:1.52;color:var(--ink-2,#44506a)}
+#viewSimple .qa-p + § .qa-p, #viewDetail .qa-p + § .qa-p{margin-top:3px}
+#viewSimple .qa-trig, #viewDetail .qa-trig{
+  margin:6px 0 0;padding:6px 8px;border-left:3px solid #d8c8ff;border-radius:0 8px 8px 0;
+  background:#fff;font-size:11.5px;line-height:1.45;color:var(--ink-2,#44506a);
+}
+#viewSimple .qa-trig b, #viewDetail .qa-trig b{color:#5b21b6;font-weight:800}
+#viewSimple .qa-note, #viewDetail .qa-note{margin:7px 2px 0;font-size:10px;line-height:1.45;color:var(--mute,#818da3)}
+
+#viewSimple .qa-rows, #viewDetail .qa-rows{display:flex;flex-direction:column;gap:4px}
+#viewSimple .qa-rowbtn, #viewDetail .qa-rowbtn{
+  display:flex;align-items:center;gap:6px;width:100%;min-width:0;text-align:left;
+  background:#fff;border:1px solid var(--line-2,#edf0f6);border-radius:9px;
+  padding:5px 8px;cursor:pointer;font-family:inherit;
+}
+#viewSimple .qa-rowbtn:hover, #viewDetail .qa-rowbtn:hover{border-color:#d8c8ff;background:#fdfbff}
+#viewSimple .qa-rowbtn .n, #viewDetail .qa-rowbtn .n{
+  min-width:0;flex:1 1 auto;font-size:12px;font-weight:750;color:var(--ink,#101828);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-rowbtn .p, #viewDetail .qa-rowbtn .p{flex:0 0 auto;font-size:10.5px;color:var(--mute,#818da3);font-variant-numeric:tabular-nums}
+#viewSimple .qa-rowbtn .c, #viewDetail .qa-rowbtn .c{flex:0 0 auto;min-width:46px;text-align:right;font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums}
+#viewSimple .qa-rowbtn .t, #viewDetail .qa-rowbtn .t{flex:0 0 auto;min-width:48px;text-align:right;font-size:10.5px;color:var(--mute,#818da3);font-variant-numeric:tabular-nums}
+
+#viewSimple .qa-news, #viewDetail .qa-news{display:flex;flex-direction:column;gap:4px}
+#viewSimple .qa-news a, #viewDetail .qa-news a{
+  display:flex;gap:6px;align-items:baseline;padding:5px 7px;
+  background:#fff;border:1px solid var(--line-2,#edf0f6);border-radius:8px;
+  font-size:11.5px;line-height:1.4;color:var(--ink-2,#44506a);text-decoration:none;
+}
+#viewSimple .qa-news a:hover, #viewDetail .qa-news a:hover{border-color:#d8c8ff;text-decoration:none}
+#viewSimple .qa-news .m, #viewDetail .qa-news .m{flex:0 0 auto;font-size:9.5px;font-weight:800;color:#6d28d9}
+#viewSimple .qa-news .x, #viewDetail .qa-news .x{
+  min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .qa-empty, #viewDetail .qa-empty{margin:2px 0 0;font-size:11px;color:var(--mute,#818da3);line-height:1.45}
+
+#viewSimple .qa-q, #viewDetail .qa-q{
+  margin:9px 0 0;padding:6px 8px;background:#fff;border:1px dashed #ded4f7;border-radius:8px;
+  font-size:10px;line-height:1.45;color:var(--mute,#818da3);word-break:break-all;
+}
+#viewSimple .qa-q b, #viewDetail .qa-q b{display:block;margin-bottom:1px;font-size:9.5px;font-weight:800;color:var(--ink-2,#44506a);letter-spacing:.02em}
+
+#viewSimple .qa-acts, #viewDetail .qa-acts{display:flex;margin-top:8px}
+#viewSimple .qa-ask, #viewDetail .qa-ask{
+  flex:1 1 auto;min-width:0;height:40px;border-radius:11px;border:1px solid #5b21b6;
+  background:linear-gradient(180deg,#7c3aed,#6d28d9);color:#fff !important;
+  font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:-.01em;cursor:pointer;
+  box-shadow:0 8px 16px -12px rgba(91,33,182,.95);
+}
+#viewSimple .qa-ask:active, #viewDetail .qa-ask:active{transform:translateY(1px)}
+#viewSimple .qa-links, #viewDetail .qa-links{display:flex;gap:6px;margin-top:6px}
+#viewSimple .qa-links a, #viewDetail .qa-links a{
+  flex:1 1 0;padding:6px 4px;text-align:center;border-radius:9px;
+  border:1px solid var(--line-3,#dfe4ef);background:#fff;
+  font-size:11px;font-weight:700;color:var(--ink-2,#44506a);text-decoration:none;
+}
+#viewSimple .qa-links a:hover, #viewDetail .qa-links a:hover{border-color:#d8c8ff;color:#5b21b6;text-decoration:none}
+
+/* ---------- 미확인(데이터 없음) ---------- */
+#viewSimple .qa-miss, #viewDetail .qa-miss{background:#fffaf0;border-color:#f3e2c2}
+#viewSimple .qa-miss .qa-name, #viewDetail .qa-miss .qa-name{font-size:14.5px}
+#viewSimple .qa-miss-t, #viewDetail .qa-miss-t{
+  margin:8px 0 0;padding:7px 9px;border-radius:9px;background:#fff6e8;border:1px solid #f6e0b8;
+  font-size:12px;font-weight:750;line-height:1.45;color:#8a4b0a;
+}
+
+/* ---------- 복사 토스트 ---------- */
+#viewSimple .qa-toast, #viewDetail .qa-toast{
+  position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);
+  opacity:0;pointer-events:none;z-index:80;
+  max-width:calc(100vw - 32px);
+  padding:10px 14px;border-radius:12px;background:#101828;color:#fff;
+  font-size:12.5px;font-weight:700;line-height:1.4;text-align:center;
+  box-shadow:0 14px 30px -14px rgba(16,24,40,.7);
+  transition:opacity .16s ease, transform .16s ease;
+}
+#viewSimple .qa-toast.show, #viewDetail .qa-toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (min-width:760px){
+  #viewSimple .qa-stats, #viewDetail .qa-stats{grid-template-columns:repeat(3,minmax(0,184px));justify-content:start}
+  #viewSimple .qa-acts, #viewDetail .qa-acts{max-width:430px}
+  #viewSimple .qa-links, #viewDetail .qa-links{max-width:430px}
+  #viewSimple .qa-rowbtn, #viewDetail .qa-rowbtn{max-width:560px}
+}
+@media (max-width:430px){
+  #viewSimple .qa, #viewDetail .qa{padding:11px 11px 10px;border-radius:14px}
+  #viewSimple .qa-title, #viewDetail .qa-title{font-size:13.5px}
+  #viewSimple .qa-linkwide, #viewDetail .qa-linkwide{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -1652,6 +1842,8 @@
   </section>
 
   <!-- ======================= 세션 본문 ======================= -->
+  <div id="qaHostDetail"></div>
+
   <div id="sessionBody"></div>
 
   <!-- ======================= 시장 맥락 ======================= -->
@@ -1704,6 +1896,31 @@
   <main id="viewSimple" aria-label="오늘 증시 요약">
     <div class="s-wrap">
       <section class="card strip" id="sStrip" aria-label="지수·수급 요약"></section>
+
+      <div id="qaHostSimple">
+  <!-- ======================= QA 패널 (심플·상세 공통) ======================= -->
+  <section class="qa" id="qaPanel" aria-labelledby="qaTitle">
+    <div class="qa-head">
+      <h2 class="qa-title" id="qaTitle">🔍 종목·섹터 왜 오르내리나요?</h2>
+      <span class="qa-badge" id="qaBadge">data.json 검증</span>
+    </div>
+    <form class="qa-form" id="qaForm" autocomplete="off">
+      <div class="qa-row">
+        <input class="qa-input" id="qaInput" type="search" autocomplete="off" enterkeyhint="search"
+               placeholder="종목명 또는 섹터 입력 (예: 하이브, 반도체)" aria-label="종목명 또는 섹터 입력">
+        <button class="qa-go" type="submit">확인</button>
+      </div>
+      <div class="qa-int" id="qaIntent" role="group" aria-label="질문 종류">
+        <button class="qa-ichip" type="button" data-intent="up" aria-pressed="true">왜 오르나요?</button>
+        <button class="qa-ichip" type="button" data-intent="down" aria-pressed="false">왜 떨어지나요?</button>
+        <button class="qa-ichip" type="button" data-intent="flow" aria-pressed="false">수급·재료 확인</button>
+      </div>
+      <div class="qa-quick" id="qaQuick"></div>
+    </form>
+    <div class="qa-res" id="qaResult" aria-live="polite"></div>
+    <div class="qa-toast" id="qaToast" role="status" aria-live="polite"></div>
+  </section>
+      </div>
 
       <div class="sess-nav">
         <nav class="seg" id="sSessions" role="tablist" aria-label="세션 선택"></nav>
@@ -4482,22 +4699,39 @@ const REPORT_DATA = [
       Array.isArray(r.sessions) && r.sessions.length > 0;
   }
 
+  /* 이 파일은 kr-market-project/ 에서도, today-repo/ 안에서도, GitHub Pages(/today/)에서도 열린다.
+     배포본(/today/)에는 data.json 이 한 벌뿐이라 ./data.json 만 읽고,
+     사본이 둘 있는 작업 폴더에서는 updatedAt 이 가장 최신인 쪽을 쓴다
+     (오래된 사본이 최신 숫자를 덮지 않도록). */
+  const LIVE_PATHS = /\/today\/?$/.test(location.pathname)
+    ? ["./data.json"]
+    : ["./data.json", "./today-repo/data.json"];
+
+  async function fetchLiveJSON(url) {
+    try {
+      const res = await fetch(url + "?_v=" + Date.now(), { cache: "no-store" });
+      if (!res || !res.ok) return null;
+      const d = await res.json();
+      return Array.isArray(d) ? d : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function liveStamp(data) {
+    const first = (data || []).filter(looksLikeReport)[0];
+    return (first && (first.updatedAt || first.date)) || "";
+  }
+
   async function loadLiveData() {
     if (!location.protocol.startsWith("http")) return false;
-    let res;
-    try {
-      res = await fetch("./data.json?_v=" + Date.now(), { cache: "no-store" });
-    } catch (e) {
-      return false;
+    let data = null;
+    for (const path of LIVE_PATHS) {
+      const d = await fetchLiveJSON(path);
+      if (!d || !d.length) continue;
+      if (!data || liveStamp(d) > liveStamp(data)) data = d;
     }
-    if (!res || !res.ok) return false;
-    let data;
-    try {
-      data = await res.json();
-    } catch (e) {
-      return false;
-    }
-    if (!Array.isArray(data)) return false;
+    if (!data) return false;
 
     const valid = data
       .filter(looksLikeReport)
@@ -4993,6 +5227,7 @@ const REPORT_DATA = [
     if (t) Array.prototype.forEach.call(t.children, (b) => {
       b.setAttribute("aria-selected", String(b.getAttribute("data-mode") === dashMode));
     });
+    qaPlace();
     render();
   }
 
@@ -5047,6 +5282,577 @@ const REPORT_DATA = [
     });
   }
 
+  /* ======================================================================
+     QA 패널 — "종목·섹터 왜 오르내리나요?"
+     ----------------------------------------------------------------------
+     · 오늘 data.json(REPORT_DATA) 안의 값만 보여준다. 숫자를 만들지 않는다.
+     · 없는 종목이면 "데이터에 없다"고 말하고, 실시간 확인 질문만 복사해 준다.
+     · 같은 패널을 심플·상세 두 뷰가 함께 쓴다(뷰 전환 시 DOM 만 옮긴다).
+     ====================================================================== */
+  const QA_STATE = { q: "", intent: "up", report: null, idx: null, res: null, question: "", quickLabels: [] };
+
+  const QA_INTENT = {
+    up: { ask: "지금 왜 오르나요? 실시간 수급·공시·뉴스 확인해줘", label: "상승 이유" },
+    down: { ask: "지금 왜 떨어지나요? 실시간 수급·공시·뉴스 확인해줘", label: "하락 이유" },
+    flow: { ask: "수급·재료 확인해줘 — 거래대금·외국인/기관 순매수·공시·뉴스", label: "수급·재료" }
+  };
+
+  const qaStripTags = (s) => String(s == null ? "" : s).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+  function qaNorm(s) {
+    return String(s == null ? "" : s).toLowerCase()
+      .replace(/[\s?？!！.,·\/'"“”‘’()\[\]]/g, "")
+      .replace(/(지금|현재|오늘|어째서|왜|오르나요|오르는|올랐|오름|떨어지나요|떨어지는|떨어진|내렸|하락|상승|급등|급락|수급|재료|공시|뉴스|확인해줘|확인|알려줘|이유|궁금|뭐야|무슨)/g, "");
+  }
+
+  /* 긴 섹터명을 칩·태그용 짧은 이름으로: "한한령 · 엔터·레저·화장품" → "한한령·엔터" */
+  function qaShortSector(name) {
+    const t = qaTokens(name);
+    if (!t.length) return String(name || "");
+    /* "반도체 · AI 인프라"처럼 두 번째 토막이 짧은 영문이면 앞 토막만 쓴다 */
+    if (t.length > 1 && /^[A-Za-z]+$/.test(t[1]) && t[1].length <= 3) return t[0];
+    const two = t.slice(0, 2).join("·");
+    return two.length <= 9 ? two : t[0];
+  }
+
+  /* "2.4조"·"6,576억" → 억 원 숫자 (동점 정렬용) */
+  function qaTurnoverNum(t) {
+    const s = String(t == null ? "" : t).replace(/,/g, "");
+    const m = s.match(/([\d.]+)\s*(조|억)?/);
+    if (!m) return 0;
+    const n = parseFloat(m[1]) || 0;
+    return m[2] === "조" ? n * 10000 : n;
+  }
+
+  /* "한한령 · 엔터·레저·화장품" → ["한한령","엔터","레저","화장품"] */
+  function qaTokens(s) {
+    return String(s == null ? "" : s).replace(/[·,\/()\[\]{}]/g, " ").split(/\s+/)
+      .map((t) => t.trim()).filter((t) => t.length >= 2);
+  }
+
+  function qaTimeLabel(report) {
+    const u = String((report && report.updatedAt) || "");
+    const m = u.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if (m) return m[1] + " " + m[2];
+    const a = String((report && report.asOf) || "").match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+    return a ? a[1] + " " + a[2] : String((report && report.asOf) || "");
+  }
+
+  /* ---------------- 오늘 data.json 색인 ---------------- */
+  function qaBuild(report) {
+    const byName = new Map();
+    const stocks = [];
+    const sectors = [];
+    const secByName = Object.create(null);
+    let order = 0;
+
+    function addSector(o) {
+      const key = String(o.name || "").trim();
+      if (!key) return null;
+      if (secByName[key]) return secByName[key];
+      o.name = key;
+      o.tokens = qaTokens(key);
+      if (o.order == null) o.order = order++;
+      secByName[key] = o;
+      sectors.push(o);
+      return o;
+    }
+
+    function addStock(o, prio, sector, ctx, role) {
+      if (!o || !o.name) return null;
+      let s = byName.get(o.name);
+      if (!s) {
+        s = { name: o.name, ticker: "", market: "", price: "", chg: null, turnover: "",
+              turnoverRank: "", why: "", prio: -1, sectors: [], contexts: [], roles: [] };
+        byName.set(o.name, s);
+        stocks.push(s);
+      }
+      const take = prio >= s.prio;
+      if (o.ticker && !s.ticker) s.ticker = String(o.ticker);
+      if (o.market && !s.market) s.market = String(o.market);
+      if (o.price && (take || !s.price)) s.price = String(o.price);
+      if (o.chg != null && !isNaN(Number(o.chg)) && (take || s.chg == null)) s.chg = Number(o.chg);
+      if (o.turnover && (take || !s.turnover)) s.turnover = String(o.turnover);
+      if (o.turnoverRank && !s.turnoverRank) s.turnoverRank = String(o.turnoverRank);
+      if (o.why && !s.why) s.why = String(o.why);
+      if (take) s.prio = prio;
+      if (sector && s.sectors.indexOf(sector) < 0) s.sectors.push(sector);
+      if (ctx && s.contexts.indexOf(ctx) < 0) s.contexts.push(ctx);
+      if (role && !s.roles.some((r) => r.label === role.label && r.sector === role.sector)) s.roles.push(role);
+      return s;
+    }
+
+    /* 1) 관찰 5선 — 가격·등락·거래대금이 가장 최신(15:35) */
+    (report.watchlist || []).forEach((w) => {
+      addStock({ name: w.name, ticker: w.ticker, market: w.market, price: w.price, chg: w.chg,
+                 turnover: w.turnover, turnoverRank: w.turnoverRank, why: w.why },
+        3, w.sector || "", w.why, null);
+      if (w.sector) addSector({ name: w.sector, kind: "sector", role: "", change: null,
+        sub: "관찰 5선 소속", why: "", trigger: "", order: 200, source: "관찰 5선" });
+    });
+
+    /* 2) 수급 순환 — 테마 A / B·C */
+    const rot = (report.context || {}).rotation;
+    if (rot) {
+      const addBlock = (blk, i) => {
+        if (!blk || !blk.sector) return null;
+        const role = blk.label || (i === 0 ? "A" : String.fromCharCode(66 + i - 1));
+        const sec = addSector({
+          name: blk.sector, kind: "theme", role,
+          change: null, sub: blk.meta || "", why: blk.why || blk.reason || "",
+          trigger: blk.trigger || "", triggerLabel: blk.triggerLabel || "관찰",
+          notes: blk.notes || [], order: i, source: "수급 순환 " + role
+        });
+        (blk.stocks || []).forEach((x) => addStock(
+          { name: x.name, chg: x.chg, turnover: x.tv, turnoverRank: x.rank ? "전체 " + x.rank + "위" : "" },
+          1, blk.sector, blk.why || blk.reason || "", { label: role, sector: blk.sector, meta: blk.meta || "" }));
+        return sec;
+      };
+      addBlock(rot.a, 0);
+      (rot.candidates || []).forEach((c, i) => addBlock(c, i + 1));
+    }
+
+    /* 3) 세션 카드 — 업종 등락·종목 시세(15:35) */
+    (report.sessions || []).forEach((sess) => {
+      (sess.cards || []).forEach((card) => {
+        if (!card.name) return;
+        if (secByName[card.name]) {
+          const sec = secByName[card.name];
+          if (sec.change == null) sec.change = chgOfText(card.cmain);
+          if (!sec.sub) sec.sub = card.csub || "";
+          if (!sec.why) sec.why = qaStripTags(card.issue);
+        } else {
+          addSector({
+            name: card.name, kind: "sector", role: "", change: chgOfText(card.cmain),
+            sub: card.csub || "", why: qaStripTags(card.issue), trigger: "",
+            notes: card.notes || [], order: 60 + sectors.length, source: sess.tab || sess.name || ""
+          });
+        }
+        (card.stocks || []).forEach((x) => addStock(
+          { name: x.name, ticker: x.ticker, price: x.price, chg: x.chg, turnover: x.turnover },
+          2, card.name, qaStripTags(card.issue), null));
+      });
+    });
+
+    stocks.forEach((s) => { s.tokens = qaTokens(s.name); });
+    return { byName, stocks, sectors, secByName };
+  }
+
+  /* ---------------- 찾기 ---------------- */
+  function qaFind(report, raw) {
+    const idx = qaBuild(report);
+    QA_STATE.idx = idx;
+    const q = qaNorm(raw);
+    if (!q) return { type: "idle" };
+
+    const qRaw = String(raw || "").trim();
+    const hits = [];
+    idx.stocks.forEach((s) => {
+      const n = qaNorm(s.name);
+      let sc = -1;
+      if (n === q) sc = 0;
+      else if (s.ticker && (s.ticker === qRaw || s.ticker === q)) sc = 0;
+      else if (n.indexOf(q) === 0) sc = 1;
+      else if (n.indexOf(q) >= 0) sc = 2;
+      else if (q.length >= 2 && n.length >= 2 && q.indexOf(n) >= 0) sc = 3;
+      if (sc >= 0) hits.push({ s, sc });
+    });
+    hits.sort((a, b) => a.sc - b.sc
+      || qaTurnoverNum(b.s.turnover) - qaTurnoverNum(a.s.turnover)
+      || Math.abs(b.s.chg || 0) - Math.abs(a.s.chg || 0));
+
+    const secHits = idx.sectors
+      .filter((sec) => sec.tokens.some((t) => {
+        const tn = qaNorm(t);
+        return !!tn && (tn.indexOf(q) >= 0 || q.indexOf(tn) >= 0);
+      }))
+      .map((sec) => ({ sec, exact: sec.tokens.some((t) => qaNorm(t) === q) }))
+      .sort((a, b) => (b.exact - a.exact) || (a.sec.order - b.sec.order));
+
+    const top = hits[0];
+    if (top && top.sc <= 1) {
+      return { type: "stock", stock: top.s, others: hits.slice(1, 5).map((h) => h.s),
+               sectors: secHits.map((x) => x.sec) };
+    }
+    if (secHits.length) {
+      return { type: "sector", sector: secHits[0].sec,
+               others: secHits.slice(1, 4).map((x) => x.sec).filter((x) => qaNorm(x.name) !== q),
+               stock: top && top.sc <= 1 ? top.s : null };
+    }
+    if (hits.length === 1) return { type: "stock", stock: top.s, others: [], sectors: [] };
+    if (hits.length > 1) return { type: "list", stocks: hits.slice(0, 6).map((h) => h.s) };
+    return { type: "none", q: qRaw };
+  }
+
+  /* ---------------- 기사·링크 ---------------- */
+  function qaArticles(report, keys, limit) {
+    const set = keys.map((k) => String(k || "").trim()).filter((k) => k.length >= 2);
+    const out = [];
+    (report.articles || []).forEach((a) => {
+      const title = String(a.title || "");
+      if (!set.some((k) => title.indexOf(k) >= 0)) return;
+      if (out.some((x) => x.url === a.url)) return;
+      out.push(a);
+    });
+    return out.slice(0, limit || 3);
+  }
+
+  function qaArticleHTML(list) {
+    if (!list.length) return '<p class="qa-empty">data.json 기사 중 이 종목·섹터를 직접 다룬 기사는 없습니다.</p>';
+    return '<div class="qa-news">' + list.map((a) =>
+      '<a href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer">' +
+        '<span class="m">' + esc(a.mark || a.source || "기사") + "</span>" +
+        '<span class="x">' + esc(a.title) + "</span>" +
+      "</a>").join("") + "</div>";
+  }
+
+  /* 네이버 금융 검색 — 통합검색 증권 탭(증권정보 블록에 종목·시세가 바로 뜬다) */
+  const qaNaver = (kw) => "https://search.naver.com/search.naver?where=stock&query=" + encodeURIComponent(kw);
+  const qaGoogle = (kw) => "https://news.google.com/search?q=" + encodeURIComponent(kw) + "&hl=ko&gl=KR&ceid=KR:ko";
+
+  /* ---------------- 질문 만들기 ---------------- */
+  function qaAsk(report, subject, kind) {
+    const clean = qaStripTags(subject).slice(0, 40) || String(subject || "").slice(0, 40);
+    const who = kind === "sector" ? clean + " 섹터" : clean;
+    return "[" + qaTimeLabel(report) + " 기준] " + who + " " + QA_INTENT[QA_STATE.intent].ask;
+  }
+
+  function qaAskHTML(report, subject, kind) {
+    QA_STATE.question = qaAsk(report, subject, kind);
+    return '<p class="qa-q"><b>질문 미리보기</b>' + esc(QA_STATE.question) + "</p>" +
+      '<div class="qa-acts"><button type="button" class="qa-ask" data-qa-copy>' +
+        "📋 바로묻기</button></div>" +
+      '<div class="qa-links">' +
+        '<a href="' + qaNaver(subject) + '" target="_blank" rel="noopener noreferrer">네이버 금융 검색</a>' +
+        '<a href="' + qaGoogle(subject) + '" target="_blank" rel="noopener noreferrer">구글 뉴스</a>' +
+      "</div>";
+  }
+
+  /* ---------------- 결과 카드 ---------------- */
+  function qaRoleText(label) {
+    if (label === "A") return "수급 A · 주도";
+    return "수급 " + label + " · 대안";
+  }
+
+  function qaStockHTML(report, s, otherStocks, sectors) {
+    const idx = QA_STATE.idx;
+    const known = (s.sectors || []).map((n) => idx.secByName[n]).filter(Boolean);
+    const roleSec = known.filter((x) => x.role)[0] || null;
+    const price = s.price ? (String(s.price).slice(-1) === "원" ? s.price : s.price + "원") : "";
+    const sub = s.ticker ? (s.market ? s.ticker + " · " + s.market : "종목코드 " + s.ticker) : (s.market || "");
+
+    let tags = "";
+    const seenTag = [];
+    known.forEach((sec) => {
+      const lab = qaShortSector(sec.name);
+      if (seenTag.indexOf(lab) >= 0) return;
+      seenTag.push(lab);
+      tags += '<button type="button" class="qa-tag" data-qa-q="' + esc(sec.name) + '" title="' +
+        esc(sec.name) + '">' + esc(lab) + "</button>";
+    });
+    if (roleSec) tags += '<span class="qa-tag role">' + esc(qaRoleText(roleSec.role)) + "</span>";
+
+    let h = '<div class="qa-card">' +
+      '<div class="qa-top"><div class="qa-id">' +
+        '<span class="qa-name">' + esc(s.name) + "</span>" +
+        (sub ? '<span class="qa-sub">' + esc(sub) + "</span>" : "") +
+      "</div>" +
+      '<div class="qa-num">' +
+        (price ? '<span class="qa-px">' + esc(price) + "</span>" : "") +
+        '<span class="qa-pct ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
+      "</div></div>" +
+      (tags ? '<div class="qa-tags">' + tags + "</div>" : "") +
+      '<div class="qa-stats">' +
+        '<div class="qa-stat"><i>거래대금</i><b>' + esc(s.turnover || "—") + "</b></div>" +
+        '<div class="qa-stat"><i>순위(거래대금)</i><b>' + esc(s.turnoverRank || "—") + "</b></div>" +
+        '<div class="qa-stat"><i>시세 기준</i><b>' + esc(report.stamp || "—") + "</b></div>" +
+      "</div>";
+
+    const why = s.why || (s.contexts || [])[0] || "";
+    if (why) h += '<span class="qa-k">왜 움직였나 · data.json 기록</span><p class="qa-p">' + esc(why) + "</p>";
+
+    if (roleSec && roleSec.why && roleSec.why !== why) {
+      h += '<span class="qa-k">테마 맥락 · ' + esc(roleSec.name) + "</span>" +
+        '<p class="qa-p">' + esc(roleSec.why) + "</p>";
+      if (roleSec.trigger) {
+        h += '<p class="qa-trig"><b>' + esc(roleSec.triggerLabel || "관찰") + "</b> " + esc(roleSec.trigger) + "</p>";
+      }
+    }
+
+    const keys = [s.name].concat(known.reduce((a, x) => a.concat(x.tokens), []));
+    h += '<span class="qa-k">연결된 기사</span>' + qaArticleHTML(qaArticles(report, keys, 3));
+    h += qaAskHTML(report, s.name, "stock");
+
+    if (otherStocks && otherStocks.length) {
+      h += '<span class="qa-k">비슷한 이름</span><div class="qa-tags">' +
+        otherStocks.map((x) => '<button type="button" class="qa-tag" data-qa-q="' + esc(x.name) + '">' +
+          esc(x.name) + " " + sPct(x.chg) + "</button>").join("") + "</div>";
+    }
+
+    h += '<p class="qa-note">출처: 오늘 data.json(시세 ' + esc(report.stamp || "") + ") · 위 숫자는 data.json 기록값 그대로이며 추정치가 아닙니다.</p></div>";
+    return h;
+  }
+
+  function qaSectorHTML(report, sec, others) {
+    const idx = QA_STATE.idx;
+    const rows = idx.stocks.filter((s) => (s.sectors || []).indexOf(sec.name) >= 0)
+      .sort((a, b) => qaTurnoverNum(b.turnover) - qaTurnoverNum(a.turnover)
+        || Math.abs(b.chg || 0) - Math.abs(a.chg || 0));
+
+    let tags = sec.role
+      ? '<span class="qa-tag role">' + esc(qaRoleText(sec.role)) + "</span>"
+      : '<span class="qa-tag">업종</span>';
+    if (rows.length) tags += '<span class="qa-tag">종목 ' + rows.length + "</span>";
+
+    let h = '<div class="qa-card">' +
+      '<div class="qa-top"><div class="qa-id">' +
+        '<span class="qa-name">' + esc(sec.name) + "</span>" +
+        (sec.sub ? '<span class="qa-sub">' + esc(sec.sub) + "</span>" : "") +
+      "</div>" +
+      (sec.change != null
+        ? '<div class="qa-num"><span class="qa-pct ' + sDir(sec.change) + '">' + sPct(sec.change) +
+          "</span>" + (sec.kind === "sector" ? '<span class="qa-sub">업종 등락</span>' : "") + "</div>"
+        : "") +
+      "</div>" +
+      '<div class="qa-tags">' + tags + "</div>";
+
+    if (sec.why) h += '<span class="qa-k">왜 움직였나 · data.json 기록</span><p class="qa-p">' + esc(sec.why) + "</p>";
+    (sec.notes || []).slice(0, 3).forEach((n) => { h += '<p class="qa-p">· ' + esc(n) + "</p>"; });
+
+    if (rows.length) {
+      h += '<span class="qa-k">이 섹터에서 확인된 종목 · 탭하면 종목 분석</span><div class="qa-rows">' +
+        rows.slice(0, 6).map((s) => '<button type="button" class="qa-rowbtn" data-qa-q="' + esc(s.name) + '">' +
+          '<span class="n">' + esc(s.name) + "</span>" +
+          (s.price ? '<span class="p">' + esc(s.price) + "원</span>" : "") +
+          '<span class="c ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
+          '<span class="t">' + esc(s.turnover || "—") + "</span>" +
+        "</button>").join("") + "</div>";
+    }
+
+    if (sec.trigger) {
+      h += '<p class="qa-trig"><b>' + esc(sec.triggerLabel || "관찰") + "</b> " + esc(sec.trigger) + "</p>";
+    }
+
+    h += '<span class="qa-k">연결된 기사</span>' + qaArticleHTML(qaArticles(report, sec.tokens, 3));
+    h += qaAskHTML(report, sec.name, "sector");
+
+    if (others && others.length) {
+      h += '<span class="qa-k">같이 볼 섹터</span><div class="qa-tags">' +
+        others.map((x) => '<button type="button" class="qa-tag" data-qa-q="' + esc(x.name) + '">' +
+          esc(x.name) + (x.change != null ? " " + sPct(x.change) : "") + "</button>").join("") + "</div>";
+    }
+
+    h += '<p class="qa-note">출처: 오늘 data.json · 업종 등락과 종목 시세는 각주 기준 값이며, 여기 없는 종목은 표시하지 않습니다.</p></div>';
+    return h;
+  }
+
+  function qaListHTML(report, stocks) {
+    return '<div class="qa-card">' +
+      '<div class="qa-top"><div class="qa-id">' +
+        '<span class="qa-name">"' + esc(QA_STATE.q) + '" 검색 결과 ' + stocks.length + "개</span>" +
+        '<span class="qa-sub">오늘 data.json에 있는 종목만</span>' +
+      "</div></div>" +
+      '<div class="qa-rows" style="margin-top:8px">' +
+        stocks.map((s) => '<button type="button" class="qa-rowbtn" data-qa-q="' + esc(s.name) + '">' +
+          '<span class="n">' + esc(s.name) + "</span>" +
+          (s.price ? '<span class="p">' + esc(s.price) + "원</span>" : "") +
+          '<span class="c ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
+          '<span class="t">' + esc(s.turnover || "—") + "</span>" +
+        "</button>").join("") +
+      "</div>" +
+      '<p class="qa-note">종목을 누르면 data.json에 기록된 수치로 다시 조회합니다.</p></div>';
+  }
+
+  function qaNoneHTML(report, q) {
+    const names = (QA_STATE.quickLabels || []).slice(0, 5);
+    return '<div class="qa-card qa-miss">' +
+      '<div class="qa-top"><div class="qa-id">' +
+        '<span class="qa-name">"' + esc(q) + '"</span>' +
+        '<span class="qa-sub">오늘 data.json에 없음 · ' + esc(qaTimeLabel(report)) + " 기준</span>" +
+      "</div></div>" +
+      '<p class="qa-miss-t">오늘 상위 수급 데이터(data.json)엔 없어요 — 실시간 뉴스·공시 확인이 필요합니다</p>' +
+      '<p class="qa-p" style="margin-top:6px">data.json은 오늘 거래대금·수급 상위 종목과 섹터만 담고 있어서, 여기 없는 종목은 숫자를 추측하지 않습니다. 아래 질문을 그대로 보내면 실시간으로 확인해요.</p>' +
+      (names.length
+        ? '<span class="qa-k">오늘 데이터에 있는 종목</span><div class="qa-tags">' +
+          names.map((n) => '<button type="button" class="qa-tag" data-qa-q="' + esc(n) + '">' + esc(n) + "</button>").join("") +
+          "</div>"
+        : "") +
+      qaAskHTML(report, q, "stock") +
+      '<p class="qa-note">확인된 값만 표시합니다. 없는 종목의 등락·수급은 만들어내지 않습니다.</p></div>';
+  }
+
+  /* ---------------- 퀵 칩 (오늘 데이터에서만 생성) ---------------- */
+  function qaQuickList(report) {
+    const rot = (report.context || {}).rotation || {};
+    const blocks = [rot.a].concat((rot.candidates || []).slice(0, 1)).filter(Boolean);
+    const out = [];
+    const push = (label, full, hint) => {
+      const n = String(label || "").trim();
+      if (!n || out.some((x) => x.label === n)) return;
+      out.push({ label: n, full: full || n, hint: hint || "" });
+    };
+    const shortSector = qaShortSector;
+
+    blocks.forEach((b) => {
+      const s0 = (b.stocks || [])[0];
+      if (s0) push(s0.name, s0.name, s0.name);
+    });
+    blocks.forEach((b) => {
+      if (b.sector) push(shortSector(b.sector), b.sector, b.sector);
+    });
+
+    const cardStocks = [];
+    (report.sessions || []).forEach((s) => (s.cards || []).forEach((c) => (c.stocks || []).forEach((x) => cardStocks.push(x))));
+    cardStocks.sort((a, b) => (b.chg || 0) - (a.chg || 0))
+      .forEach((x) => { if (out.length < 6) push(x.name, x.name, x.name + " " + sPct(x.chg)); });
+
+    QA_STATE.quickLabels = out.filter((x) => x.full === x.label).map((x) => x.label);
+    return out.slice(0, 6);
+  }
+
+  function qaQuickHTML(report) {
+    const list = qaQuickList(report);
+    if (!list.length) return "";
+    return '<span class="qa-qlab">오늘 급등·수급</span>' + list.map((c) =>
+      '<button type="button" class="qa-qchip" data-qa-q="' + esc(c.label) + '" title="' +
+        esc(c.hint || c.full) + '">' + esc(c.label) + "</button>").join("");
+  }
+
+  /* ---------------- 렌더 ---------------- */
+  function qaRender(report) {
+    const box = $("#qaResult");
+    if (!box) return;
+    if (!report) return;
+    if (QA_STATE.report !== report) {
+      QA_STATE.report = report;
+      const quick = $("#qaQuick");
+      if (quick) quick.innerHTML = qaQuickHTML(report);
+      const badge = $("#qaBadge");
+      if (badge) badge.textContent = "data.json 검증";
+    }
+
+    const res = qaFind(report, QA_STATE.q);
+    QA_STATE.res = res;
+    box.className = "qa-res";
+
+    if (res.type === "idle") {
+      box.innerHTML = '<p class="qa-idle">오늘 data.json에 있는 <b>종목·섹터</b>만 정확한 숫자로 보여줘요.' +
+        " 없는 종목은 추측하지 않고 <b>없다고</b> 알려드립니다.</p>";
+      return;
+    }
+
+    box.className = "qa-res has";
+    if (res.type === "stock") {
+      box.innerHTML = qaStockHTML(report, res.stock, res.others, res.sectors);
+    } else if (res.type === "sector") {
+      box.innerHTML = qaSectorHTML(report, res.sector, res.others);
+    } else if (res.type === "list") {
+      box.innerHTML = qaListHTML(report, res.stocks);
+    } else {
+      box.innerHTML = qaNoneHTML(report, res.q || QA_STATE.q);
+    }
+  }
+
+  /* ---------------- 복사·토스트 ---------------- */
+  let qaToastTimer = 0;
+  function qaToast(msg) {
+    const t = $("#qaToast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(qaToastTimer);
+    qaToastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+  }
+
+  async function qaCopyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* 아래 fallback */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* ---------------- 검색 실행·패널 이동 ---------------- */
+  function qaSearchFrom(value) {
+    QA_STATE.q = String(value == null ? "" : value);
+    qaRender(findReport(activeDate));
+  }
+
+  function qaSetIntent(k) {
+    if (!QA_INTENT[k] || k === QA_STATE.intent) return;
+    QA_STATE.intent = k;
+    const box = $("#qaIntent");
+    if (box) Array.prototype.forEach.call(box.children, (b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-intent") === k));
+    });
+    qaRender(findReport(activeDate));
+  }
+
+  function qaPlace() {
+    const panel = $("#qaPanel");
+    if (!panel) return;
+    const simple = $("#viewSimple");
+    const wantSimple = !!(simple && !simple.hidden);
+    const host = wantSimple ? $("#qaHostSimple") : $("#qaHostDetail");
+    if (host && panel.parentNode !== host) host.appendChild(panel);
+  }
+
+  function qaInit() {
+    const panel = $("#qaPanel");
+    const form = $("#qaForm");
+    const input = $("#qaInput");
+    if (!panel || !form || !input) return;
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      input.blur();
+      qaSearchFrom(input.value);
+    });
+
+    let timer = 0;
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => qaSearchFrom(input.value), 150);
+    });
+
+    panel.addEventListener("click", (e) => {
+      const copy = e.target.closest("[data-qa-copy]");
+      if (copy) {
+        const text = QA_STATE.question || "";
+        if (!text) return;
+        Promise.resolve(qaCopyText(text)).then((ok) => {
+          qaToast(ok ? "복사 완료! 채팅창에 붙여넣기 하세요"
+                     : "자동 복사가 막혔어요 · 위 질문을 길게 눌러 복사하세요");
+        });
+        return;
+      }
+      const intent = e.target.closest("[data-intent]");
+      if (intent) { qaSetIntent(intent.getAttribute("data-intent")); return; }
+
+      const go = e.target.closest("[data-qa-q]");
+      if (go) {
+        const v = go.getAttribute("data-qa-q") || "";
+        input.value = v;
+        qaSearchFrom(v);
+      }
+    });
+  }
+
   /* ---------------- 전체 ---------------- */
   function render() {
     const report = findReport(activeDate);
@@ -5059,6 +5865,7 @@ const REPORT_DATA = [
     renderPipe(report);
     renderFooter(report);
     renderSimple(report);
+    qaRender(report);
   }
 
   wireTechnicalDialog();
@@ -5067,6 +5874,7 @@ const REPORT_DATA = [
   function start() {
     wireModeToggle();
     wireSimpleUI();
+    qaInit();
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
