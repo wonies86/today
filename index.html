@@ -1117,7 +1117,518 @@
    ========================================================================== */
 const REPORT_DATA = [
   {
+    date: "2026-11-19",
+    defaultSession: "krx",
+    label: "2026-11-19 (목) · 수능일 장초반",
+    shortLabel: "11/19",
+    asOf: "2026-11-19 10:45 장중 기준 (수능일 10:00 개장)",
+    stamp: "10:45 장중",
+    marketState: "하락장",
+    priceBasis: "10:44 장중 시세 기준",
+    indicatorBasis: "2026-11-18 종가",
+    rangeLabels: { title: "당일 10:44까지 범위", close: "현재가" },
+    axis: ["10:00", "16:30", "20:00"],
+
+    /* ---------- 지수 스냅샷 ---------- */
+    indices: [
+      {
+        name: "코스피",
+        value: "5,000.36",
+        chg: -1.32,
+        badge: "KOSPI",
+        note: "장중 5,000선 붕괴 후 공방",
+        sub: [
+          { k: "기관", v: "-1,561억", cls: "down" },
+          { k: "외국인", v: "-1,270억", cls: "down" },
+          { k: "개인", v: "+2,286억", cls: "up" }
+        ]
+      },
+      {
+        name: "코스닥",
+        value: "653.96",
+        chg: -1.34,
+        badge: "KOSDAQ",
+        note: "개인 순매수로 낙폭 일부 방어",
+        sub: [
+          { k: "기관", v: "-108억", cls: "down" },
+          { k: "외국인", v: "-1,415억", cls: "down" },
+          { k: "개인", v: "+1,521억", cls: "up" }
+        ]
+      },
+      {
+        name: "수능일 시간표",
+        value: "10:00~16:30",
+        isNxt: true,
+        chg: null,
+        badge: "KRX 임시",
+        note: "NXT 프리마켓 휴장",
+        sub: [
+          { k: "NXT 프리마켓", v: "미운영", cls: "" },
+          { k: "애프터마켓", v: "17:00~20:00", cls: "" }
+        ]
+      }
+    ],
+
+    /* ---------- 수급 (억 원 · 10:45~10:47 장중) ---------- */
+    flows: [
+      {
+        market: "코스피",
+        caption: "외국인 -1,270억 · 기관 -1,561억 vs 개인 +2,286억",
+        rows: [
+          { name: "기관", eok: -1561 },
+          { name: "외국인", eok: -1270 },
+          { name: "개인", eok: 2286 }
+        ]
+      },
+      {
+        market: "코스닥",
+        caption: "외국인 -1,415억 vs 개인 +1,521억",
+        rows: [
+          { name: "기관", eok: -108 },
+          { name: "외국인", eok: -1415 },
+          { name: "개인", eok: 1521 }
+        ]
+      }
+    ],
+
+    /* ---------- 장전 · 정규장 · 애프터장 3세션 ---------- */
+    sessions: [
+      {
+        key: "pre",
+        tab: "장전 이슈",
+        code: "PRE",
+        name: "장전",
+        window: "프리마켓 휴장",
+        mode: "summary",
+        strip: "수능일 · NXT 프리마켓(08:00~08:50) 미운영 · 정규장 10:00 개장",
+        cards: [
+          {
+            medal: "🥇",
+            accent: "violet",
+            name: "프리장 휴장",
+            cmain: "NXT 미운영",
+            csub: "수능일",
+            issue: "<b>NXT 프리마켓(08:00~08:50)은 수능일 휴장</b> — 정규장은 10:00에 열렸습니다",
+            stats: [
+              { k: "프리마켓", v: "미운영" },
+              { k: "정규장", v: "10:00~16:30" },
+              { k: "NXT 정규", v: "10:00:30~16:20" }
+            ],
+            foot: "한국거래소 수능일 임시 거래시간"
+          },
+          {
+            medal: "🥈",
+            accent: "indigo",
+            name: "간밤 미국·장전",
+            cmain: "혼조",
+            csub: "나스닥 +0.42%",
+            issue: "엔비디아 호실적에도 <b>-2.89%</b> — FOMC 의사록 매파 · 앤트로픽 상장 대기",
+            notes: [
+              "다우 -1.11% · S&P500 -0.23%(5거래일 연속 하락) · 나스닥 +0.42% · 필라델피아 반도체 +0.10%",
+              "엔비디아 -2.89% vs AMD +5.31% · 브로드컴 +3.64% — AI 반도체 안에서도 차별화",
+              "코스피200 야간선물 -1.41% · 원/달러 1,332원대 — 개장 전 심리는 약세 우위",
+              "앤트로픽 나스닥 상장(티커 ANT, 공모가 83달러)이 오늘 밤 — 역대 최대 IPO"
+            ],
+            foot: "11/18(현지) 마감 · 국내 개장 전 확인분"
+          }
+        ],
+        note: "수능일에는 NXT 프리마켓이 열리지 않아, 장전 흐름은 간밤 미국 증시와 야간선물로만 확인됩니다."
+      },
+      {
+        key: "krx",
+        tab: "정규장 · 수급",
+        code: "정규장",
+        name: "정규장",
+        window: "10:00~16:30",
+        mode: "full",
+        strip: "10:45 기준 · 코스피 -1.32% · 코스닥 -1.34% · 거래대금 300억 이상 20종목",
+        cards: [
+          {
+            medal: "🥇",
+            accent: "rose",
+            name: "방송·엔터",
+            cmain: "+6.13%",
+            csub: "34종목 상승",
+            issue: "<b>한한령 완화 테마 2일째</b> — 지수가 밀려도 상승 업종 1위",
+            stocks: [
+              { name: "CJ ENM", price: "52,000", chg: 23.37, turnover: "267억" },
+              { name: "JYP Ent.", price: "47,500", chg: 1.60, turnover: "685억" },
+              { name: "하이브", price: "171,800", chg: 3.12, turnover: "541억" },
+              { name: "스튜디오드래곤", price: "30,800", chg: 29.96, turnover: "65억" }
+            ],
+            foot: "종목 시세 10:44 · 업종 등락 10:50 기준"
+          },
+          {
+            medal: "🥈",
+            accent: "teal",
+            name: "호텔·레저·여행",
+            cmain: "+4.32%",
+            csub: "항공 +2.64%",
+            issue: "<b>확산 지속</b> — 여행·카지노·항공이 지수 하락 속에서도 플러스",
+            stocks: [
+              { name: "하나투어", price: "36,000", chg: 17.07, turnover: "230억" },
+              { name: "제주항공", price: "8,760", chg: 16.80, turnover: "284억" },
+              { name: "파라다이스", price: "11,135", chg: 6.35, turnover: "180억" },
+              { name: "모두투어", price: "10,690", chg: 8.31, turnover: "142억" }
+            ],
+            foot: "종목 시세 10:44 · 업종 +4.32%는 호텔·레스토랑·레저(10:50)"
+          }
+        ],
+        up: {
+          kind: "count",
+          title: "상승률 상위",
+          tag: "확산",
+          caption: "종목 수로 보는 확산",
+          sub: "상승률 상위 12종목 · 10:43~10:50 기준",
+          items: [
+            { name: "스튜디오드래곤", g: "enter", chg: 29.96, tv: "65억", note: "상한가" },
+            { name: "한국화장품", g: "etc", chg: 28.97, tv: "90억", note: null },
+            { name: "CJ ENM", g: "enter", chg: 23.37, tv: "267억", note: null },
+            { name: "한국화장품제조", g: "etc", chg: 18.94, tv: "300억", note: null },
+            { name: "하나투어", g: "enter", chg: 17.07, tv: "230억", note: null },
+            { name: "제주항공", g: "enter", chg: 16.80, tv: "284억", note: null },
+            { name: "YG PLUS", g: "enter", chg: 14.31, tv: "147억", note: null },
+            { name: "호텔신라", g: "enter", chg: 8.73, tv: "130억", note: null },
+            { name: "롯데관광개발", g: "enter", chg: 8.55, tv: "94억", note: null },
+            { name: "모두투어", g: "enter", chg: 8.31, tv: "142억", note: null },
+            { name: "안랩", g: "etc", chg: 7.92, tv: "522억", note: null },
+            { name: "파라다이스", g: "enter", chg: 6.35, tv: "180억", note: null }
+          ]
+        },
+        value: {
+          kind: "value",
+          title: "거래대금 상위",
+          tag: "자금",
+          caption: "거래대금 비중으로 보는 자금",
+          sub: "거래대금 상위 13종목 · 10:43 기준",
+          items: [
+            { name: "SK하이닉스", g: "semi", chg: -0.87, tv: "7,866억", eok: 7866 },
+            { name: "삼성전자", g: "semi", chg: -1.85, tv: "6,706억", eok: 6706 },
+            { name: "삼성전기", g: "parts", chg: 0.86, tv: "1,760억", eok: 1760 },
+            { name: "삼성전자우", g: "semi", chg: -3.67, tv: "1,418억", eok: 1418 },
+            { name: "에이엘로봇", g: "robot", chg: 3.90, tv: "871억", eok: 871, note: "신규상장" },
+            { name: "삼성SDI", g: "etc", chg: -5.18, tv: "809억", eok: 809 },
+            { name: "JYP Ent.", g: "enter", chg: 1.60, tv: "685억", eok: 685 },
+            { name: "SK스퀘어", g: "semi", chg: -1.69, tv: "678억", eok: 678 },
+            { name: "아리바이오랩", g: "bio", chg: 4.54, tv: "583억", eok: 583 },
+            { name: "지니언스", g: "etc", chg: 0.26, tv: "566억", eok: 566 },
+            { name: "하이브", g: "enter", chg: 3.12, tv: "541억", eok: 541 },
+            { name: "에스엠", g: "enter", chg: 5.23, tv: "537억", eok: 537 },
+            { name: "안랩", g: "etc", chg: 7.92, tv: "522억", eok: 522 }
+          ]
+        }
+      },
+      {
+        key: "aft",
+        tab: "애프터장 · 테마",
+        code: "AFTER",
+        name: "애프터장",
+        window: "17:00~20:00",
+        mode: "summary",
+        noCta: true,
+        strip: "17:00 개장 예정 · 수능일 NXT 애프터마켓 17:00~20:00",
+        cards: [
+          {
+            medal: "🕗",
+            accent: "amber",
+            name: "애프터장 미개장",
+            cmain: "17:00~20:00",
+            csub: "예정",
+            issue: "수능일에는 애프터마켓도 <b>17:00에 시작</b>해 20:00에 끝납니다",
+            stats: [
+              { k: "개장", v: "17:00" },
+              { k: "마감", v: "20:00" },
+              { k: "확인 데이터", v: "없음" }
+            ],
+            foot: "애프터마켓 종료는 평소와 같은 20:00"
+          },
+          {
+            medal: "🔎",
+            accent: "indigo",
+            name: "관전 포인트",
+            cmain: "테마 연속성",
+            csub: "오후 확인",
+            issue: "정규장에서 오른 테마가 <b>애프터마켓까지 유지되는지</b>가 내일의 기준입니다",
+            notes: [
+              "스튜디오드래곤·하나투어 등 상한가·급등 종목의 애프터마켓 눌림 강도",
+              "반도체 대형주가 정규장 약세를 애프터마켓에서 되돌리는지",
+              "20:05 NXT 마감 요약에서 애프터 세션 데이터를 정리합니다"
+            ],
+            foot: "확인된 애프터마켓 데이터 없음"
+          }
+        ],
+        note: "애프터마켓은 17:00에 열립니다. 지금은 확인된 데이터가 없어 예정 정보와 관전 포인트만 표시합니다."
+      }
+    ],
+
+    /* ---------- 시장 맥락 ---------- */
+    context: {
+      kicker: "오늘 달라진 이유",
+      headline: "상승 출발한 지수는 <em>외국인·기관 매도</em>에 5,000선을 내줬고, 돈은 <em>한한령 테마</em>에만 남았습니다.",
+      reasons: [
+        {
+          title: "10시 개장 +0.45% → 10시 30분 5,000선 붕괴, 10:45 -1.32%",
+          body: "코스피는 5,090.04(+0.45%)로 출발했지만 10시 27분 4,991선까지 밀리며 5,000선을 내줬고, 10:45 현재 5,000.36(-1.32%)입니다. 장중 저가는 4,963.61. 외국인 -1,270억·기관 -1,561억 순매도를 개인 +2,286억이 받는 구조입니다."
+        },
+        {
+          title: "반도체·대형주가 지수를 끌어내림 — 엔비디아 -2.89%와 FOMC 매파",
+          body: "삼성전자 -1.85%(6,706억), SK하이닉스 -0.87%(7,866억), 삼성전자우 -3.67%, 삼성SDI -5.18%. 반도체·반도체장비 업종 -1.62%(상승 25 vs 하락 142)로, 어제 반등을 이끌었던 대형주가 오늘은 지수 하락의 진원지입니다."
+        },
+        {
+          title: "한한령 테마는 지수와 따로 감 — 엔터 +6.13%, 호텔·레저 +4.32%",
+          body: "방송·엔터테인먼트 +6.13%(34종목 상승), 호텔·레스토랑·레저 +4.32%, 항공사 +2.64%, 화장품 +1.71%. 스튜디오드래곤 상한가(+29.96%), CJ ENM +23.37%, 하나투어 +17.07%. 다만 고점 대비로는 상승폭이 줄어(하나투어 39,250원 → 36,000원) 오후 차익실현 여부가 관건입니다."
+        }
+      ],
+      prev: {
+        tag: "11/18(수)",
+        title: "기관이 되찾은 5,000선",
+        paras: [
+          "4거래일 연속 하락으로 5,000선을 내줬던 코스피가 엔비디아 3분기 호실적과 한중 FTA 서비스·투자 후속협상 타결이라는 두 재료로 하루 만에 5,067.44(+1.99%)를 회복했습니다(기관 +5,118억 / 외국인 -3,274억).",
+          "엔터·여행은 NXT 애프터마켓에서 상한가까지 갔고, SK하이닉스는 +4.19%로 110만 원을, 삼성전자는 +2.31%로 19만 원대를 되찾았습니다."
+        ]
+      },
+      next: {
+        tag: "오늘 남은 시간",
+        title: "체크포인트",
+        items: [
+          "코스피 5,000선 회복 여부 — 4,963.61원(오늘 저가)이 2차 지지선",
+          "외국인·기관 매도가 진정되는지(10:45 현재 외국인 -1,270억 · 기관 -1,561억)",
+          "한한령 테마의 오후 확산 vs 차익실현 — 상한가 유지 종목과 하나투어 고점(39,250원) 회복 여부",
+          "밤사이 앤트로픽 나스닥 상장(ANT) — AI 투심과 외국인 수급 변수",
+          "수능일 시간표 — 정규장 16:30 마감, 애프터마켓 17:00~20:00"
+        ]
+      }
+    },
+
+    /* ---------- 06 관련 기사 ---------- */
+    articles: [
+      {
+        source: "아주경제",
+        mark: "아주",
+        title: "속보 — 코스피, 장중 5,000선 붕괴 (10:27)",
+        url: "https://www.ajunews.com/view/20261119102521429"
+      },
+      {
+        source: "뉴스핌",
+        mark: "뉴스핌",
+        title: "개장시황 — 외국인 매도에 5,000선 위태 (10:20)",
+        url: "https://www.newspim.com/news/view/20261119000340"
+      },
+      {
+        source: "아주경제",
+        mark: "아주",
+        title: "한한령 해제 기대에 엔터주 불기둥 — 스튜디오드래곤 상한가",
+        url: "https://www.ajunews.com/view/20261119100443319"
+      },
+      {
+        source: "한국경제",
+        mark: "한경",
+        title: "한한령 해제에 들썩 — 증권가가 꼽은 수혜주는",
+        url: "https://www.hankyung.com/article/202611196544i"
+      },
+      {
+        source: "매일일보",
+        mark: "매일",
+        title: "SK증권 중국 재개방 최선호주는 에스엠 — 공연 현실화는 2028년 이후",
+        url: "https://www.m-i.kr/news/articleView.html?idxno=2020618"
+      },
+      {
+        source: "연합뉴스",
+        mark: "연합",
+        title: "수능일 국내 증시 1시간 늦춰 오전 10시 개장",
+        url: "https://www.yna.co.kr/view/AKR20261118119300008"
+      }
+    ],
+
+    /* ---------- 리포트 파이프라인 ---------- */
+    stages: [
+      {
+        time: "10:45",
+        name: "장초반 수급",
+        status: "done",
+        statusShort: "완료",
+        statusText: "11/19(목) 10:45 발행 · 수능일 10:00 개장 기준"
+      },
+      {
+        time: "17:00",
+        name: "애프터마켓 개장",
+        status: "waiting",
+        statusShort: "예정",
+        statusText: "수능일 NXT 애프터마켓 17:00~20:00"
+      },
+      {
+        time: "20:05",
+        name: "NXT 마감 요약",
+        status: "scheduled",
+        statusShort: "예정",
+        statusText: "11/19(목) 20:05 발행 예정"
+      }
+    ],
+
+    /* ---------- 05 관찰 5선 ---------- */
+    watchlist: [
+      {
+        rank: 1,
+        name: "SK하이닉스",
+        ticker: "000660",
+        market: "KOSPI",
+        sector: "반도체",
+        price: "1,134,000",
+        turnover: "7,866억",
+        turnoverRank: "전체 1위",
+        chg: -0.87,
+        prevClose: "1,144,000",
+        day: { open: 1154000, high: 1158000, low: 1115000, close: 1134000 },
+        why: "거래대금 1위(7,866억). 어제 외국인 순매도가 반도체에 집중됐던 대표주라, 엔비디아 -2.89% 충격을 국내가 어떻게 소화하는지 보는 바로미터입니다.",
+        technical: {
+          trend: "4거래일 조정으로 11/17 1,098,000원까지 밀린 뒤 11/18 1,144,000원(+4.19%)으로 반등했지만, 오늘은 1,154,000원 출발 후 1,115,000원까지 밀렸다가 1,134,000원(-0.87%)입니다. 20일선(1,289,400원)보다 12.1% 아래로 반등분을 절반 이상 반납했습니다.",
+          support: "1,115,000원(오늘 저가) · 1,098,000원(11/17 종가) · 1,089,000원(11/6 장중 저가, 60일 최저).",
+          resistance: "1,158,000원(오늘 고가) · 1,233,000원(11/13 종가) · 1,289,400원(20일선).",
+          volumeFlow: "거래량 69만 주, 거래대금 7,866억으로 전체 1위. 시가 +0.9% 갭 → 고가 1,158,000원 → 저가 1,115,000원(-2.5%) → 현재 1,134,000원으로, 장중 변동폭이 43,000원(3.8%)에 달합니다.",
+          checkpoint: "① 1,115,000원(오늘 저가) 유지 여부 ② 1,098,000원(11/17 종가) 이탈 시 60일 최저 1,089,000원 ③ 어제 외국인 반도체 순매도(2,340억)가 오늘도 이어지는지",
+          signals: [
+            { k: "20일선", v: "1,289,400원 · 12.1% 아래" },
+            { k: "60일선", v: "1,542,800원 · 26.5% 아래" },
+            { k: "RSI(14)", v: "40.7 · 중립선 아래" },
+            { k: "MACD", v: "-97,291 · 시그널 -91,732" },
+            { k: "볼린저 %B", v: "22 · 밴드 하단 쪽" },
+            { k: "스토캐스틱", v: "%K 8.8 · 과매도권" },
+            { k: "ATR 변동성", v: "일 9.33%" },
+            { k: "최근 1개월", v: "-10.9%" }
+          ]
+        }
+      },
+      {
+        rank: 2,
+        name: "삼성전자",
+        ticker: "005930",
+        market: "KOSPI",
+        sector: "반도체",
+        price: "191,100",
+        turnover: "6,706억",
+        turnoverRank: "전체 2위",
+        chg: -1.85,
+        prevClose: "194,700",
+        day: { open: 196000, high: 196300, low: 189800, close: 191100 },
+        why: "거래대금 2위(6,706억). 코스피 시가총액 1위로 지수 방향을 정하는 종목이라, 5,000선 공방의 1차 지표입니다.",
+        technical: {
+          trend: "11/11 이후 4거래일 조정으로 11/17 190,300원까지 밀렸다가 11/18 194,700원(+2.31%)으로 반등했습니다. 오늘은 196,000원 갭 상승 출발 후 189,800원까지 밀려 191,100원(-1.85%), 20일선(211,000원)보다 9.4%, 60일선(241,533원)보다 20.9% 아래입니다.",
+          support: "189,800원(오늘 저가) · 190,300원(11/17 종가) · 179,200원(11/6 장중 저가, 60일 최저). 오늘 저가가 11/17 종가를 살짝 밑돌았다가 되돌린 자리입니다.",
+          resistance: "196,300원(오늘 고가) · 199,950원(11/18 장중 고가)~20만 원 라운드 · 211,000원(20일선).",
+          volumeFlow: "거래량 347만 주, 거래대금 6,706억(2위). 시가 196,000원 → 고가 196,300원 → 저가 189,800원(-2.5%) → 현재 191,100원으로, 갭 상승분을 모두 반납한 음봉입니다.",
+          checkpoint: "① 189,800원(오늘 저가) 유지 ② 20만 원 회복 전까지는 조정 중 반등 ③ 어제 기관 순매수(+2,119억)가 오늘은 순매도(-1,561억, 시장 전체)로 돌아선 점",
+          signals: [
+            { k: "20일선", v: "211,000원 · 9.4% 아래" },
+            { k: "60일선", v: "241,533원 · 20.9% 아래" },
+            { k: "RSI(14)", v: "41.1 · 중립선 아래" },
+            { k: "MACD", v: "-11,739 · 시그널 -11,519" },
+            { k: "볼린저 %B", v: "21 · 밴드 하단 쪽" },
+            { k: "스토캐스틱", v: "%K 23.5 · 중립 아래" },
+            { k: "ATR 변동성", v: "일 7.07%" },
+            { k: "최근 1개월", v: "-13.3%" }
+          ]
+        }
+      },
+      {
+        rank: 3,
+        name: "JYP Ent.",
+        ticker: "035900",
+        market: "KOSDAQ",
+        sector: "미디어·엔터",
+        price: "47,500",
+        turnover: "685억",
+        turnoverRank: "전체 7위",
+        chg: 1.60,
+        prevClose: "46,750",
+        day: { open: 50700, high: 51700, low: 46700, close: 47500 },
+        why: "한한령 테마에서 어제 거래대금 1위였던 엔터 대장주(오늘 685억 · 전체 7위). 지수가 -1.3%인데도 플러스를 지키는지가 테마 체력의 기준입니다.",
+        technical: {
+          trend: "11/12 +16.5% 급등 → 3거래일 눌림(11/17 종가 43,000원) → 11/18 정규장 +8.72%(46,750원)에 NXT 52,500원까지 갔습니다. 오늘은 50,700원 시가 후 51,700원까지 올랐다가 46,700원까지 밀린 뒤 47,500원(+1.60%). 20일선(40,772원) 16.5% 위로 추세는 살아 있지만 장중 변동폭이 5,000원(10.4%)입니다.",
+          support: "46,700원(오늘 저가) · 43,000원(11/17 종가) · 40,772원(20일선).",
+          resistance: "51,700원(오늘 고가) · 52,500원(11/18 NXT 종가) · 54,900원(60일 최고).",
+          volumeFlow: "거래량 139만 주, 거래대금 685억으로 엔터 종목 중 1위. 시가 +8.4% 갭 → 고가 51,700원(+10.6%) → 저가 46,700원(-0.1%) → 현재 47,500원으로, 갭 상승분을 전부 반납하고 시가 아래에서 등락 중입니다.",
+          checkpoint: "① 46,700원(오늘 저가) 사수 ② RSI 73.2·볼린저 %B 107로 단기 과열 ③ 에스엠·하이브 등 테마 내에서 자금이 옮겨가는지",
+          signals: [
+            { k: "20일선", v: "40,772원 · 16.5% 위" },
+            { k: "60일선", v: "39,444원 · 20.4% 위" },
+            { k: "RSI(14)", v: "73.2 · 과매수" },
+            { k: "MACD", v: "+1,966 · 시그널 +928" },
+            { k: "볼린저 %B", v: "107 · 상단 밴드 밖" },
+            { k: "스토캐스틱", v: "%K 70.3 · 과열권" },
+            { k: "ATR 변동성", v: "일 6.99%" },
+            { k: "최근 1개월", v: "+23.6%" }
+          ]
+        }
+      },
+      {
+        rank: 4,
+        name: "에스엠",
+        ticker: "041510",
+        market: "KOSDAQ",
+        sector: "미디어·엔터",
+        price: "92,500",
+        turnover: "537억",
+        turnoverRank: "전체 11위",
+        chg: 5.23,
+        prevClose: "87,900",
+        day: { open: 97100, high: 97900, low: 90300, close: 92500 },
+        why: "SK증권이 중국 재개방 최선호주로 꼽은 종목. 어제 상한가(+29.91%) 이후 첫 거래일에 테마 내에서 가장 강한 흐름을 보이고 있습니다.",
+        technical: {
+          trend: "11/17 종가 67,650원에서 11/18 정규장 상한가 87,900원(+29.91%)을 찍고, NXT에서 99,900원까지 갔습니다. 오늘은 97,100원 시가 후 90,300원까지 밀렸다가 다시 92,500원(+5.23%)으로 오르며 지수 하락과 무관하게 강세입니다. 20일선(78,925원) 17.2% 위입니다.",
+          support: "90,300원(오늘 저가) · 87,900원(11/18 종가) · 78,925원(20일선).",
+          resistance: "97,900원(오늘 고가) · 99,900원(11/18 NXT 종가) · 140,400원(52주 최고).",
+          volumeFlow: "거래량 57만 주, 거래대금 537억(11위). 장 초반 97,900원(+11.4%)까지 올랐다가 90,300원까지 밀린 뒤 92,500원으로 회복 — 상한가 다음 날 특유의 큰 변동성(변동폭 7,600원·8.6%)입니다.",
+          checkpoint: "① 90,300원(오늘 저가) 지지 ② SK증권 선호도 1위 재료가 오후에도 유지되는지 ③ 어제 상한가 물량의 차익실현 소화",
+          signals: [
+            { k: "20일선", v: "78,925원 · 17.2% 위" },
+            { k: "60일선", v: "79,560원 · 16.3% 위" },
+            { k: "RSI(14)", v: "72.0 · 과매수" },
+            { k: "MACD", v: "+778 · 시그널 -703" },
+            { k: "볼린저 %B", v: "105 · 상단 밴드 밖" },
+            { k: "스토캐스틱", v: "%K 65.4 · 중립 위" },
+            { k: "ATR 변동성", v: "일 7.0%" },
+            { k: "최근 1개월", v: "+6.2%" }
+          ]
+        }
+      },
+      {
+        rank: 5,
+        name: "하나투어",
+        ticker: "039130",
+        market: "KOSPI",
+        sector: "여행·레저",
+        price: "36,000",
+        turnover: "230억",
+        turnoverRank: "전체 27위",
+        chg: 17.07,
+        prevClose: "30,750",
+        day: { open: 37100, high: 39250, low: 34700, close: 36000 },
+        why: "여행·레저로 확산된 테마의 대장주. 하나증권이 중국 아웃바운드 모객 허가의 직접 수혜주로 지목했고, 60일 고점(36,900원)을 넘어선 뒤에도 플러스를 유지하고 있습니다.",
+        technical: {
+          trend: "11/18까지 3만 원대 초반 보합이던 주가가 오늘 37,100원에 갭 상승해 장중 39,250원(+27.6%)까지 갔고, 현재 36,000원(+17.07%)입니다. 11/18까지의 60일 최고(36,900원)를 넘어선 자리에서 다시 그 아래로 내려왔고, 20일선(29,108원) 23.7% 위입니다.",
+          support: "34,700원(오늘 저가) · 30,750원(11/18 종가) · 29,108원(20일선).",
+          resistance: "36,900원(60일 최고) · 39,250원(오늘 고가) · 51,500원(52주 최고).",
+          volumeFlow: "거래량 62만 주, 거래대금 230억. 시가 37,100원 → 고가 39,250원(+3.0%) → 저가 34,700원(-6.5%) → 현재 36,000원으로, 변동폭이 4,550원(13.1%)에 달하는 장중 롤러코스터입니다.",
+          checkpoint: "① 34,700원(오늘 저가) 유지 ② RSI 78.2·볼린저 %B 160으로 단기 과열이 극단 ③ 하나증권이 지목한 중국 아웃바운드 모객 허가 후속 뉴스",
+          signals: [
+            { k: "20일선", v: "29,108원 · 23.7% 위" },
+            { k: "60일선", v: "30,529원 · 17.9% 위" },
+            { k: "RSI(14)", v: "78.2 · 과매수" },
+            { k: "MACD", v: "+667 · 시그널 +20" },
+            { k: "볼린저 %B", v: "160 · 상단 밴드 크게 이탈" },
+            { k: "스토캐스틱", v: "%K 74.8 · 과열권" },
+            { k: "ATR 변동성", v: "일 4.25%" },
+            { k: "최근 1개월", v: "+32.1%" }
+          ]
+        }
+      }
+    ],
+
+    disclaimer: "본 대시보드는 당일 거래대금·수급·재료 기반 객관적 관찰 정리이며, 특정 종목 매수·투자 추천이 아닙니다."
+  },
+  {
     date: "2026-11-18",
+    defaultSession: "aft",
     label: "2026-11-18 (수)",
     shortLabel: "11/18",
     asOf: "2026-11-18 20:00 NXT 마감 기준",
@@ -1681,9 +2192,19 @@ const REPORT_DATA = [
 
   /* 세션별 타임라인 마커 위치 (08:00~20:00 = 720분) */
   const MARK = { pre: 5.4, krx: 62.5, aft: 100 };
+  /* 수능일처럼 거래시간이 밀린 날은 세션 창 기준으로 마커를 다시 계산 */
+  const MARK_BY_WINDOW = (win) => {
+    const m = String(win || "").match(/(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    const start = Number(m[1]) * 60 + Number(m[2]);
+    const end = Number(m[3]) * 60 + Number(m[4]);
+    const base = 8 * 60;
+    const pct = ((start + end) / 2 - base) / (20 * 60 - base) * 100;
+    return Math.max(2, Math.min(98, pct));
+  };
 
   let activeDate = REPORT_DATA.length ? REPORT_DATA[0].date : null;
-  let activeSession = "aft";
+  let activeSession = (REPORT_DATA.length && REPORT_DATA[0].defaultSession) || "aft";
   let expanded = { up: false, value: false };
   let taOpener = null;
 
@@ -1698,6 +2219,13 @@ const REPORT_DATA = [
     $("#dateChipLabel").textContent = report.label;
     $("#stampChip").textContent = report.stamp || report.asOf || "";
     document.title = "🇰🇷 국내 증시 수급 대시보드 · " + report.label;
+
+    /* 타임라인 축 라벨 — 날짜별 거래시간 반영 */
+    const axis = report.axis || ["08:00", "15:30", "20:00"];
+    [".rail-axis .a0", ".rail-axis .a1", ".rail-axis .a2"].forEach((sel, i) => {
+      const node = $(sel);
+      if (node && axis[i]) node.textContent = axis[i];
+    });
 
     /* 탭 */
     const tabs = $("#tabs");
@@ -1740,7 +2268,8 @@ const REPORT_DATA = [
       if (sorted.length < 2) return;
       const idx = sorted.findIndex((r) => r.date === activeDate);
       activeDate = sorted[(idx + 1) % sorted.length].date;
-      setSession("aft", true);
+      const next = findReport(activeDate);
+      setSession((next && next.defaultSession) || "aft", true);
     };
   }
 
@@ -1777,7 +2306,8 @@ const REPORT_DATA = [
       else node.classList.remove("on");
     });
     const mark = $("#railMark");
-    const left = MARK[s.key] == null ? 100 : MARK[s.key];
+    const fromWin = MARK_BY_WINDOW(s.window);
+    const left = fromWin != null ? fromWin : (MARK[s.key] == null ? 100 : MARK[s.key]);
     mark.style.left = left + "%";
     $("#strip").innerHTML = '<span class="dot" aria-hidden="true"></span><span>' + esc(s.strip || "") + "</span>";
   }
@@ -1786,10 +2316,8 @@ const REPORT_DATA = [
     activeSession = key;
     expanded = { up: false, value: false };
     if (resetDate) {
-      const report = findReport(activeDate);
-      renderChrome(report);
-      renderSwitcher(report);
-      renderSessionBody(report);
+      /* 날짜를 바꾸면 날짜 단위 섹션(맥락·관찰·기사·푸터)까지 모두 다시 그린다 */
+      render();
       return;
     }
     const report = findReport(activeDate);
@@ -1964,6 +2492,7 @@ const REPORT_DATA = [
 
     if (s.mode === "summary") {
       if (s.note) sec.appendChild(el("div", "sen-note", esc(s.note)));
+      if (s.noCta) { box.appendChild(sec); return; }
       const cta = el("div", "cta-row");
       const b1 = el("button", "cta", "정규장 수급 보기 →");
       b1.type = "button";
@@ -2052,13 +2581,14 @@ const REPORT_DATA = [
   }
 
   /* ---------------- 관찰 5선 + 모달 ---------------- */
-  function rangeBar(d) {
+  function rangeBar(d, labels) {
     if (!d || !(d.high > d.low)) return "";
+    const L = labels || {};
     const clamp = (v) => Math.min(d.high, Math.max(d.low, v));
     const pos = (v) => ((clamp(v) - d.low) / (d.high - d.low)) * 100;
     return (
       '<div class="ta-range">' +
-        '<div class="ta-range-head"><span>당일 정규장 범위</span>' +
+        '<div class="ta-range-head"><span>' + esc(L.title || "당일 정규장 범위") + "</span>" +
           "<span><b>" + num(d.low) + "</b> ~ <b>" + num(d.high) + "</b></span></div>" +
         '<div class="ta-track" aria-hidden="true">' +
           '<span class="mk" style="left:' + pos(d.open).toFixed(2) + '%"></span>' +
@@ -2066,7 +2596,7 @@ const REPORT_DATA = [
         "</div>" +
         '<div class="ta-range-foot">' +
           '<span><i class="k-mk" aria-hidden="true"></i>시가 ' + num(d.open) + "</span>" +
-          '<span><i class="k-now" aria-hidden="true"></i>종가 ' + num(d.close) + "</span>" +
+          '<span><i class="k-now" aria-hidden="true"></i>' + esc(L.close || "종가") + " " + num(d.close) + "</span>" +
         "</div>" +
       "</div>"
     );
@@ -2097,14 +2627,17 @@ const REPORT_DATA = [
           '<span class="pick-sector">' + esc(w.sector || "") + "</span>" +
           '<span class="pick-hint">차트 분석 보기 <span aria-hidden="true">↗</span></span>' +
         "</span>";
-      card.addEventListener("click", () => openTechnical(w, card));
+      card.addEventListener("click", () => openTechnical(w, card, report));
       box.appendChild(card);
     });
   }
 
-  function openTechnical(w, opener) {
+  function openTechnical(w, opener, report) {
     const dlg = $("#taDialog");
     if (!dlg) return;
+    const rep = report || findReport(activeDate);
+    const priceBasis = rep.priceBasis || "NXT 애프터마켓 20:00 마감 기준";
+    const indicatorBasis = rep.indicatorBasis || "2026-11-18 종가";
     const t = w.technical || {};
     const kl = t.keyLevels || {};
     const support = t.support || kl.support || "—";
@@ -2127,10 +2660,12 @@ const REPORT_DATA = [
     $("#taScroll").innerHTML =
       '<div class="ta-price"><b>' + esc(w.price || "—") + "원</b>" +
         '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span></div>" +
-      '<div class="ta-basis">NXT 애프터마켓 20:00 마감 기준' +
-        (w.krxClose
-          ? " · 정규장 종가 " + esc(w.krxClose) + "원 (" + pct(w.krxChg) + ")"
-          : "") +
+      '<div class="ta-basis">' + esc(priceBasis) +
+        (w.prevClose
+          ? " · 전일 정규장 종가 " + esc(w.prevClose) + "원"
+          : (w.krxClose
+            ? " · 정규장 종가 " + esc(w.krxClose) + "원 (" + pct(w.krxChg) + ")"
+            : "")) +
       "</div>" +
       '<div class="ta-chips">' +
         '<span class="ta-chip">거래대금 <b>' + esc(w.turnover || "—") + "</b></span>" +
@@ -2140,14 +2675,14 @@ const REPORT_DATA = [
             Math.round(((w.day.high - w.day.low) / w.day.close) * 1000) / 10 + "%</b></span>"
           : "") +
       "</div>" +
-      rangeBar(w.day) +
+      rangeBar(w.day, rep.rangeLabels) +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
         '<p class="ta-para">' + esc(w.why) + "</p>" +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
-          '<span class="ta-tag">2026-11-18 종가</span></div>' +
+          '<span class="ta-tag">' + esc(indicatorBasis) + "</span></div>" +
         '<p class="ta-para">' + esc(t.trend || "") + "</p>" +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
@@ -2164,7 +2699,7 @@ const REPORT_DATA = [
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
           '<span class="ta-tag">객관 지표</span></div>' +
         '<div class="ta-signals">' + sigs + "</div>" +
-        '<p class="ta-note">지표는 2026-11-18 종가 기준 일봉 데이터로 계산된 값이며, ' +
+        '<p class="ta-note">지표는 ' + esc(indicatorBasis) + " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
           (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
       "</div>";
