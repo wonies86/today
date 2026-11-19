@@ -901,6 +901,122 @@ def build_watch_item(rank, info, quote, ind, why):
     }
 
 
+# ---------------------------------------------------------------- 수급 순환
+ROT_WINDOW = 40          # 순환 후보 판정에 쓰는 거래대금 상위 범위
+ROT_MAX_STOCKS = 3       # 섹터 카드에 보여줄 종목 수
+ROT_RANK_MAP = 60        # 실시간 숫자 갱신용 거래대금 순위 맵 크기
+
+
+def _ranked_values(value_stocks):
+    """거래대금 순위를 붙인 종목 행 — rank는 전체 거래대금 순위(1부터)."""
+    rows = []
+    for i, s in enumerate(value_stocks, start=1):
+        name = s.get("stockName")
+        if not name or is_etf(name):
+            continue
+        rows.append({
+            "rank": i,
+            "name": name,
+            "g": group_key(name),
+            "chg": to_float(s.get("fluctuationsRatio")),
+            "eok": int(round((to_int(s.get("accumulatedTradingValueRaw")) or 0) / 1e8)),
+            "tv": hangeul_turnover(s),
+        })
+    return rows
+
+
+def _avg_chg(rows):
+    vals = [r["chg"] for r in rows if r["chg"] is not None]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _rot_stocks(rows):
+    return [{
+        "name": r["name"],
+        "chg": round(r["chg"], 2) if r["chg"] is not None else None,
+        "tv": r["tv"],
+        "rank": r["rank"],
+    } for r in rows[:ROT_MAX_STOCKS]]
+
+
+def build_rotation(value_stocks):
+    """거래대금 상위권에서 2종목 이상이 함께 오간 섹터로 수급 순환(A→B·C)을 만든다.
+
+    · A = 오늘 가장 많은 자금이 몰린 섹터(거래대금 합계 1위)
+    · B·C = 상위 ROT_WINDOW위 안에 2종목 이상이 있는 다른 섹터, 평균 등락 높은 순
+    · 확인되지 않은 재료·수치는 쓰지 않는다(거래대금·등락률만).
+    """
+    rows = [r for r in _ranked_values(value_stocks) if r["rank"] <= ROT_WINDOW]
+    groups: dict[str, list] = {}
+    for r in rows:
+        groups.setdefault(r["g"], []).append(r)
+    named = {g: rs for g, rs in groups.items() if g != "etc" and len(rs) >= 2}
+    if len(named) < 2:
+        return None
+    order = sorted(named.items(), key=lambda kv: sum(x["eok"] for x in kv[1]), reverse=True)
+    a_key, a_rows = order[0]
+    alts = sorted(((_avg_chg(rs), g, rs) for g, rs in order[1:]), key=lambda x: x[0], reverse=True)
+
+    a_total = sum(x["eok"] for x in a_rows)
+    a_avg = _avg_chg(a_rows)
+    if a_avg >= 0:
+        a_trigger = (f"섹터 평균 {a_avg:+.2f}%가 플러스로 유지되는지가 1차 기준입니다. "
+                     "대표 종목이 상승분을 반납하면 수급이 다음 섹터로 옮겨갑니다.")
+    else:
+        a_trigger = (f"섹터 평균이 이미 {a_avg:+.2f}%로 밀렸습니다. 대표 종목이 전일 종가를 "
+                     "회복하지 못하면 자금이 B·C 쪽으로 옮겨가는 흐름이 이어집니다.")
+    rot = {
+        "title": "A 빠지면 볼 B·C",
+        "a": {
+            "label": "A",
+            "sector": GROUP_LABEL.get(a_key, a_key),
+            "meta": (f"상위 {ROT_WINDOW}위 안 {len(a_rows)}종목 · 합계 {a_total:,}억 · "
+                     f"평균 {a_avg:+.2f}%"),
+            "stocks": _rot_stocks(a_rows),
+            "why": (f"거래대금 상위 {ROT_WINDOW}위 가운데 {a_total:,}억이 이 섹터에서 오갔습니다. "
+                    + ", ".join(f"{x['name']} {x['tv']}" for x in a_rows[:3])
+                    + " 순으로 자금이 집중됐습니다."),
+            "triggerLabel": "이탈 신호",
+            "trigger": a_trigger,
+        },
+        "candidates": [],
+        "note": (f"거래대금 상위 {ROT_WINDOW}위 안에서 2종목 이상이 함께 오간 섹터만 후보로 골랐습니다."),
+    }
+    for label, (avg, g, rs) in zip(("B", "C"), alts[:2]):
+        total = sum(x["eok"] for x in rs)
+        rot["candidates"].append({
+            "label": label,
+            "sector": GROUP_LABEL.get(g, g),
+            "meta": f"상위 {ROT_WINDOW}위 안 {len(rs)}종목 · 합계 {total:,}억 · 평균 {avg:+.2f}%",
+            "stocks": _rot_stocks(rs),
+            "reason": (f"{GROUP_LABEL.get(g, g)} {len(rs)}종목이 거래대금 상위 {ROT_WINDOW}위에 함께 올랐고 "
+                       f"평균 {avg:+.2f}%입니다("
+                       + ", ".join(f"{x['name']} {x['chg']:+.2f}%" for x in rs[:3] if x["chg"] is not None)
+                       + ")."),
+            "trigger": ("섹터 평균 등락이 플러스로 유지될 때 후보로 봅니다." if avg >= 0
+                        else "낙폭과대 반등 후보 — 대표 종목이 전일 종가를 회복할 때 유효합니다."),
+        })
+    return rot
+
+
+def _refresh_rotation(rot, ranks):
+    """수급 순환 시나리오의 서사는 두고 종목 숫자(현재가 등락·거래대금·순위)만 갱신한다."""
+    clone = json.loads(json.dumps(rot, ensure_ascii=False))
+    blocks = [clone.get("a") or {}] + [c for c in clone.get("candidates") or [] if isinstance(c, dict)]
+    for block in blocks:
+        for st in block.get("stocks") or []:
+            live = ranks.get(st.get("name"))
+            if not live:
+                continue
+            if live.get("chg") is not None:
+                st["chg"] = live["chg"]
+            if live.get("tv"):
+                st["tv"] = live["tv"]
+            if live.get("rank"):
+                st["rank"] = live["rank"]
+    return clone
+
+
 # ---------------------------------------------------------------- 문맥(context)
 def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry):
     k_chg = (kospi or {}).get("chg")
@@ -977,6 +1093,9 @@ def build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_ent
                            f"({hangeul_turnover(leaders[0])})의 가격 흐름")
     checkpoints.append("정규장 15:30 마감 후 NXT 애프터마켓(15:40~20:00) 수급")
     ctx["next"] = {"tag": "체크포인트", "title": "오늘 남은 시간", "items": checkpoints}
+    rotation = build_rotation(value_stocks)
+    if rotation:
+        ctx["rotation"] = rotation
     return ctx
 
 
@@ -1054,6 +1173,7 @@ def build_new_entry(now, kospi, kosdaq, trends, industries, industry_stocks,
         "flows": build_flows(trends),
         "sessions": sessions,
         "context": build_context(now, kospi, kosdaq, trends, industries, value_stocks, prev_entry),
+        "_value_ranks": {r["name"]: r for r in _ranked_values(value_stocks)[:ROT_RANK_MAP]},
         "articles": [],
         "stages": build_stages(now, date_str, default_session),
         "watchlist": watchlist,
@@ -1070,6 +1190,15 @@ def merge_entry(new, old):
                 "disclaimer", "rangeLabels", "axis", "stages"):
         if key in old:
             out[key] = old[key]
+
+    # 수급 순환 시나리오: 기존 서사는 그대로 두고 종목 숫자만 실시간 값으로
+    old_ctx = old.get("context")
+    if isinstance(old_ctx, dict) and isinstance(old_ctx.get("rotation"), dict):
+        ranks = new.get("_value_ranks") or {}
+        if ranks:
+            ctx = dict(old_ctx)
+            ctx["rotation"] = _refresh_rotation(old_ctx["rotation"], ranks)
+            out["context"] = ctx
 
     stamp_hm = (re.match(r"(\d{1,2}:\d{2})", str(new.get("stamp") or "")) or [None, None])[1]
     if isinstance(out.get("rangeLabels"), dict) and stamp_hm:
@@ -1386,6 +1515,7 @@ def main(argv):
     entry = merge_entry(new_entry, old_entry)
     entry.pop("_prices", None)
     entry.pop("_industry_metric", None)
+    entry.pop("_value_ranks", None)
     entry["updatedAt"] = now.isoformat(timespec="seconds")
 
     # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
