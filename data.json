@@ -11,8 +11,8 @@
   "priceBasis": "09:10 장중 시세 기준",
   "indicatorBasis": "2026-11-19 종가",
   "rangeLabels": {
-   "title": "11/19 범위(정규장 + NXT 09:09)",
-   "close": "11/19 종가"
+   "title": "오늘 범위(정규장 09:00~)",
+   "close": "현재가"
   },
   "axis": [
    "08:00",
@@ -991,6 +991,30 @@
   },
   "articles": [
    {
+    "source": "서울경제",
+    "mark": "시황",
+    "title": "[개장 시황] 코스닥 660.98.. 외국인·기관 '팔자'에 하락 출발 — 개인 +231억, 하나에어로 +77.7%",
+    "url": "https://www.sedaily.com/article/20116770"
+   },
+   {
+    "source": "뉴시스",
+    "mark": "시황",
+    "title": "[속보] 코스피, 209.38포인트(4.08%) 내린 4,928.51 개장",
+    "url": "https://www.newsis.com/view/NISX20261120_0003876170"
+   },
+   {
+    "source": "머니투데이",
+    "mark": "시황",
+    "title": "[스팟] 코스닥 23.83포인트(3.48%) 내린 660.98 출발",
+    "url": "https://www.mt.co.kr/stock/2026/11/20/2026112008552159767"
+   },
+   {
+    "source": "연합뉴스",
+    "mark": "종목",
+    "title": "유안타증권 \"SK텔레콤, 앤트로픽 상장 첫날 지분가치 5조\" — 락업 2027년 5월 중순",
+    "url": "https://stock.mk.co.kr/news/view/1202976"
+   },
+   {
     "source": "뉴스티앤티",
     "mark": "공시",
     "title": "CJ ENM·JYP Ent.·에스엠 등 9종목 공매도 금지, 지슨 투자경고 등 47건 (지정일 11/20)",
@@ -1226,7 +1250,7 @@
     "sector": "여행·레저",
     "price": "35,450",
     "turnover": "19억",
-    "turnoverRank": "-",
+    "turnoverRank": "거래대금 100억 미만",
     "chg": -1.25,
     "prevClose": "36,450",
     "day": {
