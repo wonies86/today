@@ -177,6 +177,78 @@
   .refresh-btn.is-spinning .ic{animation:spin .55s cubic-bezier(.4,0,.2,1)}
   @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
+  /* ============================================================
+     날짜 선택 — 달력 피커(버튼 + 월간 달력)
+     · 상단: ‹ [📅 2026.11.20 (금) ▾] ›  (‹ › 는 기록이 있는 날짜로 이동)
+     · 버튼을 누르면 월간 달력이 열리고, data.json 에 있는 날짜만 눌린다.
+     ============================================================ */
+  .datenav{position:relative;display:inline-flex;align-items:center;gap:1px;flex:0 0 auto}
+  .datearrow{
+    flex:0 0 auto;width:19px;height:26px;padding:0;
+    display:grid;place-items:center;
+    appearance:none;border:0;background:transparent;border-radius:8px;
+    color:var(--mute);font-size:15px;font-weight:800;line-height:1;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+    transition:background .14s ease,color .14s ease;
+  }
+  .datearrow:hover:not(:disabled){background:#fff;color:var(--ink)}
+  .datearrow:disabled{opacity:.25;cursor:default}
+  .datechip .caret{font-size:8px;line-height:1;opacity:.5;margin-left:-1px}
+  .datechip:hover{border-color:var(--line-3)}
+  .datechip[aria-expanded="true"]{border-color:#c4b5fd;background:var(--violet-soft);color:#5b21b6}
+
+  .calpop{
+    position:fixed;z-index:75;
+    width:272px;padding:11px 11px 9px;
+    background:#fff;border:1px solid var(--line-3);border-radius:15px;
+    box-shadow:0 26px 50px -22px rgba(16,24,40,.42), 0 2px 6px rgba(16,24,40,.06);
+    font-variant-numeric:tabular-nums;
+  }
+  .calpop[hidden]{display:none}
+  .calpop-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}
+  .calpop-title{font-size:12.5px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+  .calpop-mbtn{
+    flex:0 0 auto;width:26px;height:26px;padding:0;
+    display:grid;place-items:center;
+    appearance:none;border:1px solid var(--line);background:#fff;border-radius:9px;
+    color:var(--ink-2);font-size:13px;font-weight:800;line-height:1;cursor:pointer;
+  }
+  .calpop-mbtn:hover:not(:disabled){background:var(--bg-soft);border-color:var(--line-3);color:var(--ink)}
+  .calpop-mbtn:disabled{opacity:.3;cursor:default}
+  .calpop-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+  .calpop-dow{display:grid;place-items:center;height:19px;font-size:9px;font-weight:800;letter-spacing:.02em;color:#a8b1c2}
+  .calpop-dow.sun{color:#d4738c}
+  .calpop-day{
+    position:relative;display:grid;place-items:center;
+    width:100%;height:31px;padding:0;
+    appearance:none;border:0;background:transparent;border-radius:9px;
+    font-family:inherit;font-size:11.5px;font-weight:700;line-height:1;
+    color:#cdd4e1;cursor:default;font-variant-numeric:tabular-nums;
+    transition:background .12s ease,color .12s ease;
+  }
+  .calpop-day.has{color:var(--ink);background:#f3f5fa;cursor:pointer}
+  .calpop-day.has:hover{background:#e7ecf7}
+  .calpop-day.today{box-shadow:inset 0 0 0 1.5px #c4b5fd;color:#5b21b6;font-weight:800}
+  .calpop-day.sel{background:var(--violet);color:#fff;box-shadow:none}
+  .calpop-day .dot{
+    position:absolute;left:50%;bottom:3px;width:3px;height:3px;margin-left:-1.5px;
+    border-radius:50%;background:var(--violet);
+  }
+  .calpop-day.sel .dot{background:#fff}
+  .calpop-foot{
+    display:flex;align-items:center;gap:5px;
+    margin-top:8px;padding-top:7px;border-top:1px solid var(--line-2);
+    font-size:9.5px;font-weight:700;color:var(--mute);
+  }
+  .calpop-foot .dot{width:3px;height:3px;border-radius:50%;background:var(--violet)}
+  .calpop-today{
+    margin-left:auto;appearance:none;border:1px solid var(--line);background:#fff;
+    border-radius:999px;padding:2px 8px;font-family:inherit;font-size:9.5px;font-weight:800;
+    color:var(--ink-2);cursor:pointer;
+  }
+  .calpop-today:hover:not(:disabled){background:var(--violet-soft);border-color:#ddd0fb;color:#5b21b6}
+  .calpop-today:disabled{opacity:.4;cursor:default}
+
   .tabs{display:flex;gap:4px;padding:0 0 8px}
   .tab{
     flex:1 1 0;
@@ -1682,8 +1754,9 @@
     .mode-toggle{padding:2px}
     .mode-toggle button{padding:4px 7px;font-size:10.5px}
     .topbar-in{gap:6px}
-    .datechip{padding:4px 8px;font-size:11px}
-    .datechip .cal{display:none}
+    .datechip{padding:4px 7px;font-size:10.5px;gap:4px}
+    .datechip .cal{font-size:9.5px}
+    .datearrow{width:15px;height:24px;font-size:14px}
   }
 
 /* ============================================================
@@ -1894,9 +1967,14 @@
         <button type="button" role="tab" data-mode="simple" aria-selected="true">심플</button>
         <button type="button" role="tab" data-mode="detail" aria-selected="false">상세</button>
       </div>
-      <button type="button" class="datechip" id="dateChip">
-        <span class="cal" aria-hidden="true">📅</span><span id="dateChipLabel">—</span>
-      </button>
+      <div class="datenav">
+        <button type="button" class="datearrow" id="datePrev" aria-label="이전 기록 날짜" title="이전 기록 날짜">‹</button>
+        <button type="button" class="datechip" id="dateChip" aria-haspopup="dialog" aria-expanded="false"
+                aria-controls="calPop" title="날짜 선택 (달력)">
+          <span class="cal" aria-hidden="true">📅</span><span id="dateChipLabel">—</span><span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <button type="button" class="datearrow" id="dateNext" aria-label="다음 기록 날짜" title="다음 기록 날짜">›</button>
+      </div>
       <span class="stampchip" id="stampChip">—</span>
       <button type="button" class="refresh-btn" id="btn-refresh"
               aria-label="최신 화면 새로고침" title="최신 화면 새로고침">
@@ -2073,6 +2151,19 @@
     ※ 기술적 지표와 가격 구간은 당일 기준 객관적 참고용이며 매수·매도 추천이 아닙니다.
   </div>
 </dialog>
+
+<!-- ======================= 날짜 선택 달력 (상단 날짜 버튼) ======================= -->
+<div class="calpop" id="calPop" role="dialog" aria-label="날짜 선택" hidden>
+  <div class="calpop-head">
+    <button type="button" class="calpop-mbtn" id="calPrevMonth" aria-label="이전 달">‹</button>
+    <span class="calpop-title" id="calMonthLabel">—</span>
+    <button type="button" class="calpop-mbtn" id="calNextMonth" aria-label="다음 달">›</button>
+  </div>
+  <div class="calpop-grid" id="calGrid" role="group" aria-label="기록 날짜 달력"></div>
+  <div class="calpop-foot"><span class="dot" aria-hidden="true"></span><span>기록 있는 날짜</span>
+    <button type="button" class="calpop-today" id="calToday">오늘</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================================
@@ -4217,10 +4308,10 @@ const REPORT_DATA = [
 
   /* ---------------- 상단 : 날짜 · 상태 바 ---------------- */
   function renderChrome(report) {
-    const short = report.shortLabel || String(report.date || "").slice(5).replace("-", "/");
+    const full = String(report.date || "").replace(/-/g, ".");
     const dow = dowOfDate(report.date);
-    $("#dateChipLabel").textContent = short + (dow ? " (" + dow + ")" : "");
-    $("#dateChip").setAttribute("title", report.label || report.date || "");
+    $("#dateChipLabel").textContent = full + (dow ? " (" + dow + ")" : "");
+    $("#dateChip").setAttribute("title", (report.label || report.date || "") + " · 날짜 선택");
     $("#stampChip").textContent = report.stamp || report.asOf || "";
     document.title = "🇰🇷 국내 증시 수급 대시보드 · " + report.label;
 
@@ -4263,18 +4354,176 @@ const REPORT_DATA = [
     html += '<span class="asof">' + esc(report.stamp || report.asOf) + "</span>";
     bar.innerHTML = html;
 
-    /* 날짜 칩 — 저장된 날짜가 2개 이상이면 클릭으로 순환 */
+    /* 날짜 버튼 · 이전/다음 기록 날짜 화살표 */
+    renderDateNav();
+  }
+
+  /* ---------------- 날짜 선택 — 달력 피커 ----------------
+     · data.json(REPORT_DATA)에 기록이 있는 날짜만 눌린다. 없는 날짜는 흐리게 비활성.
+     · 심플·상세 두 뷰가 같은 상단 바를 쓰므로 동작이 동일하다.
+     ---------------------------------------------------------- */
+  const CAL_DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  const pad2 = (n) => (n < 10 ? "0" + n : String(n));
+  const dateKeyOf = (d) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  const todayKey = () => dateKeyOf(new Date());
+  const recordedDates = () => REPORT_DATA.map((r) => r.date).filter(Boolean).sort();
+  let calMonth = null;
+
+  function renderDateNav() {
+    const dates = recordedDates();
+    const i = dates.indexOf(activeDate);
+    const prev = $("#datePrev");
+    const next = $("#dateNext");
+    if (prev) prev.disabled = i <= 0;
+    if (next) next.disabled = i < 0 || i >= dates.length - 1;
     const chip = $("#dateChip");
-    const sorted = REPORT_DATA.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
-    chip.disabled = sorted.length < 2;
-    chip.style.cursor = sorted.length < 2 ? "default" : "pointer";
-    chip.onclick = () => {
-      if (sorted.length < 2) return;
-      const idx = sorted.findIndex((r) => r.date === activeDate);
-      activeDate = sorted[(idx + 1) % sorted.length].date;
-      const next = findReport(activeDate);
-      setSession((next && next.defaultSession) || "aft", true);
-    };
+    if (chip) chip.disabled = dates.length === 0;
+  }
+
+  function stepDate(step) {
+    const dates = recordedDates();
+    const target = dates[dates.indexOf(activeDate) + step];
+    if (target) selectDate(target);
+  }
+
+  function selectDate(date) {
+    const rep = REPORT_DATA.find((r) => r.date === date);
+    if (!rep) return;
+    activeDate = date;
+    activeSession = rep.defaultSession || activeSession;
+    expanded = { up: false, value: false };
+    closeCal();
+    render();
+  }
+
+  function renderCalendar() {
+    const grid = $("#calGrid");
+    if (!grid) return;
+    if (!calMonth) {
+      const base = activeDate ? new Date(activeDate + "T00:00:00") : new Date();
+      calMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+    }
+    const y = calMonth.getFullYear();
+    const m = calMonth.getMonth();
+    $("#calMonthLabel").textContent = y + "년 " + (m + 1) + "월";
+
+    const dates = recordedDates();
+    const have = new Set(dates);
+    const today = todayKey();
+    const thisMonth = y + "-" + pad2(m + 1);
+    const firstDow = new Date(y, m, 1).getDay();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+
+    let h = CAL_DOW.map((d, i) =>
+      '<span class="calpop-dow' + (i === 0 ? " sun" : "") + '" aria-hidden="true">' + d + "</span>").join("");
+    for (let i = 0; i < firstDow; i += 1) h += '<span aria-hidden="true"></span>';
+    for (let d = 1; d <= lastDay; d += 1) {
+      const ds = thisMonth + "-" + pad2(d);
+      const has = have.has(ds);
+      const cls = "calpop-day" + (has ? " has" : "") + (ds === today ? " today" : "") +
+        (ds === activeDate ? " sel" : "");
+      h += '<button type="button" class="' + cls + '" data-date="' + ds + '"' +
+        (has ? "" : " disabled") + ' aria-pressed="' + (ds === activeDate) + '"' +
+        (ds === today ? ' aria-current="date"' : "") +
+        ' aria-label="' + y + "년 " + (m + 1) + "월 " + d + "일" + (has ? " 기록 있음" : " 기록 없음") + '">' +
+        d + (has ? '<span class="dot" aria-hidden="true"></span>' : "") + "</button>";
+    }
+    grid.innerHTML = h;
+
+    /* 월 이동은 기록이 있는 달 범위 안에서만 */
+    const minM = dates.length ? dates[0].slice(0, 7) : thisMonth;
+    const maxM = dates.length ? dates[dates.length - 1].slice(0, 7) : thisMonth;
+    $("#calPrevMonth").disabled = thisMonth <= minM;
+    $("#calNextMonth").disabled = thisMonth >= maxM;
+    $("#calToday").disabled = !dates.length;
+  }
+
+  function positionCal() {
+    const pop = $("#calPop");
+    const chip = $("#dateChip");
+    if (!pop || !chip) return;
+    const r = chip.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const w = pop.offsetWidth || 272;
+    const h = pop.offsetHeight || 300;
+    let left = Math.round(r.left + r.width / 2 - w / 2);
+    left = Math.max(8, Math.min(left, vw - w - 8));
+    let top = Math.round(r.bottom + 6);
+    if (top + h > window.innerHeight - 8 && r.top - h - 6 > 8) top = Math.round(r.top - h - 6);
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+  }
+
+  const calIsOpen = () => {
+    const pop = $("#calPop");
+    return !!pop && pop.hidden === false;
+  };
+
+  function openCal() {
+    const pop = $("#calPop");
+    if (!pop) return;
+    calMonth = null; /* 선택된 날짜의 달부터 연다 */
+    renderCalendar();
+    pop.hidden = false;
+    positionCal();
+    $("#dateChip").setAttribute("aria-expanded", "true");
+    const sel = pop.querySelector(".calpop-day.sel") || pop.querySelector(".calpop-day.has");
+    if (sel) sel.focus({ preventScroll: true });
+  }
+
+  function closeCal() {
+    const pop = $("#calPop");
+    const chip = $("#dateChip");
+    if (pop) pop.hidden = true;
+    if (chip) chip.setAttribute("aria-expanded", "false");
+  }
+
+  function wireDateNav() {
+    const chip = $("#dateChip");
+    if (!chip) return;
+    chip.addEventListener("click", () => { if (calIsOpen()) closeCal(); else openCal(); });
+    $("#datePrev").addEventListener("click", () => stepDate(-1));
+    $("#dateNext").addEventListener("click", () => stepDate(1));
+    $("#calPrevMonth").addEventListener("click", () => {
+      if (!calMonth) calMonth = new Date();
+      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
+      renderCalendar();
+      positionCal();
+    });
+    $("#calNextMonth").addEventListener("click", () => {
+      if (!calMonth) calMonth = new Date();
+      calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
+      renderCalendar();
+      positionCal();
+    });
+    $("#calToday").addEventListener("click", () => {
+      const t = todayKey();
+      if (REPORT_DATA.some((r) => r.date === t)) { selectDate(t); return; }
+      const d = new Date();
+      calMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      renderCalendar();
+      positionCal();
+    });
+    $("#calGrid").addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest(".calpop-day.has");
+      if (b) selectDate(b.getAttribute("data-date"));
+    });
+    /* 바깥을 누르거나 Esc 키를 누르면 닫는다 */
+    document.addEventListener("pointerdown", (e) => {
+      if (!calIsOpen()) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest("#calPop") || t.closest("#dateChip") ||
+          t.closest("#datePrev") || t.closest("#dateNext")) return;
+      closeCal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !calIsOpen()) return;
+      closeCal();
+      chip.focus({ preventScroll: true });
+    });
+    window.addEventListener("resize", () => { if (calIsOpen()) positionCal(); });
+    window.addEventListener("scroll", () => { if (calIsOpen()) positionCal(); }, { passive: true });
   }
 
   /* ---------------- 세션 스위처 ---------------- */
@@ -6111,6 +6360,11 @@ const REPORT_DATA = [
     renderFooter(report);
     renderSimple(report);
     qaRender(report);
+    /* 달력이 열려 있으면 선택·날짜가 바뀐 뒤에도 그리드를 최신 상태로 유지한다 */
+    if (calIsOpen()) {
+      renderCalendar();
+      positionCal();
+    }
   }
 
   wireTechnicalDialog();
@@ -6119,6 +6373,7 @@ const REPORT_DATA = [
   function start() {
     wireModeToggle();
     wireSimpleUI();
+    wireDateNav();
     qaInit();
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());

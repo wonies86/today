@@ -1412,10 +1412,18 @@ def merge_entry(new, old):
     out = {k: v for k, v in new.items() if not k.startswith("_")}
     if not old:
         return out
-    for key in ("label", "shortLabel", "defaultSession", "context", "articles",
+    for key in ("label", "shortLabel", "context", "articles",
                 "disclaimer", "rangeLabels", "axis", "stages", "issue"):
         if key in old:
             out[key] = old[key]
+
+    # defaultSession 은 보존하지 않는다 — 실행 시각의 세션(09:00 전 pre, 09:00~15:29 krx,
+    # 15:30 이후 aft)으로 자동 전환되어야, 장이 열린 뒤에도 이전 세션 탭에 멈춰 있지 않는다.
+    # (과거 날짜를 볼 때는 index.html 이 그 날짜에 저장된 defaultSession 을 그대로 연다.)
+    if new.get("defaultSession"):
+        out["defaultSession"] = new["defaultSession"]
+    elif old.get("defaultSession"):
+        out["defaultSession"] = old["defaultSession"]
 
     # 애프터장 마감 서사(수동·에이전트 병합, mode="full")는 스크립트가 만들 수 없으므로
     # 이미 들어 있으면 자동 갱신이 덮어쓰지 않도록 그대로 유지한다.
