@@ -1032,19 +1032,21 @@
   /* ============================================================
      1줄 요약 + 클릭 펼침 (종목 설명·분석 공통)
      ------------------------------------------------------------
-     · .sum 안의 .sum-text 는 기본 1줄(말줄임). 한 줄을 넘칠 때만
-       '상세 ▾' 가 나타나고, 누르면 그 자리에서 부연설명이 펼쳐진다.
-     · data.json 은 건드리지 않는다 — 그릴 때 접었다 펴는 방식.
+     · .sum-lead = 390px 한 줄에 의미가 완결되는 요약 문장. 말줄임(…) 없음.
+       data.json 의 `*Summary` 필드를 그대로 쓴다(새 내용 창작 금지).
+     · .sum-text = 부연설명 전문. 기본은 숨기고 '상세 ▾' 로 그 자리에서 펼친다.
+     · 요약이 없는 옛 기록은 넘칠 때만 첫 문장/핵심 절을 뽑아 .sum-lead 로
+       만들고, 전문은 .sum-text 에 그대로 남겨 펼쳐 볼 수 있게 한다.
      ============================================================ */
-  .sum{display:flex;align-items:baseline;gap:6px;min-width:0}
-  .sum > .sum-text{
-    flex:1 1 auto;min-width:0;display:-webkit-box;-webkit-line-clamp:1;
-    -webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis
-  }
-  .sum.is-open{display:block}
-  .sum.is-open > .sum-text{display:inline;-webkit-line-clamp:unset;overflow:visible}
-  .sum.is-measuring > .sum-text{display:block !important;-webkit-line-clamp:unset !important;overflow:visible !important}
-  .sum.is-more:not(.is-open){cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sum{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:5px;row-gap:2px;min-width:0}
+  .sum > .sum-lead{display:none;flex:0 1 auto;min-width:0}
+  .sum > .sum-text{display:inline;flex:0 1 auto;min-width:0}
+  .sum.has-lead > .sum-lead,.sum.is-more > .sum-lead{display:inline}
+  .sum.has-lead:not(.is-open) > .sum-text,.sum.is-more:not(.is-open) > .sum-text{display:none}
+  .sum.is-open > .sum-text{display:block;flex:0 0 100%;margin-top:3px}
+  .sum.is-more:not(.is-open),.sum.has-lead:not(.is-open){cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sum.is-measuring > .sum-lead{display:none !important}
+  .sum.is-measuring > .sum-text{display:block !important;flex:0 0 100% !important}
   .sum-tgl{
     flex:0 0 auto;display:inline-flex;align-items:baseline;gap:1px;
     font:inherit;font-size:.92em;font-weight:780;line-height:inherit;letter-spacing:-.02em;
@@ -1476,7 +1478,8 @@
   display:block;font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 #viewSimple .stat .v{
-  display:block;font-size:11.5px;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  display:block;font-size:11.5px;font-weight:700;margin-top:1px;line-height:1.35;
+  white-space:normal;overflow-wrap:anywhere
 }
 #viewSimple .sec-notes{
   list-style:none;margin:0;padding:0;display:grid;gap:4px
@@ -1542,7 +1545,7 @@
   display:flex;align-items:baseline;gap:5px
 }
 #viewSimple .rot-name{
-  font-size:12px;font-weight:720;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  font-size:12px;font-weight:720;white-space:normal;overflow-wrap:anywhere
 }
 #viewSimple .rot-mark{
   font-size:10px;color:var(--mute);white-space:nowrap;margin-left:auto;flex:0 0 auto
@@ -4782,7 +4785,7 @@ const REPORT_DATA = [
         (card.csub ? '<span class="csub">' + esc(card.csub) + "</span>" : "") +
       "</span>" +
     "</div>";
-    if (card.issue) h += '<div class="scard-issue sum" data-sum>' + sumInner(card.issue) + "</div>";
+    if (card.issue) h += '<div class="scard-issue sum" data-sum>' + sumInner(card.issue, esc(sumOf(card, "issue"))) + "</div>";
 
     if (card.stats && card.stats.length) {
       h += '<div class="scard-stats">';
@@ -4814,11 +4817,11 @@ const REPORT_DATA = [
 
     if (card.notes && card.notes.length) {
       h += '<ul class="scard-notes">';
-      card.notes.forEach((t) => { h += '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>"; });
+      card.notes.forEach((t, ni) => { h += '<li class="sum" data-sum>' + sumInner(esc(t), esc(sumOf(card, "notes", ni))) + "</li>"; });
       h += "</ul>";
     }
 
-    if (card.foot) h += '<div class="scard-foot sum" data-sum>' + sumInner(esc(card.foot)) + "</div>";
+    if (card.foot) h += '<div class="scard-foot sum" data-sum>' + sumInner(esc(card.foot), esc(sumOf(card, "foot"))) + "</div>";
     n.innerHTML = h;
     return n;
   }
@@ -4938,7 +4941,12 @@ const REPORT_DATA = [
     sec.appendChild(secInner);
 
     if (s.mode === "summary") {
-      if (s.note) sec.appendChild(el("div", "sen-note", esc(s.note)));
+      if (s.note) {
+        const nd = el("div", "sen-note sum");
+        nd.setAttribute("data-sum", "");
+        nd.innerHTML = sumInner(esc(s.note), esc(sumOf(s, "note")));
+        sec.appendChild(nd);
+      }
       if (s.noCta) { box.appendChild(sec); return; }
       const cta = el("div", "cta-row");
       const b1 = el("button", "cta", "정규장 수급 보기 →");
@@ -4988,9 +4996,12 @@ const REPORT_DATA = [
       return '<div class="rot-line">' + (head || "") + "<b>" + esc(k.sector || "") + "</b>" +
           (k.meta ? '<span class="rot-share">' + esc(k.meta) + "</span>" : "") + "</div>" +
         (stocks ? '<div class="rot-stocks">' + stocks + "</div>" : "") +
-        ((k.why || k.reason) ? '<p class="rot-why sum" data-sum>' + sumInner(esc(k.why || k.reason)) + "</p>" : "") +
+        ((k.why || k.reason) ? '<p class="rot-why sum" data-sum>' + sumInner(esc(k.why || k.reason),
+          esc(sumOf(k, "why") || sumOf(k, "reason"))) + "</p>" : "") +
         (k.trigger ? '<p class="rot-trig sum" data-sum>' + sumInner("<b>" +
-          esc(k.triggerLabel || "진입·관찰") + "</b> " + esc(k.trigger)) + "</p>" : "");
+          esc(k.triggerLabel || "진입·관찰") + "</b> " + esc(k.trigger),
+          "<b>" + esc(k.triggerLabel || "진입·관찰") + "</b> " +
+            esc(sumOf(k, "trigger") || autoSum(k.trigger, 24))) + "</p>" : "");
     };
     /* 큰 판의 배경 — 뉴욕·달러·오늘 밤 촉매를 한 상자에 */
     const macroHTML = () => {
@@ -5000,7 +5011,7 @@ const REPORT_DATA = [
         '<div class="rot-macro-head"><span class="k">' + esc(m.label || "큰 판의 배경") + "</span>" +
           (m.title ? "<b>" + esc(m.title) + "</b>" : "") + "</div>" +
         '<ul class="rot-facts">' + m.facts.map((f) =>
-          '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v)) + "</span></li>").join("") +
+          '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v), esc(sumOf(f, "v"))) + "</span></li>").join("") +
         "</ul></div>";
     };
     /* 체크 변수 — 시간표·수급 리스크 */
@@ -5010,7 +5021,7 @@ const REPORT_DATA = [
       return '<div class="rot-risk">' +
         '<div class="rot-risk-head"><span class="k">' + esc(k.label || "체크 변수") + "</span>" +
           (k.title ? "<b>" + esc(k.title) + "</b>" : "") + "</div>" +
-        "<ul>" + k.items.map((t) => '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>").join("") +
+        "<ul>" + k.items.map((t, ri) => '<li class="sum" data-sum>' + sumInner(esc(t), esc(sumOf(k, "items", ri))) + "</li>").join("") +
           "</ul></div>";
     };
 
@@ -5026,7 +5037,7 @@ const REPORT_DATA = [
         '<div class="rot-body">' + body(k) + "</div></div>";
     });
     h += riskHTML();
-    if (r.note) h += '<p class="rot-note sum" data-sum>' + sumInner(esc(r.note)) + "</p>";
+    if (r.note) h += '<p class="rot-note sum" data-sum>' + sumInner(esc(r.note), esc(sumOf(r, "note"))) + "</p>";
     return h + "</div>";
   }
 
@@ -5046,7 +5057,7 @@ const REPORT_DATA = [
         '<span class="reason-num">' + (i + 1) + "</span>" +
         '<div class="reason-body">' +
           "<strong>" + esc(r.title) + "</strong>" +
-          '<p class="sum" data-sum>' + sumInner(esc(r.body)) + "</p>" +
+          '<p class="sum" data-sum>' + sumInner(esc(r.body), esc(sumOf(r, "body"))) + "</p>" +
         "</div>" +
       "</div>";
     });
@@ -5075,7 +5086,7 @@ const REPORT_DATA = [
     if (c.prev) {
       const p = el("div", "ctxbox");
       let ph = "<h4>" + esc(c.prev.title) + '<span class="tagline">' + esc(c.prev.tag) + "</span></h4>";
-      (c.prev.paras || []).forEach((t) => { ph += '<p class="sum" data-sum>' + sumInner(t) + "</p>"; });
+      (c.prev.paras || []).forEach((t, pi) => { ph += '<p class="sum" data-sum>' + sumInner(t, esc(sumOf(c.prev, "paras", pi))) + "</p>"; });
       p.innerHTML = ph;
       side.appendChild(p);
     }
@@ -5114,16 +5125,56 @@ const REPORT_DATA = [
   /* ============================================================
      1줄 요약 + 클릭 펼침 — 설명·분석 블록 공통 유틸
      ------------------------------------------------------------
-     · sumInner(html): 블록 안에 넣을 요약+토글 마크업
-     · 한 줄을 넘칠 때만 '상세 ▾' 를 보여주고(실제 높이 측정), 누르면 펼친다
-     · data.json 구조는 그대로 — 그릴 때만 접는다(과거 날짜·자동 갱신 모두 동일)
+     · sumInner(html, summary): 요약 줄(.sum-lead) + 전문(.sum-text) + '상세 ▾'
+       - summary 는 data.json 의 `*Summary` 값(검증된 사실의 압축). 새 내용 금지
+       - summary 가 없으면 syncSums 가 넘치는 블록만 첫 문장/핵심 절을 뽑는다
+     · 전문은 자르지 않는다 — 말줄임(…) 대신 요약 문장을 따로 보여준다
      ============================================================ */
   const SUM_LBL = { more: "상세", less: "접기", car: { more: "▾", less: "▴" } };
 
-  function sumInner(html) {
-    return '<span class="sum-text">' + html + "</span>" +
+  /* 블록마다 붙는 요약 필드 — `why` → `whySummary`, `notes[2]` → `notesSummary[2]` */
+  function sumOf(o, key, idx) {
+    if (!o || typeof o !== "object") return "";
+    let v = o[key + "Summary"];
+    if (v == null && key === "why") v = o.summary;      /* why 는 summary 로도 받는다 */
+    if (Array.isArray(v)) v = idx == null ? v[0] : v[idx];
+    return typeof v === "string" ? v.trim() : "";
+  }
+
+  function sumInner(html, summary) {
+    const lead = summary == null ? "" : String(summary).trim();
+    return (lead ? '<span class="sum-lead">' + lead + "</span>" : "") +
+      '<span class="sum-text">' + html + "</span>" +
       '<button type="button" class="sum-tgl" aria-expanded="false" hidden>' +
         SUM_LBL.more + '<span class="sum-car" aria-hidden="true">' + SUM_LBL.car.more + "</span></button>";
+  }
+
+  /* 요약이 없는 옛 기록용 — 첫 문장(또는 첫 구절)에서 의미가 끊기지 않게 뽑는다 */
+  function autoSum(text, max) {
+    const t = String(text || "").replace(/\s+/g, " ").trim();
+    const LIM = max || 34;
+    if (!t) return "";
+    if (t.length <= LIM) return t;
+    const tidy = (s) => String(s || "")
+      .replace(/\s*[\u2460-\u2469\u2160-\u2179]$/, "")   /* 끝에 붙은 ①②·Ⅰ 같은 번호 */
+      .replace(/[,·—\-]$/, "")
+      .trim();
+    const sent = t.match(/^(.{6,}?[.!?])(\s|$)/);            /* 첫 문장 */
+    if (sent && sent[1].trim().length <= LIM) return tidy(sent[1]);
+    /* ①②③ 같은 체크포인트 나열은 첫 항목까지만 */
+    const marks = ["\u2461", "\u2462", "\u2463", "\u2464"];
+    for (let i = 0; i < marks.length; i++) {
+      const at = t.indexOf(marks[i]);
+      if (at >= 10) return tidy(t.slice(0, at));
+    }
+    const cuts = [" — ", " · ", " → ", " / ", ", ", " vs ", "·"];
+    for (let i = 0; i < cuts.length; i++) {
+      const at = t.indexOf(cuts[i]);
+      if (at >= 8 && at <= LIM) return tidy(t.slice(0, at));
+    }
+    let at = t.lastIndexOf(" ", LIM);
+    if (at < 12) at = LIM;
+    return tidy(t.slice(0, at));
   }
 
   /* 접힌 1줄에 다 들어가는지 — 측정용으로 잠시 펼쳤다가 되돌린다 */
@@ -5147,12 +5198,39 @@ const REPORT_DATA = [
     if (scope.matches && scope.matches("[data-sum]")) list.push(scope);
     list.forEach((s) => {
       const tgl = s.querySelector(".sum-tgl");
-      if (!tgl) return;
+      const txt = s.querySelector(".sum-text");
+      if (!tgl || !txt) return;
       if (!s.offsetParent && !s.getClientRects().length) return;   /* 숨은 영역은 나중에 */
-      if (s.classList.contains("is-open")) return;                 /* 펼친 채로는 유지 */
-      const more = sumOverflows(s);
-      s.classList.toggle("is-more", more);
-      tgl.hidden = !more;
+      if (s.classList.contains("is-open")) { tgl.hidden = false; return; }  /* 펼친 채로는 유지 */
+
+      let lead = s.querySelector(".sum-lead");
+      if (lead) {
+        /* 직접 쓴 요약이 있으면 그 한 줄을 그대로 — 말줄임 없음 */
+        s.classList.add("has-lead");
+        const full = (txt.textContent || "").replace(/\s+/g, " ").trim();
+        const brief = (lead.textContent || "").replace(/\s+/g, " ").trim();
+        const more = full.length > brief.length + 8;
+        s.classList.toggle("is-more", more);
+        tgl.hidden = !more;
+        return;
+      }
+
+      /* 요약이 없는 옛 기록 — 한 줄을 넘칠 때만 첫 문장을 요약 줄로 올린다 */
+      const over = sumOverflows(s);
+      if (over) {
+        const brief = autoSum(txt.textContent);
+        if (brief && brief.length < (txt.textContent || "").replace(/\s+/g, " ").trim().length - 6) {
+          lead = document.createElement("span");
+          lead.className = "sum-lead";
+          lead.textContent = brief;
+          s.insertBefore(lead, txt);
+          s.classList.add("has-lead", "is-more");
+          tgl.hidden = false;
+          return;
+        }
+      }
+      s.classList.remove("is-more");
+      tgl.hidden = true;
     });
   }
 
@@ -5173,7 +5251,8 @@ const REPORT_DATA = [
     if (!s) return;
     const onTgl = !!(e.target.closest && e.target.closest(".sum-tgl"));
     const open = s.classList.contains("is-open");
-    if (!onTgl && (open || !s.classList.contains("is-more"))) return;   /* 펼친 뒤엔 토글로만 접기 */
+    const foldable = s.classList.contains("is-more") || s.classList.contains("has-lead");
+    if (!onTgl && (open || !foldable)) return;   /* 펼친 뒤엔 토글로만 접기 */
     e.preventDefault();
     e.stopPropagation();
     setSumOpen(s, !open);
@@ -5211,7 +5290,7 @@ const REPORT_DATA = [
           '<span class="pick-chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>" +
         "</span>";
       /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침 */
-      if (w.why) h += '<span class="pick-why sum" data-sum>' + sumInner(esc(w.why)) + "</span>";
+      if (w.why) h += '<span class="pick-why sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</span>";
       h += '<span class="pick-foot">' +
           '<span class="pick-sector">' + esc(w.sector || "") + "</span>" +
           '<span class="pick-hint">차트 분석 보기 <span aria-hidden="true">↗</span></span>' +
@@ -5442,31 +5521,31 @@ const REPORT_DATA = [
       rangeBar(w.day, report.rangeLabels) +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
-        '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why)) + "</p>" +
+        '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</p>" +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
           '<span class="ta-tag">' + esc(indicatorBasis) + "</span></div>" +
-        (t.trend ? '<p class="ta-para sum" data-sum>' + sumInner(esc(t.trend)) + "</p>" : "") +
+        (t.trend ? '<p class="ta-para sum" data-sum>' + sumInner(esc(t.trend), esc(sumOf(t, "trend"))) + "</p>" : "") +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(support)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(support), esc(sumOf(t, "support") || (kl.support ? sumOf(kl, "support") : ""))) + "</span></div>" +
           '<div class="ta-block is-res"><span class="k">주요 저항 구간</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(resistance)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(resistance), esc(sumOf(t, "resistance") || (kl.resistance ? sumOf(kl, "resistance") : ""))) + "</span></div>" +
           '<div class="ta-block"><span class="k">거래량·캔들 흐름</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(t.volumeFlow || "—")) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(t.volumeFlow || "—"), esc(sumOf(t, "volumeFlow"))) + "</span></div>" +
           '<div class="ta-block is-key"><span class="k">기술적 체크포인트</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(t.checkpoint || "—")) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(t.checkpoint || "—"), esc(sumOf(t, "checkpoint"))) + "</span></div>" +
         "</div>" +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
           '<span class="ta-tag">객관 지표</span></div>' +
         '<div class="ta-signals">' + sigs + "</div>" +
-        '<p class="ta-note sum" data-sum>' + sumInner("지표는 " + esc(indicatorBasis) +
+        '<p class="ta-note">지표는 ' + esc(indicatorBasis) +
           " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
-          (t.maNote ? " " + esc(t.maNote) : "")) + "</p>" +
+          (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
       "</div>";
   }
 
@@ -5494,7 +5573,7 @@ const REPORT_DATA = [
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>왜 움직였나</h4>' +
         '<span class="ta-tag">data.json 기록</span></div>' +
       (w.why
-        ? '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why)) + "</p>"
+        ? '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</p>"
         : '<p class="ta-para">이 종목은 관찰 5선·주도 섹터 카드에 수기 분석이 없습니다. ' +
           "수급·재료 문장은 data.json에 기록된 곳만 보여주고, 없는 사유는 만들지 않습니다.</p>") +
       "</div>";
@@ -5503,24 +5582,24 @@ const REPORT_DATA = [
       h += '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
           '<span class="ta-tag">일봉 자동 계산 · ' + esc(barDate(st.lastDate)) + " 종가</span></div>" +
-        '<p class="ta-para sum" data-sum>' + sumInner(esc(taTrendLine(st))) + "</p>" +
+        '<p class="ta-para sum" data-sum>' + sumInner(esc(taTrendLine(st)), esc(taTrendSum(st))) + "</p>" +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(taSupportLine(st))) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taSupportLine(st)), esc(taSupportSum(st))) + "</span></div>" +
           '<div class="ta-block is-res"><span class="k">주요 저항 구간</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(taResistLine(st))) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taResistLine(st)), esc(taResistSum(st))) + "</span></div>" +
           '<div class="ta-block"><span class="k">최근 흐름</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(taRangeLine(st))) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taRangeLine(st)), esc(taRangeSum(st))) + "</span></div>" +
           '<div class="ta-block is-key"><span class="k">기술적 체크포인트</span>' +
-            '<span class="v sum" data-sum>' + sumInner(esc(taCheckLine(st))) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taCheckLine(st)), esc(taCheckSum(st))) + "</span></div>" +
         "</div></div>" +
         '<div class="ta-sec">' +
           '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
             '<span class="ta-tag">객관 지표 · 자동 계산</span></div>' +
           '<div class="ta-signals">' + taSignalsHTML(st) + "</div>" +
-          '<p class="ta-note sum" data-sum>' + sumInner("일봉 " + st.n + "거래일(마지막 " +
+          '<p class="ta-note">일봉 ' + st.n + "거래일(마지막 " +
             esc(barDate(st.lastDate)) + " 종가)로 계산했습니다. " +
-            "이동평균·고저는 종가·고가·저가 실측값이며, 60일선·RSI·MACD는 관찰 5선 종목에만 기록되어 있습니다.") + "</p>" +
+            "이동평균·고저는 종가·고가·저가 실측값이며, 60일선·RSI·MACD는 관찰 5선 종목에만 기록되어 있습니다.</p>" +
         "</div>";
     } else {
       h += '<div class="ta-sec">' +
@@ -5570,6 +5649,41 @@ const REPORT_DATA = [
     if (st.ma20) out.push("20일선 " + taWon(Math.round(st.ma20)) + " 위 종가 유지 여부");
     out.push("20거래일 고가 " + taWon(st.hi20) + " 돌파 여부");
     out.push("20거래일 저가 " + taWon(st.lo20) + " 이탈 여부");
+    return out.join(" · ");
+  }
+
+  /* 자동 계산 블록의 1줄 요약 — 핵심 수치만(예: 20일선(1,279,050) 아래 -14.0% · 20일 -12.9%) */
+  function taTrendSum(st) {
+    const out = [];
+    if (st.ma20) out.push("20일선(" + taWon(Math.round(st.ma20)) + ") " +
+      (st.gap20 >= 0 ? "위 +" : "아래 -") + Math.abs(st.gap20).toFixed(1) + "%");
+    else out.push("종가 " + taWon(st.last[3]));
+    if (st.ret20 != null) out.push("20일 " + taSignedPct(st.ret20));
+    return out.join(" · ");
+  }
+
+  function taSupportSum(st) {
+    const parts = ["20일 저가 " + taWon(st.lo20)];
+    if (st.ma20 && st.gap20 >= 0) parts.push("20일선 " + taWon(Math.round(st.ma20)));
+    return parts.join(" · ");
+  }
+
+  function taResistSum(st) {
+    const parts = ["20일 고가 " + taWon(st.hi20)];
+    if (st.ma20 && st.gap20 < 0) parts.push("20일선 " + taWon(Math.round(st.ma20)));
+    return parts.join(" · ");
+  }
+
+  function taRangeSum(st) {
+    return "시 " + taWon(st.last[0]) + " · 고 " + taWon(st.last[1]) +
+      " · 저 " + taWon(st.last[2]) + " · 종 " + taWon(st.last[3]) +
+      (st.ret5 != null ? " · 5일 " + taSignedPct(st.ret5) : "");
+  }
+
+  function taCheckSum(st) {
+    const out = [];
+    if (st.ma20) out.push("20일선 " + taWon(Math.round(st.ma20)) + " 유지");
+    out.push("20일 고가 " + taWon(st.hi20) + " 돌파");
     return out.join(" · ");
   }
 
@@ -6204,7 +6318,7 @@ const REPORT_DATA = [
         "</div>" +
         '<span class="sec-chg ' + sDir(chgOfText(card.cmain)) + '">' + esc(card.cmain || "") + "</span>" +
       "</div>";
-    if (card.issue) h += '<p class="sec-issue sum" data-sum>' + sumInner(sRich(card.issue)) + "</p>";
+    if (card.issue) h += '<p class="sec-issue sum" data-sum>' + sumInner(sRich(card.issue), esc(sumOf(card, "issue"))) + "</p>";
     if (card.stocks && card.stocks.length) {
       h += '<ul class="stk">' + card.stocks.slice(0, 3).map(sStockRow).join("") + "</ul>";
     } else if (card.stats && card.stats.length) {
@@ -6213,9 +6327,9 @@ const REPORT_DATA = [
         '<span class="v">' + esc(s.v) + "</span></div>").join("") + "</div>";
     } else if (card.notes && card.notes.length) {
       h += '<ul class="sec-notes">' + card.notes.slice(0, 3)
-        .map((n) => '<li class="sum" data-sum>' + sumInner(esc(n)) + "</li>").join("") + "</ul>";
+        .map((n, ni) => '<li class="sum" data-sum>' + sumInner(esc(n), esc(sumOf(card, "notes", ni))) + "</li>").join("") + "</ul>";
     }
-    if (card.foot) h += '<p class="sec-foot sum" data-sum>' + sumInner(esc(card.foot)) + "</p>";
+    if (card.foot) h += '<p class="sec-foot sum" data-sum>' + sumInner(esc(card.foot), esc(sumOf(card, "foot"))) + "</p>";
     return h + "</article>";
   }
 
@@ -6244,7 +6358,7 @@ const REPORT_DATA = [
   function sMacroBox(m) {
     if (!m) return "";
     const facts = (m.facts || []).map((f) =>
-      '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v)) + "</span></li>").join("");
+      '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v), esc(sumOf(f, "v"))) + "</span></li>").join("");
     return '<div class="s-macro">' +
       '<div class="s-macro-head"><span class="k">' + esc(m.label || "큰 판의 배경") + "</span>" +
         (m.title ? "<b>" + esc(m.title) + "</b>" : "") + "</div>" +
@@ -6254,8 +6368,8 @@ const REPORT_DATA = [
 
   function sRiskBox(k) {
     if (!k) return "";
-    const items = (k.items || []).map((t) =>
-      '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>").join("");
+    const items = (k.items || []).map((t, ri) =>
+      '<li class="sum" data-sum>' + sumInner(esc(t), esc(sumOf(k, "items", ri))) + "</li>").join("");
     return '<div class="s-risk">' +
       '<div class="s-risk-head"><span class="k">' + esc(k.label || "체크 변수") + "</span>" +
         (k.title ? "<b>" + esc(k.title) + "</b>" : "") + "</div>" +
@@ -6272,11 +6386,14 @@ const REPORT_DATA = [
       '<div class="rot-main">' +
         '<div class="rot-line"><span class="rot-name">' + esc(blk.sector || "") + "</span>" +
           '<span class="rot-mark">' + esc(mark || "") + "</span></div>" +
-        (blk.meta ? '<p class="rot-why sum" data-sum>' + sumInner(esc(blk.meta)) + "</p>" : "") +
+        (blk.meta ? '<p class="rot-why sum" data-sum>' + sumInner(esc(blk.meta), esc(sumOf(blk, "meta"))) + "</p>" : "") +
         (chips ? '<div class="chips">' + chips + "</div>" : "") +
-        (why ? '<p class="s-why sum" data-sum>' + sumInner(esc(why)) + "</p>" : "") +
+        (why ? '<p class="s-why sum" data-sum>' + sumInner(esc(why),
+          esc(sumOf(blk, "why") || sumOf(blk, "reason"))) + "</p>" : "") +
         (blk.trigger ? '<p class="s-trig sum" data-sum>' + sumInner("<b>" +
-          esc(blk.triggerLabel || "관찰") + "</b> " + esc(blk.trigger)) + "</p>" : "") +
+          esc(blk.triggerLabel || "관찰") + "</b> " + esc(blk.trigger),
+          "<b>" + esc(blk.triggerLabel || "관찰") + "</b> " +
+            esc(sumOf(blk, "trigger") || autoSum(blk.trigger, 24))) + "</p>" : "") +
       "</div>" +
     "</div>";
   }
@@ -6298,14 +6415,14 @@ const REPORT_DATA = [
         h += sRotRow(c.label || (i ? "C" : "B"), tone, c, "대안 " + (i + 1));
       });
       h += sRiskBox(r.riskCheck);
-      if (r.note) h += '<p class="s-note sum" data-sum>' + sumInner(esc(r.note)) + "</p>";
+      if (r.note) h += '<p class="s-note sum" data-sum>' + sumInner(esc(r.note), esc(sumOf(r, "note"))) + "</p>";
     } else {
       (ctx.reasons || []).slice(0, 3).forEach((rs, i) => {
         h += '<div class="rot-row">' +
           '<span class="rot-badge ' + ["a", "b", "c"][i] + '" aria-hidden="true">' + (i + 1) + "</span>" +
           '<div class="rot-main">' +
             '<div class="rot-line"><span class="rot-name">' + esc(rs.title || "") + "</span></div>" +
-            (rs.body ? '<p class="s-why sum" data-sum>' + sumInner(esc(rs.body)) + "</p>" : "") +
+            (rs.body ? '<p class="s-why sum" data-sum>' + sumInner(esc(rs.body), esc(sumOf(rs, "body"))) + "</p>" : "") +
           "</div>" +
         "</div>";
       });
@@ -6330,7 +6447,7 @@ const REPORT_DATA = [
           '<span class="wr-go" aria-hidden="true">›</span>' +
         "</button>" +
         /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침(행을 누르면 분석 모달) */
-        (w.why ? '<div class="wr-sum sum" data-sum>' + sumInner(esc(w.why)) + "</div>" : "") +
+        (w.why ? '<div class="wr-sum sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</div>" : "") +
       "</li>").join("");
   }
 
