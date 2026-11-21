@@ -106,6 +106,32 @@ def recompute(rows):
             "last": rows[-1]["d"]}
 
 
+def check_scanner(s: dict) -> None:
+    """scanners[] 항목 하나 — 필수 키·포착 규칙·정렬."""
+    name = s.get("name") or s.get("id") or "?"
+    need = ("id", "name", "summary", "formula", "minValue", "rules",
+            "asOf", "basis", "updatedAt", "scanned", "hits", "reactions")
+    missing = [k for k in need if k not in s]
+    check(not missing, f"[{name}] 필수 키 12개 있음", f"[{name}] 필수 키 빠짐 {missing}")
+    hits = s.get("hits") or []
+    vals = [h.get("value_eok") or 0 for h in hits]
+    check(vals == sorted(vals, reverse=True), f"[{name}] {len(hits)}종목 거래대금 내림차순",
+          f"[{name}] 정렬 안 됨: {vals}")
+    check(all(v >= (s.get("minValue") or 100) for v in vals),
+          f"[{name}] 포착 종목 모두 {s.get('minValue')}억 이상",
+          f"[{name}] 기준 미달 포함: {vals}")
+    check(all(h.get("passed") for h in hits), f"[{name}] 포착 종목 모두 조건 통과",
+          f"[{name}] 미통과 종목이 hits 에 있음")
+    codes = [h.get("code") for h in hits]
+    check(len(codes) == len(set(codes)), f"[{name}] 포착 종목 중복 없음", f"[{name}] 포착 종목 중복")
+    for h in hits:
+        cnd = h.get("conditions") or {}
+        check(all(cnd.get(k) for k in ("A", "D", "E")), f"[{name}] {h.get('name')}: A·D·E 충족",
+              f"[{name}] {h.get('name')}: A·D·E 미충족 {cnd}")
+        check(bool(cnd.get("B") or cnd.get("C")), f"[{name}] {h.get('name')}: B 또는 C 충족",
+              f"[{name}] {h.get('name')}: B·C 모두 미충족")
+
+
 def main(argv) -> int:
     live = "--live" in argv
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
@@ -122,6 +148,25 @@ def main(argv) -> int:
           f"기준 다름: {meta.get('minValue')}")
     check(meta.get("scanned", 0) > 100, f"{meta.get('scanned')}종목 계산",
           "계산 종목 수가 너무 적음")
+
+    # ── 다중 조건식(scanners) — 조건식을 늘리면 여기도 자동으로 검사한다 ──
+    scanners = entry.get("scanners") or []
+    check(bool(scanners), f"scanners {len(scanners)}개 (다중 조건식 구조)", "scanners 없음")
+    ids = [s.get("id") for s in scanners]
+    check(len(ids) == len(set(ids)) and all(ids), "조건식 id 중복·빈 값 없음",
+          f"조건식 id 이상 {ids}")
+    if scanners:
+        first = scanners[0]
+        check(first.get("name") == "세력꿈틀이", "첫 조건식 이름 '세력꿈틀이'",
+              f"첫 조건식 이름 다름: {first.get('name')!r}")
+        check(first.get("hits") == hits, "scanners[0].hits == conditionHits (하위 호환)",
+              "scanners[0].hits 와 conditionHits 불일치")
+        check(first.get("formula") == RULE and first.get("minValue") == MIN_VALUE,
+              f"세력꿈틀이 수식 {RULE} · {MIN_VALUE}억", "세력꿈틀이 수식/기준 다름")
+        check(len(first.get("rules") or []) == 5, "세력꿈틀이 필터 기준 5개(A~E)",
+              f"필터 기준 개수 다름: {len(first.get('rules') or [])}")
+    for s in scanners:
+        check_scanner(s)
 
     charts = entry.get("charts") or {}
     stocks = charts.get("stocks") or {}

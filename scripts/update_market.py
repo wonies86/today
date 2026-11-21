@@ -14,8 +14,11 @@
 · 어떤 엔드포인트가 실패해도 스크립트는 죽지 않습니다(이전 값 유지 + 경고).
 
 · 조건식 × 당일 수급 교집합: 일봉 120거래일(거래량 포함)을 메모리에서 계산해
-  키움 조건식 A·B·C·D·E + 거래대금 100억 이상 종목만 conditionHits 로 저장하고,
-  포착·관찰 종목의 차트 구조와 과거 유사 지점 5일 반응을 chartReactions 에 담는다.
+  등록된 조건식(SCANNER_DEFS)마다 통과 + 거래대금 기준 이상 종목을 골라
+  data.json 최신 날짜의 scanners 배열에 담는다(첫 조건식 = '세력꿈틀이').
+  포착·관찰 종목의 차트 구조와 과거 유사 지점 5일 반응도 조건식마다 함께 담는다.
+  새 조건식은 SCANNER_DEFS 에 항목 하나만 추가하면 대시보드에 자동으로 늘어난다.
+  하위 호환: 첫 조건식 결과는 기존 키(conditionHits·conditionScan·chartReactions)에도 남긴다.
   (거래량은 data.json에 저장하지 않는다 — charts 는 [시,고,저,종] 그대로)
 
 사용법
@@ -76,7 +79,7 @@ CHARTS_MARK = "__CHARTS_JSON__"
 SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
 SCAN_RULE = "A and (B or C) and D and E"
 SCAN_FETCH = 130          # 스캔용 일봉 조회 개수(보관 120봉에 여유를 둔다)
-SCAN_KEYS = ("conditionHits", "conditionScan", "chartReactions")
+SCAN_KEYS = ("scanners", "conditionHits", "conditionScan", "chartReactions")
 
 WARNINGS: list[str] = []
 
@@ -697,6 +700,34 @@ def condition_scan(rows):
     }
 
 
+# ---------------------------------------------------------------- 조건식 정의
+#  등록된 조건식 — 여기에 항목 하나만 더하면 data.json·대시보드에 자동으로 늘어난다.
+#   · evaluate(rows): 일봉 리스트 → 조건 판정 dict (계산 불가면 None)
+#   · pick(scan)    : 그 dict 로 "조건 통과" 여부 판정
+#   · minValue      : 당일 거래대금 교집합 기준(억 원)
+#   · rules         : 화면에 그대로 보여줄 필터 기준 카드(키·짧은 라벨·설명)
+SCANNER_DEFS = [
+    {
+        "id": "power-wiggle",
+        "name": "세력꿈틀이",
+        "summary": "20·60·115일선 역배열 속 20·60일선 2% 수렴, 종가가 20일선 위 — "
+                   "5일 평균 거래량·거래대금 통과",
+        "formula": SCAN_RULE,
+        "minValue": SCAN_MIN_VALUE,
+        "rules": [
+            {"key": "A", "label": "20<60<115이평", "detail": "0봉전 20이평 < 60이평 < 115이평(역배열)"},
+            {"key": "B", "label": "5일 평균거래량 5.5만+", "detail": "1봉전까지 5봉 평균거래량 55,555주 이상"},
+            {"key": "C", "label": "5일 평균거래대금 5천만+", "detail": "1봉전까지 5봉 평균거래대금 5,000만원 이상"},
+            {"key": "D", "label": "종가 > 20이평", "detail": "0봉전 종가가 20이평 위"},
+            {"key": "E", "label": "20·60이평 2% 이내", "detail": "|20이평-60이평| ÷ 작은 값 ≤ 2%"},
+        ],
+        "intersection": f"당일 거래대금 {SCAN_MIN_VALUE}억+",
+        "evaluate": condition_scan,
+        "pick": lambda scan: bool(scan["pass"]),
+    },
+]
+
+
 def chart_pattern(rows):
     """현재 차트 구조 — 실측 수치로 확인되는 것만 태그로. (태그들, 한 줄 문장)"""
     closes = [r["c"] for r in rows]
@@ -820,30 +851,41 @@ def reaction_backtest(rows):
     }
 
 
-def build_condition_scan(series, all_stocks, extra_codes, now):
-    """조건식 통과 + 당일 거래대금 100억 이상 교집합 → conditionHits · chartReactions.
+def scanner_meta(definition: dict) -> dict:
+    """정의 → data.json 에 남길 메타(화면이 그대로 그리는 값)."""
+    return {
+        "id": definition["id"],
+        "name": definition["name"],
+        "summary": definition.get("summary", ""),
+        "formula": definition.get("formula", ""),
+        "minValue": definition.get("minValue", SCAN_MIN_VALUE),
+        "rules": definition.get("rules", []),
+        "intersection": definition.get("intersection", ""),
+    }
+
+
+def build_scanner_scan(definition, series, info, extra_codes, now):
+    """조건식 하나 — 통과 + 거래대금 기준 이상 종목과 모달용 차트 반응.
 
     · series 는 메모리의 일봉(거래량 포함) — data.json에는 결과만 저장
     · 거래대금은 allStocks(당일 누적) 값을 쓰고, 없으면 마지막 봉 종가×거래량으로 계산
     """
-    if not series:
-        return None
-    info = {}
-    for row in all_stocks or []:
-        if row and row[0]:
-            info[str(row[0])] = row
+    evaluate = definition.get("evaluate") or condition_scan
+    pick = definition.get("pick") or (lambda scan: bool(scan.get("pass")))
+    min_value = definition.get("minValue", SCAN_MIN_VALUE)
     scanned = 0
     hits = []
     reactions = {}
     last_dates = {}
     for code, rows in series.items():
-        scan = condition_scan(rows)
+        scan = evaluate(rows)
         if not scan:
             continue
         scanned += 1
         last_dates[rows[-1]["d"]] = last_dates.get(rows[-1]["d"], 0) + 1
         is_extra = code in extra_codes
-        if not scan["pass"] and not is_extra:
+        passed = bool(pick(scan))
+        if not passed and not is_extra:
             continue
         row = info.get(code) or []
         value_eok = None
@@ -863,39 +905,72 @@ def build_condition_scan(series, all_stocks, extra_codes, now):
             "valueText": turnover_text(value_eok),
             "gap": scan["gap"],
             "conditions": scan["conditions"],
-            "passed": scan["pass"],
+            "passed": passed,
             "pattern": tags,
             "patternText": text,
             "backtest": back,
         }
-        if scan["pass"] and (value_eok or 0) >= SCAN_MIN_VALUE:
+        if passed and (value_eok or 0) >= min_value:
             summary = tags[0] if tags else text
             if back and back.get("n"):
                 summary += f" · 과거 {back['m']}/{back['n']}회 5일 내 상승"
             item["summary"] = summary
             hits.append(item)
-        if is_extra and not scan["pass"]:
+        if is_extra and not passed:
             reactions[code] = item
-        elif is_extra and (value_eok or 0) < SCAN_MIN_VALUE:
+        elif is_extra and (value_eok or 0) < min_value:
             reactions[code] = item        # 조건은 맞아도 거래대금 미달이면 모달용으로만
     hits.sort(key=lambda h: -(h.get("value_eok") or 0))
     bar_date = max(last_dates, key=last_dates.get) if last_dates else ""
-    meta = {
+    result = scanner_meta(definition)
+    result.update({
         "asOf": bar_date,
         "basis": f"{bar_date[:4]}-{bar_date[4:6]}-{bar_date[6:]} 종가" if len(bar_date) == 8 else "",
+        "updatedAt": now.isoformat(timespec="seconds"),
         "scanned": scanned,
         "passed": len(hits),
-        "minValue": SCAN_MIN_VALUE,
-        "rule": SCAN_RULE,
-        "at": now.isoformat(timespec="seconds"),
+        "hits": hits,
+        "reactions": reactions,
+    })
+    return result
+
+
+def build_condition_scan(series, all_stocks, extra_codes, now):
+    """등록된 조건식 전부(SCANNER_DEFS)를 계산해 scanners 배열을 만든다.
+
+    하위 호환: 첫 조건식의 결과를 기존 키(conditionHits·conditionScan·chartReactions)
+    에도 같은 모양으로 넣는다 — 옛 화면·검증 스크립트가 그대로 동작한다.
+    """
+    if not series:
+        return None
+    info = {}
+    for row in all_stocks or []:
+        if row and row[0]:
+            info[str(row[0])] = row
+    scanners = [build_scanner_scan(defn, series, info, extra_codes, now) for defn in SCANNER_DEFS]
+    primary = scanners[0] if scanners else None
+    if not primary:
+        return None
+    meta = {
+        "id": primary["id"],
+        "name": primary["name"],
+        "asOf": primary["asOf"],
+        "basis": primary["basis"],
+        "scanned": primary["scanned"],
+        "passed": primary["passed"],
+        "minValue": primary["minValue"],
+        "rule": primary["formula"],
+        "at": primary["updatedAt"],
     }
-    return {"hits": hits, "meta": meta, "reactions": reactions}
+    return {"hits": primary["hits"], "meta": meta,
+            "reactions": primary["reactions"], "scanners": scanners}
 
 
 def apply_scan(entry, result):
     """스캔 결과를 항목에 붙인다 — 결과가 없으면 아무 것도 하지 않는다."""
     if not result:
         return False
+    entry["scanners"] = result["scanners"]
     entry["conditionHits"] = result["hits"]
     entry["conditionScan"] = result["meta"]
     entry["chartReactions"] = result["reactions"]
@@ -908,11 +983,14 @@ def carry_scan(entry, *sources):
     (기준일은 conditionScan.asOf 에 남아 있어 화면이 '며칠 종가 기준'인지 밝힌다)
     """
     for src in sources:
-        if isinstance(src, dict) and src.get("conditionHits") is not None:
-            for key in SCAN_KEYS:
-                if src.get(key) is not None:
-                    entry[key] = src[key]
-            return True
+        if not isinstance(src, dict):
+            continue
+        if src.get("scanners") is None and src.get("conditionHits") is None:
+            continue
+        for key in SCAN_KEYS:
+            if src.get(key) is not None:
+                entry[key] = src[key]
+        return True
     return False
 
 
@@ -2116,10 +2194,13 @@ def scan_only(argv):
     DATA_PATH.write_text(text, encoding="utf-8")
     meta = result["meta"]
     log(f"  · 스캔 갱신: {meta['basis']} · {meta['scanned']}종목 계산 · "
-        f"조건 통과 후 100억+ {len(result['hits'])}종목 · {len(text.encode()) / 1024:.1f}KB")
-    for hit in result["hits"]:
-        log(f"    {hit['name']}({hit['code']}) {hit['valueText']} · 이격 {hit['gap']}% · {hit['summary']}")
-    log(f"    모달용 차트 반응 {len(result['reactions'])}종목")
+        f"조건식 {len(result['scanners'])}개 · {len(text.encode()) / 1024:.1f}KB")
+    for scanner in result["scanners"]:
+        log(f"    [{scanner['name']}] {scanner['basis']} · {len(scanner['hits'])}종목 포착 "
+            f"(거래대금 {scanner['minValue']}억+ · {scanner['formula']})")
+        for hit in scanner["hits"]:
+            log(f"      {hit['name']}({hit['code']}) {hit['valueText']} · 이격 {hit['gap']}% · {hit['summary']}")
+        log(f"      모달용 차트 반응 {len(scanner['reactions'])}종목")
     if WARNINGS:
         log(f"    경고 {len(WARNINGS)}건")
     return 0

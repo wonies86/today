@@ -7,8 +7,9 @@
 <script>
   /* 첫 페인트 전에 보기 모드를 확정한다 — 상세로 저장한 사용자에게 심플이 깜빡이지 않게 */
   try {
+    var m = localStorage.getItem("kr_dash_mode");
     document.documentElement.setAttribute("data-mode",
-      localStorage.getItem("kr_dash_mode") === "detail" ? "detail" : "simple");
+      m === "detail" || m === "scanner" ? m : "simple");
   } catch (e) {
     document.documentElement.setAttribute("data-mode", "simple");
   }
@@ -1798,10 +1799,14 @@
 
   /* 모드별 표시 — 첫 페인트부터 깜빡임 없이 (html[data-mode] + hidden 둘 다 사용) */
   html[data-mode="detail"] #viewSimple,
-  html[data-mode="simple"] #viewDetail{display:none !important}
-  #viewDetail[hidden],#viewSimple[hidden]{display:none !important}
-  body.mode-simple .topbar .tabs{display:none}
-  body.mode-simple .wrap{padding-bottom:0}
+  html[data-mode="simple"] #viewDetail,
+  html[data-mode="scanner"] #viewSimple,
+  html[data-mode="scanner"] #viewDetail,
+  html[data-mode="simple"] #viewScanner,
+  html[data-mode="detail"] #viewScanner{display:none !important}
+  #viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden]{display:none !important}
+  body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs{display:none}
+  body.mode-simple .wrap,body.mode-scanner .wrap{padding-bottom:0}
 
   /* ============================================================
      수급 시나리오 — 큰 판의 배경 · 체크 변수 (상세 뷰)
@@ -2155,9 +2160,116 @@
 #viewSimple .scan-l2 b, #viewDetail .scan-l2 b{color:#5b21b6;font-weight:800}
 #viewSimple .scan-note, #viewDetail .scan-note{margin:6px 2px 0;font-size:9.5px;line-height:1.45;color:var(--mute,#818da3)}
 #viewSimple .scan-empty, #viewDetail .scan-empty{margin:6px 2px;font-size:11px;line-height:1.5;color:var(--mute,#818da3)}
+#viewSimple .scan-all, #viewDetail .scan-all{
+  display:flex;align-items:center;justify-content:center;gap:4px;width:100%;margin:3px 0 6px;
+  padding:7px 8px;border:1px solid #ddd0ff;border-radius:10px;background:var(--violet-soft,#f4efff);
+  color:#5b21b6;font-family:inherit;font-size:11px;font-weight:800;letter-spacing:-.01em;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+#viewSimple .scan-all:active, #viewDetail .scan-all:active{background:#ece2ff}
+#viewSimple .scan-all:focus-visible, #viewDetail .scan-all:focus-visible{outline:2px solid #8b5cf6;outline-offset:-2px}
 @media (max-width:430px){
   #viewSimple .scan-title, #viewDetail .scan-title{font-size:12.5px}
   #viewSimple .scan-count, #viewDetail .scan-count{font-size:10px;padding:2px 6px}
+}
+
+/* ============================================================
+   조건식 관리 페이지 (#viewScanner) — 상단 `조건식` 탭
+   · data.json scanners[] (없으면 conditionHits/conditionScan 으로 폴백)
+   · 조건식 칩 목록 → 선택한 조건식의 수식·필터 기준 카드 → 포착 종목
+   · 행을 누르면 심플·상세와 같은 종목 분석 모달(차트 + 조건식 & 과거 반응)
+   ============================================================ */
+#viewScanner{max-width:1000px;margin:0 auto;padding:10px 12px 26px}
+#viewScanner .sc-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 2px 1px}
+#viewScanner .sc-eyebrow{
+  font-size:9.5px;font-weight:850;letter-spacing:.05em;color:#5b21b6;
+  background:var(--violet-soft);border:1px solid #e3d8ff;border-radius:5px;padding:2px 6px;
+}
+#viewScanner .sc-h1{margin:0;font-size:17px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
+#viewScanner .sc-lede{margin:5px 2px 9px;font-size:11px;line-height:1.5;font-weight:600;color:var(--ink-2)}
+#viewScanner .sc-chips{
+  display:flex;gap:6px;overflow-x:auto;padding:1px 2px 9px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+#viewScanner .sc-chips::-webkit-scrollbar{display:none}
+#viewScanner .sc-chip{
+  flex:0 0 auto;appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  border-radius:999px;padding:6px 11px;font-family:inherit;font-size:11.5px;font-weight:800;
+  letter-spacing:-.02em;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;
+}
+#viewScanner .sc-chip b{font-weight:850;color:#5b21b6}
+#viewScanner .sc-chip[aria-selected="true"]{
+  border-color:#ddd0ff;background:var(--violet-soft);color:#4c1d95;
+  box-shadow:inset 0 0 0 1px #ddd0ff;
+}
+#viewScanner .sc-chip:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+#viewScanner .sc-card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:11px 12px;
+}
+#viewScanner .sc-lab{
+  display:flex;align-items:baseline;gap:5px;margin:0 0 7px;
+  font-size:10px;font-weight:850;letter-spacing:.02em;color:var(--mute);
+}
+#viewScanner .sc-lab b{color:var(--ink)}
+#viewScanner .sc-formula{
+  margin:0;font-size:11.5px;font-weight:800;letter-spacing:-.01em;color:#4c1d95;
+  background:#f8f5ff;border:1px solid #e7dcff;border-radius:var(--radius-xs);padding:6px 8px;
+  overflow-x:auto;white-space:nowrap;scrollbar-width:none;
+}
+#viewScanner .sc-formula::-webkit-scrollbar{display:none}
+#viewScanner .sc-rules{display:flex;flex-wrap:wrap;gap:4px;margin:7px 0 0}
+#viewScanner .sc-rule{
+  display:inline-flex;align-items:baseline;gap:4px;border:1px solid #e5e9f0;background:#f7f8fb;
+  color:#5a657a;border-radius:6px;padding:3px 6px;font-size:10px;font-weight:750;line-height:1.35;
+  white-space:nowrap;
+}
+#viewScanner .sc-rule b{color:#5b21b6;font-weight:850}
+#viewScanner .sc-rule.ix{border-color:#ffe0b8;background:var(--amber-soft);color:#8a5a12}
+#viewScanner .sc-rule.ix b{color:var(--amber)}
+#viewScanner .sc-meta{margin:8px 0 0;font-size:9.5px;line-height:1.5;color:var(--mute)}
+#viewScanner .sc-note{margin:10px 2px 0;font-size:9.5px;line-height:1.5;color:var(--mute)}
+#viewScanner .sc-sec{display:flex;align-items:baseline;gap:6px;margin:13px 3px 7px}
+#viewScanner .sc-sec h2{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.02em;color:var(--ink)}
+#viewScanner .sc-sec .n{
+  font-size:10.5px;font-weight:800;color:#5b21b6;
+  background:var(--violet-soft);border:1px solid #ddd0ff;border-radius:999px;padding:1px 7px;
+}
+#viewScanner .sc-sec .r{margin-left:auto;font-size:9.5px;font-weight:700;color:var(--mute)}
+#viewScanner .sc-list{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;
+}
+#viewScanner .sc-row{
+  display:block;width:100%;text-align:left;padding:9px 11px;border:0;background:transparent;
+  font-family:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+#viewScanner .sc-row + .sc-row{border-top:1px solid var(--line-2)}
+#viewScanner .sc-row:active{background:#faf7ff}
+#viewScanner .sc-row:focus-visible{outline:2px solid #8b5cf6;outline-offset:-2px;border-radius:10px}
+#viewScanner .sc-l1{display:flex;align-items:baseline;gap:5px;min-width:0}
+#viewScanner .sc-rank{
+  flex:0 0 auto;width:15px;height:15px;border-radius:5px;background:#f2f4f9;color:#5a657a;
+  font-size:9.5px;font-weight:800;text-align:center;line-height:15px;
+}
+#viewScanner .sc-name{
+  min-width:0;max-width:46%;font-size:12.5px;font-weight:850;letter-spacing:-.02em;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewScanner .sc-mk{flex:0 0 auto;font-size:9px;font-weight:800;color:#8b93a7;background:#f2f4f9;border-radius:4px;padding:1px 4px}
+#viewScanner .sc-chg{flex:0 0 auto;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+#viewScanner .sc-chg.up{color:var(--up)}
+#viewScanner .sc-chg.down{color:var(--down)}
+#viewScanner .sc-val{
+  margin-left:auto;flex:0 0 auto;font-size:10.5px;font-weight:750;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+#viewScanner .sc-l2{margin-top:3px;font-size:10.5px;font-weight:750;line-height:1.4;color:#5b21b6}
+#viewScanner .sc-l3{margin-top:2px;font-size:10px;font-weight:600;line-height:1.45;color:var(--mute)}
+#viewScanner .sc-empty{margin:10px 2px;font-size:11px;line-height:1.55;color:var(--mute)}
+@media (max-width:430px){
+  #viewScanner .sc-h1{font-size:16px}
+  #viewScanner .sc-name{font-size:12px}
 }
 
 /* ---------- 모달: 조건식 & 과거 차트 반응 (차트 분석 모달 전용) ---------- */
@@ -2186,6 +2298,7 @@
       <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="보기 방식">
         <button type="button" role="tab" data-mode="simple" aria-selected="true">심플</button>
         <button type="button" role="tab" data-mode="detail" aria-selected="false">상세</button>
+        <button type="button" role="tab" data-mode="scanner" aria-selected="false">조건식</button>
       </div>
       <div class="datenav">
         <button type="button" class="datearrow" id="datePrev" aria-label="이전 기록 날짜" title="이전 기록 날짜">‹</button>
@@ -2362,6 +2475,7 @@
       <span class="scan-caret" aria-hidden="true">▾</span>
     </button>
     <div class="scan-body" id="scanBody" hidden>
+      <button type="button" class="scan-all" id="scanAll">조건식 전체 보기 →</button>
       <div id="scanList"></div>
       <p class="scan-empty" id="scanEmpty" hidden></p>
       <p class="scan-note" id="scanNote"></p>
@@ -2371,6 +2485,32 @@
 
       <p class="fine" id="sFine"></p>
     </div>
+  </main>
+
+  <!-- ======================= 조건식 관리 페이지 (상단 `조건식` 탭) ======================= -->
+  <main id="viewScanner" aria-label="조건식 관리" hidden>
+    <div class="sc-head">
+      <span class="sc-eyebrow">조건식 관리</span>
+      <h1 class="sc-h1" id="scTitle">세력꿈틀이</h1>
+    </div>
+    <p class="sc-lede" id="scLede"></p>
+
+    <div class="sc-chips" id="scChips" role="tablist" aria-label="등록된 조건식"></div>
+
+    <section class="sc-card" aria-labelledby="scFormulaLab">
+      <p class="sc-lab" id="scFormulaLab"><b>수식 · 필터 기준</b><span id="scFormulaName"></span></p>
+      <p class="sc-formula" id="scFormula">—</p>
+      <div class="sc-rules" id="scRules"></div>
+      <p class="sc-meta" id="scMeta"></p>
+    </section>
+
+    <div class="sc-sec">
+      <h2>포착 종목</h2><span class="n" id="scCount">—</span>
+      <span class="r" id="scBasis"></span>
+    </div>
+    <div class="sc-list" id="scList"></div>
+    <p class="sc-empty" id="scEmpty" hidden></p>
+    <p class="sc-note" id="scNote"></p>
   </main>
 
 </div>
@@ -6733,24 +6873,35 @@ const REPORT_DATA = [
     syncSimplePanels();
   }
 
-  /* ---------------- 보기 전환 (심플 ↔ 상세) ---------------- */
+  /* ---------------- 보기 전환 (심플 ↔ 상세 ↔ 조건식) ---------------- */
+  const MODE_ORDER = ["simple", "detail", "scanner"];
+
+  function normMode(mode) {
+    return MODE_ORDER.indexOf(mode) >= 0 ? mode : "simple";
+  }
+
   function readMode() {
     try {
-      return localStorage.getItem(MODE_KEY) === "detail" ? "detail" : "simple";
+      return normMode(localStorage.getItem(MODE_KEY));
     } catch (e) {
       return "simple";
     }
   }
 
   function applyMode(mode) {
-    dashMode = mode === "detail" ? "detail" : "simple";
+    dashMode = normMode(mode);
     const simple = dashMode === "simple";
+    const detail = dashMode === "detail";
+    const scanner = dashMode === "scanner";
     document.documentElement.setAttribute("data-mode", dashMode);
     document.body.classList.toggle("mode-simple", simple);
+    document.body.classList.toggle("mode-scanner", scanner);
     const vs = $("#viewSimple");
     const vd = $("#viewDetail");
+    const vc = $("#viewScanner");
     if (vs) vs.hidden = !simple;
-    if (vd) vd.hidden = simple;
+    if (vd) vd.hidden = !detail;
+    if (vc) vc.hidden = !scanner;
     const t = $("#modeToggle");
     if (t) Array.prototype.forEach.call(t.children, (b) => {
       b.setAttribute("aria-selected", String(b.getAttribute("data-mode") === dashMode));
@@ -6761,7 +6912,7 @@ const REPORT_DATA = [
   }
 
   function setMode(mode) {
-    const next = mode === "detail" ? "detail" : "simple";
+    const next = normMode(mode);
     if (next === dashMode) return;
     try { localStorage.setItem(MODE_KEY, next); } catch (e) { /* 저장 실패해도 동작은 유지 */ }
     applyMode(next);
@@ -6779,7 +6930,9 @@ const REPORT_DATA = [
     t.addEventListener("keydown", (e) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
-      setMode(dashMode === "simple" ? "detail" : "simple");
+      const step = e.key === "ArrowRight" ? 1 : MODE_ORDER.length - 1;
+      const i = MODE_ORDER.indexOf(dashMode);
+      setMode(MODE_ORDER[(i + step) % MODE_ORDER.length]);
       const next = t.querySelector('[data-mode="' + dashMode + '"]');
       if (next) next.focus();
     });
@@ -7543,7 +7696,11 @@ const REPORT_DATA = [
     const hits = (report && report.conditionHits) || [];
     if (!meta) { panel.hidden = true; return; }
     panel.hidden = false;
-    $("#scanCount").textContent = hits.length + "종목 포착";
+    /* 상단 제목은 등록된 첫 조건식 이름 — 조건식을 늘리면 그대로 따라간다 */
+    const first = scannerList(report)[0] || null;
+    const title = $("#scanTitle");
+    if (title) title.textContent = "🔍 조건식 포착 · " + ((first && first.name) || meta.name || "세력꿈틀이");
+    $("#scanCount").textContent = hits.length + "종목";
     $("#scanList").innerHTML = hits.map((h, i) =>
       '<div class="scan-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
         'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
@@ -7581,6 +7738,151 @@ const REPORT_DATA = [
     });
   }
 
+  /* ---------------- 조건식 관리 페이지 (상단 `조건식` 탭) ----------------
+     · data.json scanners[] 를 그대로 그린다 — 조건식을 늘리면 칩·카드·목록이 자동으로 는다
+     · scanners 가 없는 옛 기록은 conditionHits/conditionScan 을 1개짜리 조건식으로 폴백
+     · 행을 누르면 심플·상세와 같은 종목 분석 모달(차트 + 조건식 & 과거 반응)
+     ====================================================================== */
+  const SCANNER = { id: null };
+
+  function scannerList(report) {
+    if (!report) return [];
+    if (Array.isArray(report.scanners) && report.scanners.length) return report.scanners;
+    if (report.conditionScan || report.conditionHits) {
+      const m = report.conditionScan || {};
+      const hits = report.conditionHits || [];
+      return [{
+        id: m.id || "power-wiggle",
+        name: m.name || "세력꿈틀이",
+        summary: "",
+        formula: m.rule || "",
+        minValue: m.minValue || 100,
+        rules: [],
+        intersection: "",
+        asOf: m.asOf || "",
+        basis: m.basis || "",
+        scanned: m.scanned || 0,
+        passed: hits.length,
+        hits: hits,
+        reactions: report.chartReactions || {}
+      }];
+    }
+    return [];
+  }
+
+  function scannerCurrent(report) {
+    const list = scannerList(report);
+    if (!list.length) return null;
+    let cur = null;
+    for (let i = 0; i < list.length; i++) if (list[i].id === SCANNER.id) cur = list[i];
+    if (!cur) { cur = list[0]; SCANNER.id = cur.id; }
+    return cur;
+  }
+
+  /* 필터 기준 카드 — A~E 칩 + 교집합 칩 */
+  function scannerRulesHTML(s) {
+    const items = (s.rules || []).map((r) =>
+      '<span class="sc-rule"><b>' + esc(r.key || "") + "</b>" +
+      esc(r.label || r.detail || "") + "</span>");
+    items.push('<span class="sc-rule ix"><b>∩</b>' +
+      esc(s.intersection || ("당일 거래대금 " + (s.minValue || 100) + "억+")) + "</span>");
+    return items.join("");
+  }
+
+  function scannerRowHTML(h, i) {
+    const bt = h.backtest || {};
+    const gap = h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%";
+    const line2 = "20·60 이격 " + gap +
+      (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음");
+    const mk = h.market === "KOSDAQ" ? "KQ" : (h.market === "KOSPI" ? "KP" : "");
+    return '<div class="sc-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
+      'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
+      '<div class="sc-l1">' +
+        '<span class="sc-rank">' + (i + 1) + "</span>" +
+        '<span class="sc-name">' + esc(h.name) + "</span>" +
+        (mk ? '<span class="sc-mk">' + mk + "</span>" : "") +
+        '<span class="sc-chg ' + (h.chg == null ? "" : dir(h.chg)) + '">' +
+          (h.chg == null ? "" : pct(h.chg)) + "</span>" +
+        '<span class="sc-val">' + esc(h.valueText || "—") + "</span>" +
+      "</div>" +
+      '<div class="sc-l2">' + esc(line2) + "</div>" +
+      '<div class="sc-l3">' + esc(h.patternText || "") + "</div>" +
+    "</div>";
+  }
+
+  function renderScanner(report) {
+    const page = $("#viewScanner");
+    if (!page) return;
+    const list = scannerList(report);
+    const cur = scannerCurrent(report);
+    const chips = $("#scChips");
+    if (chips) {
+      chips.innerHTML = list.map((s) =>
+        '<button type="button" class="sc-chip" role="tab" data-scanner="' + esc(s.id) + '" ' +
+        'aria-selected="' + String(cur && s.id === cur.id) + '">' + esc(s.name) + " <b>" +
+        ((s.hits || []).length) + "종목</b></button>").join("");
+    }
+    const empty = $("#scEmpty");
+    if (!cur) {
+      $("#scTitle").textContent = "조건식";
+      $("#scLede").textContent = "이 날짜에는 조건식 스캔 결과가 없습니다.";
+      $("#scFormulaName").textContent = "";
+      $("#scFormula").textContent = "—";
+      $("#scRules").innerHTML = "";
+      $("#scMeta").textContent = "";
+      $("#scCount").textContent = "0종목";
+      $("#scBasis").textContent = "";
+      $("#scList").innerHTML = "";
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "조건식 스캔은 data.json 최신 거래일 항목에만 있습니다. " +
+          "상단 날짜를 최근 거래일로 바꾸면 보입니다.";
+      }
+      $("#scNote").textContent = "";
+      return;
+    }
+    const hits = cur.hits || [];
+    $("#scTitle").textContent = cur.name || "조건식";
+    $("#scLede").textContent = cur.summary ||
+      (cur.formula ? "조건식 " + cur.formula + " · 당일 수급 교집합" : "");
+    $("#scFormulaName").textContent = "";
+    $("#scFormula").textContent = cur.formula || "—";
+    $("#scRules").innerHTML = scannerRulesHTML(cur);
+    $("#scMeta").textContent = (cur.basis ? cur.basis + " 일봉 실측 · " : "") +
+      (cur.scanned || 0) + "종목 계산 · 조건 통과 " +
+      (cur.passed == null ? hits.length : cur.passed) + "종목 · 거래대금 " +
+      (cur.minValue || 100) + "억↑ 교집합";
+    $("#scCount").textContent = hits.length + "종목";
+    $("#scBasis").textContent = cur.basis || "";
+    $("#scList").innerHTML = hits.map(scannerRowHTML).join("");
+    if (empty) {
+      empty.hidden = hits.length > 0;
+      empty.textContent = hits.length ? "" :
+        "이 날은 " + (cur.name || "조건식") + "를 통과하고 당일 거래대금 " +
+        (cur.minValue || 100) + "억 이상인 종목이 없었습니다.";
+    }
+    $("#scNote").textContent = "차트 구조·과거 반응은 " + (cur.basis || "최근 120거래일") +
+      " 일봉 실측값 계산입니다(추정·보정 없음). 행을 누르면 차트와 함께 상세가 열립니다.";
+  }
+
+  function wireScanner() {
+    const page = $("#viewScanner");
+    if (page) page.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-scanner]");
+      if (!chip) return;
+      SCANNER.id = chip.getAttribute("data-scanner");
+      renderScanner(findReport(activeDate));
+    });
+    const all = $("#scanAll");
+    if (all) all.addEventListener("click", () => {
+      const list = scannerList(findReport(activeDate));
+      if (list.length) SCANNER.id = list[0].id;
+      SCAN.open = false;
+      renderScan(findReport(activeDate));
+      setMode("scanner");
+    });
+  }
+
   /* ---------------- 전체 ---------------- */
   function render() {
     const report = findReport(activeDate);
@@ -7595,6 +7897,7 @@ const REPORT_DATA = [
     renderFooter(report);
     renderSimple(report);
     renderScan(report);
+    renderScanner(report);
     qaRender(report);
     syncSums(document);
     /* 달력이 열려 있으면 선택·날짜가 바뀐 뒤에도 그리드를 최신 상태로 유지한다 */
@@ -7633,6 +7936,7 @@ const REPORT_DATA = [
     wireDateNav();
     qaInit();
     wireScan();
+    wireScanner();
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
