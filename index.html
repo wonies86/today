@@ -5628,7 +5628,7 @@ const REPORT_DATA = [
         borderColor: "#e3e7f0",
         timeVisible: false,
         secondsVisible: false,
-        rightOffset: 4,
+        rightOffset: 10,
         barSpacing: 6,
         minBarSpacing: 1,
         lockVisibleTimeRangeOnResize: true,
@@ -5685,7 +5685,7 @@ const REPORT_DATA = [
 
     /* 기본은 전체 기간(최대 120거래일) 보기 — 양 끝에 한 봉씩 여유를 두어
        가장자리 날짜 눈금이 잘리지 않게 한다 */
-    chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: candles.length + 4 });
+    chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: candles.length + 10 });
 
     const btnAll = box.querySelector("#tvAll");
     const btn30 = box.querySelector("#tv30");
@@ -5694,7 +5694,7 @@ const REPORT_DATA = [
       const all = days >= n;
       if (btnAll) btnAll.setAttribute("aria-pressed", String(all));
       if (btn30) btn30.setAttribute("aria-pressed", String(!all));
-      if (all) { chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: n + 4 }); return; }
+      if (all) { chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: n + 10 }); return; }
       chart.timeScale().setVisibleLogicalRange({ from: n - days - 0.5, to: n + 0.5 });
     }
     if (btnAll) btnAll.addEventListener("click", () => setRange(candles.length));
