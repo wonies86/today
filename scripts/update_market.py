@@ -562,7 +562,12 @@ def charts_fresh(cached, codes, now):
         gen = datetime.fromisoformat(str(cached.get("generatedAt") or ""))
         gen_minutes = gen.hour * 60 + gen.minute
     except Exception:                     # noqa: BLE001
+        gen = None
         gen_minutes = -1
+    # 방금 만든 것을 다시 받지 않는다 — 일부 종목 조회가 실패해도 5분마다 599종목을
+    # 다시 받는 일이 없도록 20분간은 그대로 쓴다(다음 실행에서 보완된다).
+    if gen is not None and 0 <= (now - gen).total_seconds() < 20 * 60:
+        return True
     if gen_minutes >= 15 * 60 + 40:
         return True                       # 마감 뒤 만든 최종본
     if minutes < 15 * 60 + 40:
