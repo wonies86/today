@@ -561,6 +561,8 @@ def charts_fresh(cached, codes, now):
     minutes = now.hour * 60 + now.minute
     try:
         gen = datetime.fromisoformat(str(cached.get("generatedAt") or ""))
+        if gen.tzinfo is None:            # 예전 형식(오프셋 없음)도 KST로 읽는다
+            gen = gen.replace(tzinfo=KST)
         gen_minutes = gen.hour * 60 + gen.minute
     except Exception:                     # noqa: BLE001
         gen = None
