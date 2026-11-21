@@ -1946,7 +1946,9 @@ def main(argv):
 
     # 6-1) 차트(일봉) — 모달 📈 차트 탭용. 전 종목 인덱스 + 관찰·카드 종목
     chart_codes = [row[0] for row in (all_stocks or []) if row] + target_codes + card_codes
-    charts = build_charts(chart_codes, entry.get("charts"), now)
+    # merge_entry 는 차트를 넘겨주지 않으므로, 같은 날짜의 이전 data.json 항목에서 캐시를 가져온다
+    cached_charts = (old_entry or {}).get("charts") or entry.get("charts")
+    charts = build_charts(chart_codes, cached_charts, now)
     if charts:
         entry["charts"] = charts
     else:

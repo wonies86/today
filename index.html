@@ -934,7 +934,13 @@
     color:var(--ink);
     box-shadow:0 30px 60px -24px rgba(16,24,40,.45);
     overflow:hidden;
+    /* 머리·탭·본문·각주가 항상 보이도록 세로 flex — 본문만 스크롤 */
+    display:flex;
+    flex-direction:column;
   }
+  .ta-head{flex:0 0 auto}
+  .ta-tabs{flex:0 0 auto}
+  .ta-foot{flex:0 0 auto}
   .ta-dialog::backdrop{background:rgba(16,24,40,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
   .ta-head{
     display:flex;
@@ -976,7 +982,7 @@
     line-height:1;
   }
   .ta-x:hover{background:var(--bg-soft);color:var(--ink)}
-  .ta-scroll{overflow-y:auto;max-height:calc(88vh - 128px);padding:13px 14px 4px;-webkit-overflow-scrolling:touch}
+  .ta-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;padding:13px 14px 4px;-webkit-overflow-scrolling:touch}
   .ta-price{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .ta-price b{font-size:23px;font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
   .ta-price .chg{font-size:14px;font-weight:850;font-variant-numeric:tabular-nums}
@@ -1170,7 +1176,7 @@
     .picks{grid-template-columns:1fr}
     .articles{grid-template-columns:1fr}
     .ta-dialog{width:calc(100vw - 12px);max-height:92vh;border-radius:16px}
-    .ta-scroll{max-height:calc(92vh - 124px)}
+    .ta-scroll{max-height:none}
     .issuebar{margin-top:8px}
     .issue-sum{padding:9px 11px 9px 13px}
     .issue-body{padding:0 11px 10px 13px;margin-top:8px;padding-top:8px}
@@ -5115,6 +5121,12 @@ const REPORT_DATA = [
   }
 
   const taWon = (v) => (v == null || isNaN(v) ? "—" : Number(v).toLocaleString("ko-KR") + "원");
+
+  /* "AI 하드웨어 — 반도체 10 + 전자장비 4 (14종목 8조9,807억)" → "AI 하드웨어" */
+  function taSectorLabel(v) {
+    const t = String(v == null ? "" : v).split("—")[0].trim();
+    return t.length > 20 ? t.slice(0, 19) + "…" : t;
+  }
   const taSignedPct = (v) => (v == null || isNaN(v) ? "—" : (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(v).toFixed(1) + "%");
 
   function barsStats(pack) {
@@ -5152,7 +5164,7 @@ const REPORT_DATA = [
       name: s.name,
       ticker: s.ticker,
       market: s.market,
-      sector: (s.sectors && s.sectors[0]) || s.sectorText || "",
+      sector: s.sectorText || (s.sectors && s.sectors[0]) || "",
       price: s.price,
       chg: s.chg,
       turnover: s.turnover,
@@ -5186,7 +5198,7 @@ const REPORT_DATA = [
     $("#taId").innerHTML =
       (w.ticker ? "<span>" + esc(w.ticker) + "</span>" : "") +
       (w.market ? "<span>" + esc(w.market) + "</span>" : "") +
-      (w.sector ? "<span>" + esc(w.sector) + "</span>" : "") +
+      (w.sector ? "<span>" + esc(taSectorLabel(w.sector)) + "</span>" : "") +
       (w.hasManual ? "<span>관찰 5선</span>" : "<span>전 종목 시세 인덱스</span>");
 
     syncTaTabs();
@@ -5292,7 +5304,7 @@ const REPORT_DATA = [
     const chips = [];
     if (w.turnover) chips.push('<span class="ta-chip">거래대금 <b>' + esc(w.turnover) + "</b></span>");
     if (w.turnoverRank) chips.push('<span class="ta-chip">' + esc(w.turnoverRank) + "</span>");
-    if (w.sector) chips.push('<span class="ta-chip">업종 <b>' + esc(w.sector) + "</b></span>");
+    if (w.sector) chips.push('<span class="ta-chip">업종 <b>' + esc(taSectorLabel(w.sector)) + "</b></span>");
     if (st) chips.push('<span class="ta-chip">일봉 <b>' + st.n + "거래일</b></span>");
 
     let h = '<div class="ta-price"><b>' + esc(price) + "</b>" +
@@ -5363,13 +5375,13 @@ const REPORT_DATA = [
 
   function taSupportLine(st) {
     const parts = [taWon(st.lo20) + "(최근 20거래일 저가)"];
-    if (st.ma20) parts.push(taWon(Math.round(st.ma20)) + "(20일선)");
+    if (st.ma20 && st.gap20 >= 0) parts.push(taWon(Math.round(st.ma20)) + "(20일선)");
     return parts.join(" · ");
   }
 
   function taResistLine(st) {
     const parts = [taWon(st.hi20) + "(최근 20거래일 고가)"];
-    if (st.ma20 && st.gap20 < 0) parts.push(taWon(Math.round(st.ma20)) + "(20일선 — 아직 아래)");
+    if (st.ma20 && st.gap20 < 0) parts.push(taWon(Math.round(st.ma20)) + "(20일선 — 아직 위)");
     return parts.join(" · ");
   }
 
@@ -5431,7 +5443,8 @@ const REPORT_DATA = [
         "</div>" +
       "</div>" +
       '<p class="ta-note">출처: 네이버 금융 일봉 ' + st.n + "거래일(data.json charts) · 마지막 봉 " +
-        esc(barDate(st.lastDate)) + " · 이동평균은 종가 기준 자동 계산값입니다.</p>";
+        esc(barDate(st.lastDate)) + " · 이동평균은 종가 기준 자동 계산값이며, " +
+        "20일선은 20거래일이 쌓인 지점부터 그립니다.</p>";
     return h;
   }
 
@@ -5467,9 +5480,18 @@ const REPORT_DATA = [
       lo = Math.min(lo, v);
     });
     if (!(hi > lo)) return "";
-    const pad = (hi - lo) * 0.07;
-    hi += pad;
-    lo -= pad;
+
+    /* 축 눈금은 읽기 좋은 값으로 (1·2·2.5·5 × 10^n) */
+    const rawStep = (hi - lo) / 4;
+    const pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const nm = rawStep / pow;
+    const niceMul = nm <= 1 ? 1 : nm <= 2 ? 2 : nm <= 2.5 ? 2.5 : nm <= 5 ? 5 : 10;
+    const tick = niceMul * pow;
+    const top = Math.ceil((hi + (hi - lo) * 0.04) / tick) * tick;
+    const bottom = Math.floor((lo - (hi - lo) * 0.04) / tick) * tick;
+    hi = top;
+    lo = bottom;
+    if (!(hi > lo)) return "";
 
     const Y = (v) => padT + (hi - v) / (hi - lo) * plotH;
     const step = plotW / n;
@@ -5480,8 +5502,7 @@ const REPORT_DATA = [
       '" role="img" aria-label="일봉 캔들 차트">';
 
     /* 가로 눈금 + 가격 축 */
-    for (let g = 0; g <= 4; g++) {
-      const v = lo + (hi - lo) * g / 4;
+    for (let v = lo; v <= hi + tick * 0.01; v += tick) {
       const y = Y(v).toFixed(1);
       svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (padL + plotW) + '" y2="' + y +
         '" stroke="#eef1f6" stroke-width="1"/>' +
@@ -6342,7 +6363,10 @@ const REPORT_DATA = [
         chg: row[4] == null ? null : Number(row[4]),
         turnover: qaTurnoverText(row[5])
       }, 0, "", "", null);
-      if (s && s.prio === 0) { s.src = "all"; if (sector) s.sectorText = sector; }
+      if (s) {
+        if (s.prio === 0) s.src = "all";
+        if (sector) s.sectorText = sector;      /* allStocks 의 업종(반도체 등) — 테마명보다 정확 */
+      }
     });
 
     stocks.forEach((s) => { s.tokens = qaTokens(s.name); });
