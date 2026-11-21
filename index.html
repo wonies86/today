@@ -5695,6 +5695,7 @@ const REPORT_DATA = [
           : "") +
       "</div>" +
       rangeBar(w.day, report.rangeLabels) +
+      scanBlockHTML(scanOf(report, w), report) +
       (pat ? taPatternHTML(pat, report) : "") +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
@@ -5723,8 +5724,7 @@ const REPORT_DATA = [
           " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
           (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
-      "</div>" +
-      scanBlockHTML(scanOf(report, w), report);
+      "</div>";
   }
 
   /* ---- 종가배팅 분봉 흐름 & 재료 (closingPattern 이 있는 종목만) ---- */
@@ -5766,6 +5766,7 @@ const REPORT_DATA = [
       h += rangeBar({ open: st.last[0], high: st.last[1], low: st.last[2], close: st.last[3] },
         { title: barDate(st.lastDate) + " 일봉 범위", close: "종가" });
     }
+    h += scanBlockHTML(scanOf(report, w), report);
 
     h += '<div class="ta-sec">' +
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>왜 움직였나</h4>' +
@@ -5805,7 +5806,7 @@ const REPORT_DATA = [
         '<div class="ta-empty">' + taNoChartNote(report) + "</div>" +
       "</div>";
     }
-    return h + scanBlockHTML(scanOf(report, w), report);
+    return h;
   }
 
   function taTrendLine(st) {

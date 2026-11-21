@@ -863,7 +863,7 @@ def build_condition_scan(series, all_stocks, extra_codes, now):
         if scan["pass"] and (value_eok or 0) >= SCAN_MIN_VALUE:
             summary = tags[0] if tags else text
             if back and back.get("n"):
-                summary += f" · 과거 {back['n']}회 중 {back['m']}회 5일 내 상승"
+                summary += f" · 과거 {back['m']}/{back['n']}회 5일 내 상승"
             item["summary"] = summary
             hits.append(item)
         if is_extra and not scan["pass"]:
