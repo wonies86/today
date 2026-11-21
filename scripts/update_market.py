@@ -64,6 +64,12 @@ CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·6
 CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
 CHARTS_MARK = "__CHARTS_JSON__"
 
+# 조건식 × 당일 수급 교집합 — 키움 조건식 A·B·C·D·E + 거래대금 100억 이상
+SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
+SCAN_RULE = "A and (B or C) and D and E"
+SCAN_FETCH = 130          # 스캔용 일봉 조회 개수(보관 120봉에 여유를 둔다)
+SCAN_KEYS = ("conditionHits", "conditionScan", "chartReactions")
+
 WARNINGS: list[str] = []
 
 
@@ -581,18 +587,20 @@ def charts_fresh(cached, codes, now):
     return False                          # 마감 뒤 첫 실행에서 정식 종가로 재생성
 
 
-def build_charts(codes, cached, now):
-    """data.json charts — 종목별 최근 일봉 OHLC 경량 배열.
+def build_charts(codes, cached, now, need_series=False):
+    """(data.json charts, 스캔용 일봉 series) — 종목별 최근 일봉 OHLC 경량 배열.
 
     · 네이버 금융 일봉(fchart) 실측값만 넣는다. 없는 봉은 보간·추정하지 않는다
     · 날짜 배열을 한 벌만 두고 종목은 [[시,고,저,종], ...] 만 저장한다(용량 절감)
     · 봉 날짜가 기준 날짜와 어긋나는 종목(거래정지·신규상장)은 넣지 않는다
+    · series(거래량 포함)는 메모리에서만 쓰고 data.json에는 저장하지 않는다
+      — 조건식 스캔·차트 반응 계산에만 쓰고 버린다(용량 폭증 방지)
     """
     codes = [str(c) for c in (codes or []) if c]
     if not codes:
-        return cached or None
-    if charts_fresh(cached, codes, now):
-        return cached
+        return (cached or None), {}
+    if charts_fresh(cached, codes, now) and not need_series:
+        return cached, {}
 
     rows_by_code = {}
     with ThreadPoolExecutor(max_workers=10) as pool:
@@ -603,7 +611,7 @@ def build_charts(codes, cached, now):
                 rows_by_code[code] = rows[-CHARTS_DAYS:]
     if not rows_by_code:
         warn("일봉 차트 데이터를 받지 못했습니다 — 기존 charts 유지")
-        return cached or None
+        return (cached or None), {}
 
     counts = {}
     for rows in rows_by_code.values():
@@ -618,9 +626,9 @@ def build_charts(codes, cached, now):
             continue                      # 봉 날짜가 어긋나면 그리지 않는다(가짜 봉 금지)
         stocks[code] = [[r["o"], r["h"], r["l"], r["c"]] for r in rows]
     if not stocks:
-        return cached or None
+        return (cached or None), {}
 
-    return {
+    charts = {
         "asOf": latest,
         "basis": f"{latest[:4]}-{latest[4:6]}-{latest[6:]} 종가",
         "generatedAt": now.isoformat(timespec="seconds"),
@@ -628,6 +636,276 @@ def build_charts(codes, cached, now):
         "dates": dates,
         "stocks": stocks,
     }
+    series = {code: rows for code, rows in rows_by_code.items() if code in stocks}
+    return charts, series
+
+
+# ---------------------------------------------------------------- 조건식 × 수급 교집합
+def _mean(values):
+    return sum(values) / len(values) if values else None
+
+
+def _mmdd(d) -> str:
+    """'20261120' → '11/20'."""
+    s = str(d or "")
+    return f"{s[4:6]}/{s[6:]}" if len(s) == 8 else s
+
+
+def condition_scan(rows):
+    """키움 조건식 A~E — 일봉 실측값만 쓴다(추정·보간 없음).
+
+    A [일] 0봉전 20이평 < 60이평 < 115이평
+    B [일] 1봉전 5봉 평균거래량 >= 55,555
+    C [일] 1봉전 5봉 평균거래대금 >= 50,000,000원 (금일 0봉 제외)
+    D [일] 0봉전 종가 > 20이평
+    E [일] 0봉전 |20이평-60이평| / min <= 2%
+    조건식: A and (B or C) and D and E
+    """
+    if not rows or len(rows) < 116:            # 115이평 + 1봉전 5봉 평균
+        return None
+    closes = [r["c"] for r in rows]
+    vols = [r["v"] for r in rows]
+    n = len(closes)
+    ma20 = _mean(closes[n - 20:])
+    ma60 = _mean(closes[n - 60:])
+    ma115 = _mean(closes[n - 115:])
+    vol5 = _mean(vols[n - 6:n - 1])            # 1봉전까지 5봉(0봉 제외)
+    value5 = _mean([c * v for c, v in zip(closes[n - 6:n - 1], vols[n - 6:n - 1])])
+    gap = abs(ma20 - ma60) / min(ma20, ma60) * 100 if min(ma20, ma60) else None
+    cond = {
+        "A": ma20 < ma60 < ma115,
+        "B": vol5 >= 55555,
+        "C": value5 >= 50000000,
+        "D": closes[-1] > ma20,
+        "E": gap is not None and gap <= 2.0,
+    }
+    return {
+        "ma20": round(ma20), "ma60": round(ma60), "ma115": round(ma115),
+        "gap": round(gap, 2) if gap is not None else None,
+        "vol5": int(round(vol5)),
+        "value5_eok": round(value5 / 1e8, 2),
+        "conditions": cond,
+        "pass": cond["A"] and (cond["B"] or cond["C"]) and cond["D"] and cond["E"],
+    }
+
+
+def chart_pattern(rows):
+    """현재 차트 구조 — 실측 수치로 확인되는 것만 태그로. (태그들, 한 줄 문장)"""
+    closes = [r["c"] for r in rows]
+    highs = [r["h"] for r in rows]
+    lows = [r["l"] for r in rows]
+    opens = [r["o"] for r in rows]
+    vols = [r["v"] for r in rows]
+    n = len(closes)
+    if n < 61:
+        return [], "일봉이 60거래일보다 짧아 구조를 판별하지 않았습니다."
+    ma20 = _mean(closes[-20:])
+    ma60 = _mean(closes[-60:])
+    prev_ma20 = _mean(closes[-21:-1])
+    gap = abs(ma20 - ma60) / min(ma20, ma60) * 100
+    close = closes[-1]
+    bull = close > opens[-1]
+    tags = []
+
+    # 1) 20·60이평 수렴 — 2% 안이면 수렴, 그중 종가가 두 이평 위면 돌파
+    if gap <= 2.0 and close > max(ma20, ma60):
+        tags.append(f"20·60이평 {gap:.1f}% 수렴 돌파")
+    elif gap <= 2.0:
+        tags.append(f"20·60이평 {gap:.1f}% 수렴 구간")
+
+    # 2) 20일선 관계 (전일 종가가 20일선 아래였다가 오늘 위로 = 돌파)
+    if closes[-2] <= prev_ma20 and close > ma20:
+        tags.append("20일선 상향 돌파")
+    elif close > ma20:
+        tags.append("20일선 위 유지")
+    else:
+        tags.append("20일선 아래")
+
+    # 3) 직전 고점(당일 봉 제외) 대비
+    hi20 = max(highs[-21:-1])
+    hi60 = max(highs[-61:-1])
+    if close >= hi60:
+        tags.append(f"직전 60일 고점({comma(hi60)}원) 돌파")
+    elif close >= hi20:
+        tags.append(f"직전 20일 고점({comma(hi20)}원) 돌파")
+    elif close >= hi20 * 0.97:
+        tags.append(f"20일 고점 {100 * (hi20 - close) / hi20:.1f}% 이내")
+
+    # 4) 거래량 — 20일 평균 대비 배수
+    vol20 = _mean(vols[-21:-1])
+    if vol20:
+        ratio = vols[-1] / vol20
+        if ratio >= 1.5:
+            tags.append(f"거래량 20일 평균 {ratio:.1f}배 {'양봉' if bull else '음봉'}")
+
+    # 5) 20일선 눌림 후 반등 — 최근 5봉 안에서 저가가 20일선 1.5% 안에 닿았고 오늘 양봉 상승
+    touched = False
+    for i in range(max(19, n - 6), n - 1):
+        m = _mean(closes[i - 19:i + 1])
+        if m and abs(lows[i] - m) / m <= 0.015:
+            touched = True
+            break
+    if touched and bull and close > closes[-2] and close > ma20:
+        tags.append("20일선 눌림 후 반등")
+
+    return tags, " · ".join(tags)
+
+
+def reaction_backtest(rows):
+    """최근 120거래일(마지막 5일 제외) 같은 신호의 5거래일 내 실제 반응.
+
+    신호: 20일선 상향 돌파(전일 종가<=20이평, 당일 종가>20이평)
+          또는 20일 평균 대비 거래량 1.5배 이상 양봉
+    """
+    if not rows or len(rows) < 40:
+        return None
+    closes = [r["c"] for r in rows]
+    highs = [r["h"] for r in rows]
+    opens = [r["o"] for r in rows]
+    vols = [r["v"] for r in rows]
+    dates = [r["d"] for r in rows]
+    n = len(closes)
+    start = max(21, n - 120)
+    signals = []
+    for i in range(start, n - 5):           # 마지막 5일은 앞을 볼 수 없으므로 제외
+        prev_ma20 = _mean(closes[i - 20:i])
+        cur_ma20 = _mean(closes[i - 19:i + 1])
+        cross = closes[i - 1] <= prev_ma20 and closes[i] > cur_ma20
+        prev_vol20 = _mean(vols[i - 20:i])
+        surge = bool(prev_vol20) and vols[i] >= 1.5 * prev_vol20 and closes[i] > opens[i]
+        if not (cross or surge):
+            continue
+        gain = (max(highs[i + 1:i + 6]) / closes[i] - 1) * 100
+        signals.append({
+            "date": dates[i],
+            "kind": "20일선 돌파" if cross else "거래량 급증 양봉",
+            "both": bool(cross and surge),
+            "gain": round(gain, 2),
+        })
+    window = f"최근 {n}거래일"
+    count = len(signals)
+    if not count:
+        return {"n": 0, "m": 0, "rate": None, "avg": None, "best": None, "worst": None,
+                "window": window, "samples": [],
+                "summary": f"{window} 내 같은 신호가 없어 과거 반응을 셀 수 없습니다.",
+                "recentText": ""}
+    gains = [s["gain"] for s in signals]
+    up = sum(1 for g in gains if g > 0)
+    best = max(signals, key=lambda s: s["gain"])
+    worst = min(signals, key=lambda s: s["gain"])
+    avg = sum(gains) / count
+    recent = signals[-3:][::-1]
+    return {
+        "n": count,
+        "m": up,
+        "rate": round(up / count * 100),
+        "avg": round(avg, 2),
+        "best": {"date": best["date"], "gain": best["gain"], "kind": best["kind"]},
+        "worst": {"date": worst["date"], "gain": worst["gain"]},
+        "window": window,
+        "samples": recent,
+        "summary": (f"{window} 내 20일선 돌파·수급 유입 {count}회 중 {up}회({round(up / count * 100)}%)가 "
+                    f"5거래일 내 추가 상승, 평균 고점 {avg:+.1f}% "
+                    f"(최대 {best['gain']:+.1f}%, 최소 {worst['gain']:+.1f}%)"),
+        "recentText": "최근 신호: " + " · ".join(
+            f"{_mmdd(s['date'])} {s['kind']} → 5일 고점 {s['gain']:+.1f}%" for s in recent),
+    }
+
+
+def build_condition_scan(series, all_stocks, extra_codes, now):
+    """조건식 통과 + 당일 거래대금 100억 이상 교집합 → conditionHits · chartReactions.
+
+    · series 는 메모리의 일봉(거래량 포함) — data.json에는 결과만 저장
+    · 거래대금은 allStocks(당일 누적) 값을 쓰고, 없으면 마지막 봉 종가×거래량으로 계산
+    """
+    if not series:
+        return None
+    info = {}
+    for row in all_stocks or []:
+        if row and row[0]:
+            info[str(row[0])] = row
+    scanned = 0
+    hits = []
+    reactions = {}
+    last_dates = {}
+    for code, rows in series.items():
+        scan = condition_scan(rows)
+        if not scan:
+            continue
+        scanned += 1
+        last_dates[rows[-1]["d"]] = last_dates.get(rows[-1]["d"], 0) + 1
+        is_extra = code in extra_codes
+        if not scan["pass"] and not is_extra:
+            continue
+        row = info.get(code) or []
+        value_eok = None
+        if len(row) > 5 and row[5] is not None:
+            value_eok = float(row[5])
+        elif rows[-1]["v"]:
+            value_eok = round(rows[-1]["c"] * rows[-1]["v"] / 1e8, 1)
+        tags, text = chart_pattern(rows)
+        back = reaction_backtest(rows)
+        item = {
+            "code": code,
+            "name": (row[1] if len(row) > 1 and row[1] else code),
+            "market": (row[2] if len(row) > 2 and row[2] else ""),
+            "price": (row[3] if len(row) > 3 else None),
+            "chg": (row[4] if len(row) > 4 else None),
+            "value_eok": round(value_eok, 1) if value_eok is not None else None,
+            "valueText": turnover_text(value_eok),
+            "gap": scan["gap"],
+            "conditions": scan["conditions"],
+            "passed": scan["pass"],
+            "pattern": tags,
+            "patternText": text,
+            "backtest": back,
+        }
+        if scan["pass"] and (value_eok or 0) >= SCAN_MIN_VALUE:
+            summary = tags[0] if tags else text
+            if back and back.get("n"):
+                summary += f" · 과거 {back['n']}회 중 {back['m']}회 5일 내 상승"
+            item["summary"] = summary
+            hits.append(item)
+        if is_extra and not scan["pass"]:
+            reactions[code] = item
+        elif is_extra and (value_eok or 0) < SCAN_MIN_VALUE:
+            reactions[code] = item        # 조건은 맞아도 거래대금 미달이면 모달용으로만
+    hits.sort(key=lambda h: -(h.get("value_eok") or 0))
+    bar_date = max(last_dates, key=last_dates.get) if last_dates else ""
+    meta = {
+        "asOf": bar_date,
+        "basis": f"{bar_date[:4]}-{bar_date[4:6]}-{bar_date[6:]} 종가" if len(bar_date) == 8 else "",
+        "scanned": scanned,
+        "passed": len(hits),
+        "minValue": SCAN_MIN_VALUE,
+        "rule": SCAN_RULE,
+        "at": now.isoformat(timespec="seconds"),
+    }
+    return {"hits": hits, "meta": meta, "reactions": reactions}
+
+
+def apply_scan(entry, result):
+    """스캔 결과를 항목에 붙인다 — 결과가 없으면 아무 것도 하지 않는다."""
+    if not result:
+        return False
+    entry["conditionHits"] = result["hits"]
+    entry["conditionScan"] = result["meta"]
+    entry["chartReactions"] = result["reactions"]
+    return True
+
+
+def carry_scan(entry, *sources):
+    """이번 실행에서 스캔을 계산하지 못했습니다 — 가장 최근 스캔을 그대로 옮긴다.
+
+    (기준일은 conditionScan.asOf 에 남아 있어 화면이 '며칠 종가 기준'인지 밝힌다)
+    """
+    for src in sources:
+        if isinstance(src, dict) and src.get("conditionHits") is not None:
+            for key in SCAN_KEYS:
+                if src.get(key) is not None:
+                    entry[key] = src[key]
+            return True
+    return False
 
 
 def serialize_data(data):
@@ -1743,7 +2021,7 @@ def charts_only(argv):
     if not codes:
         log("  · allStocks 가 없어 차트를 만들 수 없습니다.")
         return 1
-    charts = build_charts(codes, entry.get("charts"), now)
+    charts, _ = build_charts(codes, entry.get("charts"), now)
     if not charts:
         log("  · 차트 생성 실패 — data.json 그대로 둡니다.")
         return 1
@@ -1758,9 +2036,92 @@ def charts_only(argv):
     return 0
 
 
+def scan_only(argv):
+    """--scan-only [--date YYYY-MM-DD] — 조건식×수급 스캔과 차트 반응만 다시 만든다.
+
+    · data.json 의 다른 필드(서사·마감 시각·closingPattern 등)는 절대 건드리지 않는다
+      — 쓰기 전에 스캔 필드만 빼고 비교해 다르면 중단한다
+    · 대상 항목은 --date(없으면 가장 최근 날짜)이고, 거래대금은 그 항목의 allStocks
+    """
+    now = datetime.now(KST)
+    target = ""
+    for i, arg in enumerate(argv):
+        if arg.startswith("--date="):
+            target = arg.split("=", 1)[1].strip()
+        elif arg == "--date" and i + 1 < len(argv):
+            target = argv[i + 1].strip()
+    if not DATA_PATH.exists():
+        log("  · data.json 없음 — 먼저 전체 갱신을 실행하세요.")
+        return 1
+    try:
+        data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:                # noqa: BLE001
+        log(f"  · data.json 읽기 실패({type(exc).__name__})")
+        return 1
+    if not isinstance(data, list) or not data:
+        log("  · data.json 형식이 아닙니다.")
+        return 1
+    entry = next((d for d in data if str(d.get("date")) == target), None) if target else data[0]
+    if entry is None:
+        log(f"  · data.json 에 {target} 항목이 없습니다.")
+        return 1
+    rows = entry.get("allStocks") or []
+    if not rows:
+        log(f"  · {entry.get('date')} 항목에 allStocks 가 없어 거래대금을 확인할 수 없습니다.")
+        return 1
+    codes = [str(r[0]) for r in rows if r]
+    extra = set()                     # 모달용 반응은 관찰 5선·카드 종목만(용량 관리)
+    for w in entry.get("watchlist") or []:
+        if w.get("ticker"):
+            extra.add(str(w["ticker"]))
+    for sess in entry.get("sessions") or []:
+        for card in sess.get("cards") or []:
+            for st in card.get("stocks") or []:
+                if st.get("ticker"):
+                    extra.add(str(st["ticker"]))
+    log(f"[scan_only] {entry.get('date')} · 일봉 {len(codes)}종목 조회 중…")
+    series = {}
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {code: pool.submit(fetch_chart, code, SCAN_FETCH) for code in codes}
+        for code, future in futures.items():
+            bars = future.result() or []
+            if len(bars) >= 116:
+                series[code] = bars[-CHARTS_DAYS:]
+    result = build_condition_scan(series, rows, extra, now)
+    if not result or not result["meta"].get("asOf"):
+        log("  · 일봉을 받지 못해 스캔을 만들지 않았습니다 — data.json 그대로 둡니다.")
+        return 1
+
+    # 다른 필드가 한 글자라도 바뀌면 쓰지 않는다(서사·마감 시각·closingPattern 보존)
+    def without_scan(obj):
+        clone = json.loads(json.dumps(obj, ensure_ascii=False))
+        for key in SCAN_KEYS:
+            clone.pop(key, None)
+        return json.dumps(clone, ensure_ascii=False, sort_keys=True)
+
+    before = without_scan(entry)
+    apply_scan(entry, result)
+    if without_scan(entry) != before:
+        log("  · 스캔 외 필드가 바뀌었습니다 — 쓰기를 중단합니다.")
+        return 1
+    text = serialize_data(data)
+    DATA_PATH.write_text(text, encoding="utf-8")
+    meta = result["meta"]
+    log(f"  · 스캔 갱신: {meta['basis']} · {meta['scanned']}종목 계산 · "
+        f"조건 통과 후 100억+ {len(result['hits'])}종목 · {len(text.encode()) / 1024:.1f}KB")
+    for hit in result["hits"]:
+        log(f"    {hit['name']}({hit['code']}) {hit['valueText']} · 이격 {hit['gap']}% · {hit['summary']}")
+    log(f"    모달용 차트 반응 {len(result['reactions'])}종목")
+    if WARNINGS:
+        log(f"    경고 {len(WARNINGS)}건")
+    return 0
+
+
 def main(argv):
     if "--charts-only" in argv:
         return charts_only(argv)
+    if "--scan-only" in argv:
+        return scan_only(argv)
     force = "--force" in argv
     now = datetime.now(KST)
     date_str = now.strftime("%Y-%m-%d")
@@ -1959,11 +2320,23 @@ def main(argv):
     chart_codes = [row[0] for row in (all_stocks or []) if row] + target_codes + card_codes
     # merge_entry 는 차트를 넘겨주지 않으므로, 같은 날짜의 이전 data.json 항목에서 캐시를 가져온다
     cached_charts = (old_entry or {}).get("charts") or entry.get("charts")
-    charts = build_charts(chart_codes, cached_charts, now)
+    charts, series = build_charts(chart_codes, cached_charts, now)
     if charts:
         entry["charts"] = charts
     else:
         entry.pop("charts", None)
+
+    # 6-2) 조건식 × 당일 수급 교집합 + 과거 차트 반응 (거래량은 메모리에서만)
+    if series:
+        scan = build_condition_scan(series, all_stocks, set(target_codes + card_codes), now)
+        if scan:
+            apply_scan(entry, scan)
+            log(f"    조건식×수급: {scan['meta']['scanned']}종목 계산 → {len(scan['hits'])}종목 포착")
+        else:
+            carry_scan(entry, old_entry, prev_entry)
+    else:
+        # 일봉을 새로 받지 않은 실행(20분 캐시) — 직전 스캔을 그대로 이어 쓴다
+        carry_scan(entry, old_entry, prev_entry)
 
     # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
     if old_entry and _without_dynamic(entry) == _without_dynamic(old_entry):

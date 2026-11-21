@@ -2096,6 +2096,81 @@
   #viewSimple .qa-linkwide, #viewDetail .qa-linkwide{display:none}
 }
 
+/* ============================================================
+   조건식 × 당일 수급 교집합 — 하단 접이식 (심플·상세 공통)
+   · 평소 1줄 → 누르면 포착 종목 목록
+   · 숫자는 data.json conditionHits/conditionScan (네이버 일봉 120거래일 실측)
+   ============================================================ */
+#viewSimple .scan, #viewDetail .scan{
+  max-width:1000px;margin:12px auto 0;background:var(--card,#fff);
+  border:1px solid var(--line,#e3e7f0);border-radius:16px;box-shadow:var(--shadow);
+  overflow:hidden;
+}
+#viewSimple .scan[hidden], #viewDetail .scan[hidden]{display:none}
+#viewSimple .scan-head, #viewDetail .scan-head{
+  display:flex;align-items:center;gap:6px;width:100%;margin:0;
+  padding:11px 12px;border:0;background:transparent;font-family:inherit;
+  cursor:pointer;text-align:left;
+}
+#viewSimple .scan-head:focus-visible, #viewDetail .scan-head:focus-visible{outline:2px solid #6d28d9;outline-offset:-2px}
+#viewSimple .scan-title, #viewDetail .scan-title{
+  margin:0;min-width:0;font-size:13px;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink,#101828);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .scan-count, #viewDetail .scan-count{
+  flex:0 0 auto;font-size:10.5px;font-weight:800;color:#5b21b6;
+  background:#f4efff;border:1px solid #ddd0ff;border-radius:999px;padding:2px 7px;white-space:nowrap;
+}
+#viewSimple .scan-caret, #viewDetail .scan-caret{
+  margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--mute,#818da3);
+  transition:transform .16s ease;
+}
+#viewSimple .scan[data-open="true"] .scan-caret, #viewDetail .scan[data-open="true"] .scan-caret{transform:rotate(180deg)}
+#viewSimple .scan-body, #viewDetail .scan-body{border-top:1px solid var(--line-2,#edf0f6);padding:4px 10px 10px}
+#viewSimple .scan-body[hidden], #viewDetail .scan-body[hidden]{display:none}
+#viewSimple .scan-row, #viewDetail .scan-row{display:block;padding:8px 4px;border-radius:10px;cursor:pointer}
+#viewSimple .scan-row + .scan-row, #viewDetail .scan-row + .scan-row{border-top:1px solid var(--line-2,#edf0f6);border-radius:0}
+#viewSimple .scan-row:active, #viewDetail .scan-row:active{background:#faf7ff}
+#viewSimple .scan-row:focus-visible, #viewDetail .scan-row:focus-visible{outline:2px solid #8b5cf6;outline-offset:-2px;border-radius:8px}
+#viewSimple .scan-l1, #viewDetail .scan-l1{display:flex;align-items:baseline;gap:5px;min-width:0}
+#viewSimple .scan-rank, #viewDetail .scan-rank{
+  flex:0 0 auto;width:15px;height:15px;border-radius:5px;background:#f2f4f9;color:#5a657a;
+  font-size:9.5px;font-weight:800;text-align:center;line-height:15px;
+}
+#viewSimple .scan-name, #viewDetail .scan-name{
+  min-width:0;max-width:44%;font-size:12.5px;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink,#101828);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .scan-chg, #viewDetail .scan-chg{flex:0 0 auto;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+#viewSimple .scan-chg.up, #viewDetail .scan-chg.up{color:var(--up,#e11d48)}
+#viewSimple .scan-chg.down, #viewDetail .scan-chg.down{color:var(--down,#2563eb)}
+#viewSimple .scan-val, #viewDetail .scan-val{
+  margin-left:auto;flex:0 0 auto;font-size:10.5px;font-weight:750;color:var(--ink-2,#44506a);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+#viewSimple .scan-l2, #viewDetail .scan-l2{
+  margin-top:3px;font-size:10.5px;font-weight:600;line-height:1.4;color:var(--mute,#818da3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#viewSimple .scan-l2 b, #viewDetail .scan-l2 b{color:#5b21b6;font-weight:800}
+#viewSimple .scan-note, #viewDetail .scan-note{margin:6px 2px 0;font-size:9.5px;line-height:1.45;color:var(--mute,#818da3)}
+#viewSimple .scan-empty, #viewDetail .scan-empty{margin:6px 2px;font-size:11px;line-height:1.5;color:var(--mute,#818da3)}
+@media (max-width:430px){
+  #viewSimple .scan-title, #viewDetail .scan-title{font-size:12.5px}
+  #viewSimple .scan-count, #viewDetail .scan-count{font-size:10px;padding:2px 6px}
+}
+
+/* ---------- 모달: 조건식 & 과거 차트 반응 (차트 분석 모달 전용) ---------- */
+.ta-scan-sec .scan-conds{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.ta-scan-sec .scan-cond{
+  border:1px solid #e5e9f0;background:#f7f8fb;color:#8b93a7;
+  border-radius:6px;padding:2px 6px;font-size:9.5px;font-weight:750;white-space:nowrap;
+}
+.ta-scan-sec .scan-cond.on{border-color:#ddd0ff;background:#f4efff;color:#5b21b6}
+.ta-scan-sec .scan-cond.head{border-color:#d5e3ff;background:#eef4ff;color:#1d4ed8}
+.ta-scan-sec .scan-sample{margin:6px 0 0;font-size:10px;line-height:1.5;color:#5a657a}
+.ta-scan-sec .scan-sample b{color:#101828;font-weight:800}
+
 </style>
 </head>
 <body>
@@ -2188,6 +2263,9 @@
     <div class="picks" id="watchList"></div>
   </section>
 
+  <!-- 조건식 × 수급 교집합 패널 자리 (상세 뷰) — JS가 #scanPanel 을 여기로 옮긴다 -->
+  <div id="scanHostDetail"></div>
+
   <!-- ======================= 기사 ======================= -->
   <section class="sec" aria-labelledby="h-news">
     <div class="sechead">
@@ -2274,6 +2352,22 @@
           <ul class="news card" id="sNewsList"></ul>
         </div>
       </section>
+
+      <div id="scanHostSimple">
+  <!-- ======================= 조건식 × 수급 교집합 (심플·상세 공통) ======================= -->
+  <section class="scan" id="scanPanel" aria-labelledby="scanTitle" hidden>
+    <button type="button" class="scan-head" id="scanToggle" aria-expanded="false" aria-controls="scanBody">
+      <h2 class="scan-title" id="scanTitle">🔍 수급×조건식 교집합</h2>
+      <span class="scan-count" id="scanCount">—</span>
+      <span class="scan-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="scan-body" id="scanBody" hidden>
+      <div id="scanList"></div>
+      <p class="scan-empty" id="scanEmpty" hidden></p>
+      <p class="scan-note" id="scanNote"></p>
+    </div>
+  </section>
+      </div>
 
       <p class="fine" id="sFine"></p>
     </div>
@@ -5629,7 +5723,8 @@ const REPORT_DATA = [
           " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
           (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
-      "</div>";
+      "</div>" +
+      scanBlockHTML(scanOf(report, w), report);
   }
 
   /* ---- 종가배팅 분봉 흐름 & 재료 (closingPattern 이 있는 종목만) ---- */
@@ -5710,7 +5805,7 @@ const REPORT_DATA = [
         '<div class="ta-empty">' + taNoChartNote(report) + "</div>" +
       "</div>";
     }
-    return h;
+    return h + scanBlockHTML(scanOf(report, w), report);
   }
 
   function taTrendLine(st) {
@@ -6660,6 +6755,7 @@ const REPORT_DATA = [
       b.setAttribute("aria-selected", String(b.getAttribute("data-mode") === dashMode));
     });
     qaPlace();
+    scanPlace();
     render();
   }
 
@@ -7367,6 +7463,123 @@ const REPORT_DATA = [
     });
   }
 
+  /* ---------------- 조건식 × 당일 수급 교집합 (하단 접이식) ---------------- */
+  const SCAN = { open: false };
+
+  /* 패널을 지금 보이는 뷰(심플·상세)의 자리로 옮긴다 — QA 패널과 같은 방식 */
+  function scanPlace() {
+    const panel = $("#scanPanel");
+    if (!panel) return;
+    const simple = $("#viewSimple");
+    const wantSimple = !!(simple && !simple.hidden);
+    const host = wantSimple ? $("#scanHostSimple") : $("#scanHostDetail");
+    if (host && panel.parentNode !== host) host.appendChild(panel);
+  }
+
+  /* report.conditionHits / chartReactions 에서 이 종목 기록 — 코드 우선, 없으면 이름 */
+  function scanOf(report, w) {
+    if (!report || !w) return null;
+    const hits = report.conditionHits || [];
+    const rx = report.chartReactions || {};
+    const code = w.ticker ? String(w.ticker) : "";
+    const name = String(w.name || "");
+    for (let i = 0; i < hits.length; i++) {
+      if ((code && hits[i].code === code) || (name && hits[i].name === name)) return hits[i];
+    }
+    if (code && rx[code]) return rx[code];
+    for (const k in rx) {
+      if (rx[k] && name && rx[k].name === name) return rx[k];
+    }
+    return null;
+  }
+
+  /* 모달 "📝 글 요약" 안의 조건식·과거 반응 블록 — 기록이 없으면 아무것도 그리지 않는다 */
+  function scanBlockHTML(item, report) {
+    if (!item) return "";
+    const meta = (report && report.conditionScan) || {};
+    const c = item.conditions || {};
+    const conds = [
+      ["A", "20<60<115이평", c.A],
+      ["B", "5봉 평균거래량 5.5만+", c.B],
+      ["C", "5봉 평균거래대금 5천만+", c.C],
+      ["D", "종가 > 20이평", c.D],
+      ["E", "20·60 이격 2% 이내", c.E]
+    ];
+    const chips = conds.map((row) =>
+      '<span class="scan-cond' + (row[2] ? " on" : "") + '">' + row[0] + " " + row[1] + "</span>").join("");
+    const bt = item.backtest || {};
+    const gap = item.gap == null ? "—" : Number(item.gap).toFixed(2) + "%";
+    const verdict = item.passed
+      ? "교집합 통과 " + (item.valueText || "") + ""
+      : "교집합 미통과 · 조건 참고용";
+    return '<div class="ta-sec ta-scan-sec">' +
+      '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🔍 조건식 &amp; 과거 차트 반응</h4>' +
+        '<span class="ta-tag">120일 일봉 실측</span></div>' +
+      '<div class="scan-conds">' +
+        '<span class="scan-cond head">' + esc(meta.rule || "A and (B or C) and D and E") + '</span>' +
+        chips +
+      "</div>" +
+      '<div class="ta-blocks">' +
+        '<div class="ta-block"><span class="k">현재 차트 구조</span>' +
+          '<span class="v">' + esc(item.patternText || "—") + "</span></div>" +
+        '<div class="ta-block is-key"><span class="k">과거 유사 지점 반응</span>' +
+          '<span class="v">' + esc(bt.summary || "과거 신호 기록이 없습니다.") + "</span></div>" +
+        '<div class="ta-block"><span class="k">당일 수급 · 이격</span>' +
+          '<span class="v">' + esc(verdict) + " · 20·60 이격 " + gap + "</span></div>" +
+      "</div>" +
+      (bt.recentText ? '<p class="scan-sample"><b>' + esc(bt.recentText) + "</b></p>" : "") +
+      '<p class="ta-note">' + esc((meta.basis || "최근 120거래일") + " 일봉") +
+        " 실측값만 계산했습니다(추정·보정 없음). 과거 반응은 마지막 5봉을 뺀 120거래일에서 " +
+        "20일선 돌파·거래량 1.5배 양봉이 나온 날의 이후 5거래일 고가(종가 대비)입니다.</p>" +
+      "</div>";
+  }
+
+  function renderScan(report) {
+    scanPlace();
+    const panel = $("#scanPanel");
+    if (!panel) return;
+    const meta = (report && report.conditionScan) || null;
+    const hits = (report && report.conditionHits) || [];
+    if (!meta) { panel.hidden = true; return; }
+    panel.hidden = false;
+    $("#scanCount").textContent = hits.length + "종목 포착";
+    $("#scanList").innerHTML = hits.map((h, i) =>
+      '<div class="scan-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
+        'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
+        '<div class="scan-l1">' +
+          '<span class="scan-rank">' + (i + 1) + "</span>" +
+          '<span class="scan-name">' + esc(h.name) + "</span>" +
+          '<span class="scan-chg ' + (h.chg == null ? "" : dir(h.chg)) + '">' +
+            (h.chg == null ? "" : pct(h.chg)) + "</span>" +
+          '<span class="scan-val">' + esc(h.valueText || "—") + "</span>" +
+        "</div>" +
+        '<div class="scan-l2">20·60 이격 <b>' +
+          (h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%") + "</b> · " +
+          esc(h.summary || h.patternText || "") + "</div>" +
+      "</div>").join("");
+    const empty = $("#scanEmpty");
+    if (empty) {
+      empty.hidden = hits.length > 0;
+      empty.textContent = hits.length ? "" :
+        "조건식 A·B/C·D·E를 모두 충족하고 당일 거래대금 " + (meta.minValue || 100) +
+        "억 이상인 종목이 이 날은 없었습니다.";
+    }
+    $("#scanNote").textContent = (meta.basis || "") + " 일봉 기준 · 조건식 " + (meta.rule || "") +
+      " · 당일 거래대금 " + (meta.minValue || 100) + "억↑ · " + (meta.scanned || 0) + "종목 실측 계산";
+    $("#scanToggle").setAttribute("aria-expanded", String(SCAN.open));
+    panel.setAttribute("data-open", String(SCAN.open));
+    $("#scanBody").hidden = !SCAN.open;
+  }
+
+  function wireScan() {
+    const btn = $("#scanToggle");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      SCAN.open = !SCAN.open;
+      renderScan(findReport(activeDate));
+    });
+  }
+
   /* ---------------- 전체 ---------------- */
   function render() {
     const report = findReport(activeDate);
@@ -7380,6 +7593,7 @@ const REPORT_DATA = [
     renderPipe(report);
     renderFooter(report);
     renderSimple(report);
+    renderScan(report);
     qaRender(report);
     syncSums(document);
     /* 달력이 열려 있으면 선택·날짜가 바뀐 뒤에도 그리드를 최신 상태로 유지한다 */
@@ -7417,6 +7631,7 @@ const REPORT_DATA = [
     wireSimpleUI();
     wireDateNav();
     qaInit();
+    wireScan();
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
