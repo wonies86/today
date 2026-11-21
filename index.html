@@ -787,7 +787,7 @@
   .rot-row{display:flex;gap:7px;align-items:flex-start;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-2)}
   .rot-body{min-width:0;flex:1 1 auto}
   .rot-stocks{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-  .rot-stock{display:inline-flex;align-items:baseline;gap:4px;padding:2px 6px;border:1px solid var(--line-2);background:var(--bg-soft);border-radius:6px;font-size:10px;font-weight:700;max-width:100%}
+  .rot-stock{display:inline-flex;align-items:baseline;gap:4px;padding:2px 6px;border:1px solid var(--line-2);background:var(--bg-soft);border-radius:6px;font-size:10px;font-weight:700;max-width:100%;font-family:inherit;color:inherit;cursor:pointer;appearance:none;text-align:left}
   .rot-stock b{font-weight:800;white-space:nowrap}
   .rot-stock i{font-style:normal;font-weight:850;font-variant-numeric:tabular-nums}
   .rot-stock em{font-style:normal;color:var(--mute);font-weight:650;font-size:9.5px;font-variant-numeric:tabular-nums}
@@ -1020,6 +1020,46 @@
   .ta-sig .k{font-size:9px;font-weight:800;color:var(--mute)}
   .ta-sig .v{font-size:10px;font-weight:700;color:var(--ink);line-height:1.4;font-variant-numeric:tabular-nums}
   .ta-note{margin:8px 0 0;font-size:9px;line-height:1.55;color:var(--mute);font-weight:600}
+  /* 기술적 분석 보기 전환 — 기본은 글 요약 */
+  .ta-tabs{display:flex;gap:4px;padding:9px 14px 8px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#faf7ff,#fff)}
+  .ta-tabs button{
+    flex:1 1 0;appearance:none;font-family:inherit;font-size:11.5px;font-weight:800;letter-spacing:-.02em;
+    color:var(--ink-2);background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:6px 8px;cursor:pointer;
+  }
+  .ta-tabs button[aria-selected="true"]{
+    color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-color:transparent;
+    box-shadow:0 4px 10px -6px rgba(109,40,217,.8)
+  }
+  .ta-rank[hidden]{display:none}
+  /* 차트 화면 */
+  .ta-chartbox{margin:2px 0 8px;background:#fff;border:1px solid var(--line-2);border-radius:11px;padding:8px 6px 5px;overflow:hidden}
+  .ta-chartbox svg{display:block;width:100%;height:auto}
+  .ta-legend{display:flex;flex-wrap:wrap;gap:5px 10px;font-size:9.5px;font-weight:700;color:var(--ink-2);margin:0 0 10px;font-variant-numeric:tabular-nums}
+  .ta-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:0}
+  .ta-legend .lg-up{background:var(--up)}
+  .ta-legend .lg-down{background:var(--down)}
+  .ta-legend .lg-ma5{background:#f59e0b}
+  .ta-legend .lg-ma20{background:var(--violet)}
+  .ta-facts{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .ta-kv{display:flex;flex-direction:column;gap:1px;padding:6px 8px;background:var(--bg-soft);border:1px solid var(--line-2);border-radius:8px;min-width:0}
+  .ta-kv .k{font-size:9px;font-weight:800;color:var(--mute)}
+  .ta-kv .v{font-size:10.5px;font-weight:750;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ta-empty{padding:11px 12px;background:var(--bg-soft);border:1px dashed var(--line-2);border-radius:10px;font-size:10.5px;line-height:1.55;color:var(--ink-2);font-weight:600}
+  /* 종목 클릭 — 카드·랭킹·순환 칩 어디서 눌러도 같은 모달 */
+  [data-stock]{cursor:pointer}
+  [data-stock]:hover{background-color:#faf7ff}
+  [data-stock]:focus-visible{outline:2px solid #8b5cf6;outline-offset:1px;border-radius:6px}
+  /* 종목 한 줄 — 어디서든 same 모달 */
+  .qa-ana{
+    display:inline-flex;align-items:center;gap:5px;margin:2px 0 0;appearance:none;font-family:inherit;
+    font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);
+    border:0;border-radius:8px;padding:7px 11px;cursor:pointer;letter-spacing:-.02em;
+  }
+  .qa-ana:hover{filter:brightness(1.06)}
+  .qa-anbtn{
+    flex:0 0 auto;display:inline-grid;place-items:center;width:21px;height:21px;border-radius:6px;
+    background:var(--violet-soft);color:var(--violet);font-size:10px;font-weight:800;cursor:pointer;
+  }
   .ta-foot{padding:10px 14px 12px;border-top:1px solid var(--line);background:var(--bg-soft);font-size:9.5px;line-height:1.5;color:var(--mute);font-weight:600}
 
   /* ============================================================
@@ -1457,7 +1497,8 @@
 }
 #viewSimple .chip-stk{
   display:inline-flex;align-items:baseline;gap:4px;background:#f6f8fc;border:1px solid var(--line-2);
-  border-radius:7px;padding:2px 6px;font-size:10.5px;font-weight:650;white-space:nowrap
+  border-radius:7px;padding:2px 6px;font-size:10.5px;font-weight:650;white-space:nowrap;
+  font-family:inherit;color:inherit;cursor:pointer;appearance:none
 }
 #viewSimple .chip-stk b{
   font-weight:760;font-variant-numeric:tabular-nums
@@ -2145,6 +2186,10 @@
       <div class="ta-id" id="taId"></div>
     </div>
     <button type="button" class="ta-x" id="taClose" aria-label="차트 분석 닫기">✕</button>
+  </div>
+  <div class="ta-tabs" id="taTabs" role="tablist" aria-label="기술적 분석 보기 방식">
+    <button type="button" role="tab" data-taview="text" aria-selected="true">📝 글 요약</button>
+    <button type="button" role="tab" data-taview="chart" aria-selected="false">📈 차트</button>
   </div>
   <div class="ta-scroll" id="taScroll"></div>
   <div class="ta-foot" id="taFoot">
@@ -4683,7 +4728,8 @@ const REPORT_DATA = [
       card.stocks.forEach((st) => {
         const w = Math.max(4, Math.min(50, (Math.abs(st.chg) / maxAbs) * 50));
         const side = st.chg >= 0 ? "left:50%" : "right:50%";
-        h += '<div class="srow">' +
+        h += '<div class="srow" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
+            'aria-label="' + esc(st.name) + ' 차트 분석 보기">' +
           '<span class="sname"><b>' + esc(st.name) + "</b>" +
             (st.price ? "<span>" + esc(st.price) + "</span>" : "<span>&nbsp;</span>") +
           "</span>" +
@@ -4778,7 +4824,8 @@ const REPORT_DATA = [
     const items = col.items || [];
     const shown = expanded[key] ? items : items.slice(0, 5);
     shown.forEach((it, i) => {
-      h += '<div class="rk g-' + esc(it.g || "etc") + '">' +
+      h += '<div class="rk g-' + esc(it.g || "etc") + '" data-stock="' + esc(it.name) + '" role="button" tabindex="0" ' +
+        'aria-label="' + esc(it.name) + ' 차트 분석 보기">' +
         '<span class="rk-no">' + (i + 1) + "</span>" +
         '<span class="rk-nm">' + esc(it.name) + "</span>" +
         '<span class="rk-pill ' + esc(it.g || "etc") + '">' + esc(GNAME[it.g] || "기타") + "</span>" +
@@ -4863,7 +4910,8 @@ const REPORT_DATA = [
         '<i class="' + dir(s.chg) + '">' + pct(s.chg) + "</i>";
       const meta = [esc(s.tv || "—"), (s.rank ? esc(String(s.rank)) + "위" : "")]
         .filter(Boolean).join(" · ");
-      return '<span class="rot-stock"><b>' + esc(s.name) + "</b>" + chg + "<em>" + meta + "</em></span>";
+      return '<button type="button" class="rot-stock" data-stock="' + esc(s.name) + '" ' +
+        'aria-label="' + esc(s.name) + ' 차트 분석 보기"><b>' + esc(s.name) + "</b>" + chg + "<em>" + meta + "</em></button>";
     };
     const body = (k, head) => {
       const stocks = (k.stocks || []).map(chip).join("");
@@ -5016,45 +5064,188 @@ const REPORT_DATA = [
           '<span class="pick-sector">' + esc(w.sector || "") + "</span>" +
           '<span class="pick-hint">차트 분석 보기 <span aria-hidden="true">↗</span></span>' +
         "</span>";
-      card.addEventListener("click", () => openTechnical(w, card, report));
+      card.addEventListener("click", () => openAnalysis(w, card, report));
       box.appendChild(card);
     });
   }
 
-  function openTechnical(w, opener, report) {
+  /* ======================================================================
+     종목 분석 모달 — 관찰 5선 + 대시보드의 모든 종목이 같은 화면을 쓴다
+     ----------------------------------------------------------------------
+     · 관찰 5선: 손으로 쓴 why·technical 그대로(지금과 같은 글 화면이 기본)
+     · 그 밖 종목: data.json 실측값(전 종목 인덱스·섹터 카드 기록)과 일봉만 사용
+       — 없는 수치는 만들지 않고 '기록 없음'으로 둔다
+     · 일봉은 data.json.charts (네이버 금융 일봉, update_market.py가 시세와 함께 저장)
+     ====================================================================== */
+  const TA = { w: null, report: null, view: "text", idxReport: null, idx: null };
+
+  /* QA 패널과 같은 색인(관찰 5선 → 수급 순환 → 섹터 카드 → 전 종목 인덱스)을 재사용 */
+  function qaIndexOf(report) {
+    if (TA.idxReport !== report || !TA.idx) {
+      TA.idxReport = report;
+      TA.idx = qaBuild(report);
+    }
+    return TA.idx;
+  }
+
+  function chartsOf(report) {
+    const c = report && report.charts;
+    if (!c || !c.stocks || !Array.isArray(c.dates)) return null;
+    return c;
+  }
+
+  /* 종목코드 → { bars:[[o,h,l,c],...], dates:[...], basis, asOf } (없으면 null) */
+  function barsOf(report, ticker) {
+    const c = chartsOf(report);
+    if (!c || !ticker) return null;
+    const bars = c.stocks[String(ticker)];
+    if (!bars || !bars.length) return null;
+    return {
+      bars,
+      dates: c.dates.slice(Math.max(0, c.dates.length - bars.length)),
+      basis: c.basis || "",
+      asOf: c.asOf || ""
+    };
+  }
+
+  /* "20261120" → "2026.11.20" */
+  function barDate(d) {
+    const s = String(d || "");
+    return s.length === 8 ? s.slice(0, 4) + "." + s.slice(4, 6) + "." + s.slice(6) : s;
+  }
+
+  const taWon = (v) => (v == null || isNaN(v) ? "—" : Number(v).toLocaleString("ko-KR") + "원");
+  const taSignedPct = (v) => (v == null || isNaN(v) ? "—" : (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(v).toFixed(1) + "%");
+
+  function barsStats(pack) {
+    const bars = pack.bars, n = bars.length;
+    const closes = bars.map((b) => b[3]);
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    const tail = (k) => bars.slice(Math.max(0, n - k));
+    const last = bars[n - 1];
+    const ma = (k) => (n >= k ? sum(closes.slice(-k)) / k : null);
+    const ret = (k) => (n > k ? (closes[n - 1] / closes[n - 1 - k] - 1) * 100 : null);
+    const ma5 = ma(5), ma20 = ma(20);
+    return {
+      n, last, ma5, ma20,
+      gap20: ma20 ? (closes[n - 1] / ma20 - 1) * 100 : null,
+      hi20: Math.max.apply(null, tail(20).map((b) => b[1])),
+      lo20: Math.min.apply(null, tail(20).map((b) => b[2])),
+      ret5: ret(5), ret20: ret(20),
+      lastDate: pack.dates[pack.dates.length - 1] || "",
+      basis: pack.basis || ""
+    };
+  }
+
+  /* 클릭 대상(이름 또는 관찰 종목 객체) → 모달이 쓸 종목 데이터 */
+  function stockTarget(target, report) {
+    if (target && typeof target === "object" && target.name) {
+      return Object.assign({}, target, { hasManual: true });
+    }
+    const name = String(target || "").trim();
+    if (!name) return null;
+    const wl = (report.watchlist || []).find((w) => w && w.name === name);
+    if (wl) return Object.assign({}, wl, { hasManual: true });
+    const s = qaIndexOf(report).byName.get(name);
+    if (!s) return { name, hasManual: false };
+    return {
+      name: s.name,
+      ticker: s.ticker,
+      market: s.market,
+      sector: (s.sectors && s.sectors[0]) || s.sectorText || "",
+      price: s.price,
+      chg: s.chg,
+      turnover: s.turnover,
+      turnoverRank: s.turnoverRank,
+      why: s.why || (s.contexts && s.contexts[0]) || "",
+      hasManual: false
+    };
+  }
+
+  function openAnalysis(target, opener, report) {
     const dlg = $("#taDialog");
     if (!dlg) return;
     const rep = report || findReport(activeDate);
-    const priceBasis = rep.priceBasis || "NXT 애프터마켓 20:00 마감 기준";
-    const indicatorBasis = rep.indicatorBasis || "2026-11-18 종가";
+    const w = stockTarget(target, rep);
+    if (!w || !w.name) return;
+
+    TA.w = w;
+    TA.report = rep;
+    TA.view = "text";             /* 기본은 지금처럼 글로 나오는 화면 */
+    taOpener = opener || null;
+
+    $("#taTitle").textContent = w.name;
+    const rankEl = $("#taRank");
+    if (w.rank != null && w.rank !== "") {
+      rankEl.hidden = false;
+      rankEl.textContent = w.rank;
+    } else {
+      rankEl.hidden = true;
+      rankEl.textContent = "";
+    }
+    $("#taId").innerHTML =
+      (w.ticker ? "<span>" + esc(w.ticker) + "</span>" : "") +
+      (w.market ? "<span>" + esc(w.market) + "</span>" : "") +
+      (w.sector ? "<span>" + esc(w.sector) + "</span>" : "") +
+      (w.hasManual ? "<span>관찰 5선</span>" : "<span>전 종목 시세 인덱스</span>");
+
+    syncTaTabs();
+    renderTaBody();
+    document.body.classList.add("ta-lock");
+    if (typeof dlg.showModal === "function") {
+      if (!dlg.open) dlg.showModal();
+    } else {
+      dlg.setAttribute("open", "");
+    }
+  }
+
+  function syncTaTabs() {
+    const t = $("#taTabs");
+    if (!t) return;
+    Array.prototype.forEach.call(t.children, (b) => {
+      b.setAttribute("aria-selected", String(b.getAttribute("data-taview") === TA.view));
+    });
+  }
+
+  function setTaView(v) {
+    const next = v === "chart" ? "chart" : "text";
+    if (next === TA.view) return;
+    TA.view = next;
+    syncTaTabs();
+    renderTaBody();
+  }
+
+  function renderTaBody() {
+    const box = $("#taScroll");
+    if (!box || !TA.w) return;
+    const w = TA.w, report = TA.report;
+    const pack = barsOf(report, w.ticker);
+    box.innerHTML = TA.view === "chart" ? taChartHTML(w, report, pack) : taTextHTML(w, report, pack);
+    box.scrollTop = 0;
+    if (TA.view === "chart" && pack) fillChartSVG(box, pack);
+  }
+
+  function taTextHTML(w, report, pack) {
+    return w.hasManual ? taManualTextHTML(w, report) : taAutoTextHTML(w, report, pack);
+  }
+
+  /* ---- 관찰 5선: 손으로 쓴 분석 (기존 화면 그대로) ---- */
+  function taManualTextHTML(w, report) {
+    const priceBasis = report.priceBasis || "NXT 애프터마켓 20:00 마감 기준";
+    const indicatorBasis = report.indicatorBasis || "";
     const t = w.technical || {};
     const kl = t.keyLevels || {};
     const support = t.support || kl.support || "—";
     const resistance = t.resistance || kl.resistance || "—";
-    taOpener = opener || null;
+    const sigs = (t.signals || []).map((s) =>
+      '<div class="ta-sig"><div class="k">' + esc(s.k) + '</div><div class="v">' + esc(s.v) + "</div></div>").join("");
 
-    $("#taRank").textContent = w.rank;
-    $("#taTitle").textContent = w.name;
-    $("#taId").innerHTML =
-      (w.ticker ? "<span>" + esc(w.ticker) + "</span>" : "") +
-      (w.market ? "<span>" + esc(w.market) + "</span>" : "") +
-      (w.sector ? "<span>" + esc(w.sector) + "</span>" : "");
-
-    const sigs = (t.signals || [])
-      .map((s) =>
-        '<div class="ta-sig"><div class="k">' + esc(s.k) +
-        '</div><div class="v">' + esc(s.v) + "</div></div>")
-      .join("");
-
-    $("#taScroll").innerHTML =
-      '<div class="ta-price"><b>' + esc(w.price || "—") + "원</b>" +
-        '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span></div>" +
+    return '<div class="ta-price"><b>' + esc(w.price || "—") + "원</b>" +
+        (w.chg == null ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") + "</div>" +
       '<div class="ta-basis">' + esc(priceBasis) +
         (w.prevClose
           ? " · 전일 정규장 종가 " + esc(w.prevClose) + "원"
-          : (w.krxClose
-            ? " · 정규장 종가 " + esc(w.krxClose) + "원 (" + pct(w.krxChg) + ")"
-            : "")) +
+          : (w.krxClose ? " · 정규장 종가 " + esc(w.krxClose) + "원 (" + pct(w.krxChg) + ")" : "")) +
       "</div>" +
       '<div class="ta-chips">' +
         '<span class="ta-chip">거래대금 <b>' + esc(w.turnover || "—") + "</b></span>" +
@@ -5064,7 +5255,7 @@ const REPORT_DATA = [
             Math.round(((w.day.high - w.day.low) / w.day.close) * 1000) / 10 + "%</b></span>"
           : "") +
       "</div>" +
-      rangeBar(w.day, rep.rangeLabels) +
+      rangeBar(w.day, report.rangeLabels) +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
         '<p class="ta-para">' + esc(w.why) + "</p>" +
@@ -5092,17 +5283,283 @@ const REPORT_DATA = [
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
           (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
       "</div>";
+  }
 
-    $("#taScroll").scrollTop = 0;
-    document.body.classList.add("ta-lock");
-    if (typeof dlg.showModal === "function") dlg.showModal();
-    else dlg.setAttribute("open", "");
+  /* ---- 그 밖 종목: data.json 실측값 + 일봉 자동 계산 ---- */
+  function taAutoTextHTML(w, report, pack) {
+    const st = pack ? barsStats(pack) : null;
+    const price = w.price ? (String(w.price).slice(-1) === "원" ? String(w.price) : String(w.price) + "원") : "—";
+    const chips = [];
+    if (w.turnover) chips.push('<span class="ta-chip">거래대금 <b>' + esc(w.turnover) + "</b></span>");
+    if (w.turnoverRank) chips.push('<span class="ta-chip">' + esc(w.turnoverRank) + "</span>");
+    if (w.sector) chips.push('<span class="ta-chip">업종 <b>' + esc(w.sector) + "</b></span>");
+    if (st) chips.push('<span class="ta-chip">일봉 <b>' + st.n + "거래일</b></span>");
+
+    let h = '<div class="ta-price"><b>' + esc(price) + "</b>" +
+        (w.chg == null || isNaN(w.chg) ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") + "</div>" +
+      '<div class="ta-basis">' + esc(report.priceBasis || "") + " · data.json 기록값</div>" +
+      (chips.length ? '<div class="ta-chips">' + chips.join("") + "</div>" : "");
+
+    if (st) {
+      h += rangeBar({ open: st.last[0], high: st.last[1], low: st.last[2], close: st.last[3] },
+        { title: barDate(st.lastDate) + " 일봉 범위", close: "종가" });
+    }
+
+    h += '<div class="ta-sec">' +
+      '<div class="ta-sec-head"><span class="ta-bar"></span><h4>왜 움직였나</h4>' +
+        '<span class="ta-tag">data.json 기록</span></div>' +
+      (w.why
+        ? '<p class="ta-para">' + esc(w.why) + "</p>"
+        : '<p class="ta-para">이 종목은 관찰 5선·주도 섹터 카드에 수기 분석이 없습니다. ' +
+          "수급·재료 문장은 data.json에 기록된 곳만 보여주고, 없는 사유는 만들지 않습니다.</p>") +
+      "</div>";
+
+    if (st) {
+      h += '<div class="ta-sec">' +
+        '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
+          '<span class="ta-tag">일봉 자동 계산 · ' + esc(barDate(st.lastDate)) + " 종가</span></div>" +
+        '<p class="ta-para">' + esc(taTrendLine(st)) + "</p>" +
+        '<div class="ta-blocks">' +
+          '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
+            '<span class="v">' + esc(taSupportLine(st)) + "</span></div>" +
+          '<div class="ta-block is-res"><span class="k">주요 저항 구간</span>' +
+            '<span class="v">' + esc(taResistLine(st)) + "</span></div>" +
+          '<div class="ta-block"><span class="k">최근 흐름</span>' +
+            '<span class="v">' + esc(taRangeLine(st)) + "</span></div>" +
+          '<div class="ta-block is-key"><span class="k">기술적 체크포인트</span>' +
+            '<span class="v">' + esc(taCheckLine(st)) + "</span></div>" +
+        "</div></div>" +
+        '<div class="ta-sec">' +
+          '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
+            '<span class="ta-tag">객관 지표 · 자동 계산</span></div>' +
+          '<div class="ta-signals">' + taSignalsHTML(st) + "</div>" +
+          '<p class="ta-note">일봉 ' + st.n + "거래일(마지막 " + esc(barDate(st.lastDate)) + " 종가)로 계산했습니다. " +
+            "이동평균·고저는 종가·고가·저가 실측값이며, 60일선·RSI·MACD는 관찰 5선 종목에만 기록되어 있습니다.</p>" +
+        "</div>";
+    } else {
+      h += '<div class="ta-sec">' +
+        '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4></div>' +
+        '<div class="ta-empty">이 종목의 일봉 기록이 data.json에 아직 없습니다(신규상장·거래정지 등). ' +
+          "숫자를 추정해 그리지 않고 비워 둡니다 — 차트 탭에서도 같은 이유로 표시되지 않습니다.</div>" +
+      "</div>";
+    }
+    return h;
+  }
+
+  function taTrendLine(st) {
+    const c = st.last[3];
+    const out = [];
+    if (st.ma20) {
+      out.push("종가 " + taWon(c) + "은 20일선(" + taWon(Math.round(st.ma20)) + ") " +
+        (st.gap20 >= 0 ? "위 " : "아래 ") + Math.abs(st.gap20).toFixed(1) + "% 자리");
+    } else {
+      out.push("종가 " + taWon(c));
+    }
+    if (st.ma5) out.push("5일선 " + taWon(Math.round(st.ma5)));
+    out.push("최근 20거래일 최고 " + taWon(st.hi20) + "·최저 " + taWon(st.lo20) + " 사이에서 움직임");
+    if (st.ret20 != null) out.push("20거래일 등락 " + taSignedPct(st.ret20));
+    return out.join(". ") + ".";
+  }
+
+  function taSupportLine(st) {
+    const parts = [taWon(st.lo20) + "(최근 20거래일 저가)"];
+    if (st.ma20) parts.push(taWon(Math.round(st.ma20)) + "(20일선)");
+    return parts.join(" · ");
+  }
+
+  function taResistLine(st) {
+    const parts = [taWon(st.hi20) + "(최근 20거래일 고가)"];
+    if (st.ma20 && st.gap20 < 0) parts.push(taWon(Math.round(st.ma20)) + "(20일선 — 아직 아래)");
+    return parts.join(" · ");
+  }
+
+  function taRangeLine(st) {
+    return "시가 " + taWon(st.last[0]) + " → 고가 " + taWon(st.last[1]) +
+      " → 저가 " + taWon(st.last[2]) + " → 종가 " + taWon(st.last[3]) +
+      " (" + barDate(st.lastDate) + " 일봉)" +
+      (st.ret5 != null ? " · 5거래일 " + taSignedPct(st.ret5) : "");
+  }
+
+  function taCheckLine(st) {
+    const out = [];
+    if (st.ma20) out.push("20일선 " + taWon(Math.round(st.ma20)) + " 위 종가 유지 여부");
+    out.push("20거래일 고가 " + taWon(st.hi20) + " 돌파 여부");
+    out.push("20거래일 저가 " + taWon(st.lo20) + " 이탈 여부");
+    return out.join(" · ");
+  }
+
+  function taSignalsHTML(st) {
+    const kv = (k, v) => '<div class="ta-sig"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + "</div></div>";
+    const out = [];
+    out.push(kv("5일선", st.ma5 ? taWon(Math.round(st.ma5)) : "—"));
+    out.push(kv("20일선", st.ma20 ? taWon(Math.round(st.ma20)) : "—"));
+    out.push(kv("20일선 괴리율", st.gap20 == null ? "—" : taSignedPct(st.gap20)));
+    out.push(kv("최근 20거래일", taSignedPct(st.ret20)));
+    out.push(kv("20거래일 고가", taWon(st.hi20)));
+    out.push(kv("20거래일 저가", taWon(st.lo20)));
+    return out.join("");
+  }
+
+  /* ---- 차트 화면 ---- */
+  function taChartHTML(w, report, pack) {
+    const price = w.price ? (String(w.price).slice(-1) === "원" ? String(w.price) : String(w.price) + "원") : "—";
+    let h = '<div class="ta-price"><b>' + esc(price) + "</b>" +
+        (w.chg == null || isNaN(w.chg) ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") + "</div>" +
+      '<div class="ta-basis">' + esc(report.priceBasis || "") + "</div>";
+
+    if (!pack) {
+      return h + '<div class="ta-empty" style="margin-top:10px">이 종목의 일봉 기록이 data.json에 아직 없어 ' +
+        "차트를 그리지 않습니다(신규상장·거래정지 등). 가짜 데이터로 채우지 않습니다.</div>";
+    }
+
+    const st = barsStats(pack);
+    h += '<div class="ta-chartbox" role="img" aria-label="' + esc(w.name) + ' 일봉 차트"></div>' +
+      '<div class="ta-legend">' +
+        '<span><i class="lg-up"></i>상승</span><span><i class="lg-down"></i>하락</span>' +
+        '<span><i class="lg-ma5"></i>5일선</span><span><i class="lg-ma20"></i>20일선</span>' +
+      "</div>" +
+      '<div class="ta-sec">' +
+        '<div class="ta-sec-head"><span class="ta-bar"></span><h4>일봉 요약</h4>' +
+          '<span class="ta-tag">' + esc(barDate(st.lastDate)) + " 종가</span></div>" +
+        '<div class="ta-facts">' +
+          '<div class="ta-kv"><span class="k">시가</span><span class="v">' + taWon(st.last[0]) + "</span></div>" +
+          '<div class="ta-kv"><span class="k">고가</span><span class="v">' + taWon(st.last[1]) + "</span></div>" +
+          '<div class="ta-kv"><span class="k">저가</span><span class="v">' + taWon(st.last[2]) + "</span></div>" +
+          '<div class="ta-kv"><span class="k">종가</span><span class="v">' + taWon(st.last[3]) + "</span></div>" +
+          '<div class="ta-kv"><span class="k">5일선</span><span class="v">' + (st.ma5 ? taWon(Math.round(st.ma5)) : "—") + "</span></div>" +
+          '<div class="ta-kv"><span class="k">20일선</span><span class="v">' + (st.ma20 ? taWon(Math.round(st.ma20)) : "—") + "</span></div>" +
+        "</div>" +
+      "</div>" +
+      '<p class="ta-note">출처: 네이버 금융 일봉 ' + st.n + "거래일(data.json charts) · 마지막 봉 " +
+        esc(barDate(st.lastDate)) + " · 이동평균은 종가 기준 자동 계산값입니다.</p>";
+    return h;
+  }
+
+  function fillChartSVG(box, pack) {
+    const host = box.querySelector(".ta-chartbox");
+    if (!host) return;
+    const width = Math.max(240, Math.min(560, host.clientWidth - 12));
+    host.innerHTML = chartSVG(pack.bars, pack.dates, width);
+  }
+
+  function chartSVG(bars, dates, width) {
+    const n = bars.length;
+    const padL = 4, padR = 52, padT = 10, padB = 18;
+    const H = 198;
+    const plotW = Math.max(120, width - padL - padR);
+    const plotH = H - padT - padB;
+    const closes = bars.map((b) => b[3]);
+
+    const maAt = (i, k) => {
+      if (i < k - 1) return null;
+      let s = 0;
+      for (let j = i - k + 1; j <= i; j++) s += closes[j];
+      return s / k;
+    };
+    const ma5 = closes.map((_, i) => maAt(i, 5));
+    const ma20 = closes.map((_, i) => maAt(i, 20));
+
+    let hi = -Infinity, lo = Infinity;
+    bars.forEach((b) => { hi = Math.max(hi, b[1]); lo = Math.min(lo, b[2]); });
+    ma5.concat(ma20).forEach((v) => {
+      if (v == null) return;
+      hi = Math.max(hi, v);
+      lo = Math.min(lo, v);
+    });
+    if (!(hi > lo)) return "";
+    const pad = (hi - lo) * 0.07;
+    hi += pad;
+    lo -= pad;
+
+    const Y = (v) => padT + (hi - v) / (hi - lo) * plotH;
+    const step = plotW / n;
+    const X = (i) => padL + step * (i + 0.5);
+    const bw = Math.max(2.2, Math.min(9, step * 0.62));
+
+    let svg = '<svg viewBox="0 0 ' + width + " " + H + '" width="' + width + '" height="' + H +
+      '" role="img" aria-label="일봉 캔들 차트">';
+
+    /* 가로 눈금 + 가격 축 */
+    for (let g = 0; g <= 4; g++) {
+      const v = lo + (hi - lo) * g / 4;
+      const y = Y(v).toFixed(1);
+      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (padL + plotW) + '" y2="' + y +
+        '" stroke="#eef1f6" stroke-width="1"/>' +
+        '<text x="' + (padL + plotW + 5) + '" y="' + (+y + 3).toFixed(1) +
+        '" font-size="8" fill="#818da3" font-weight="700">' + Math.round(v).toLocaleString("ko-KR") + "</text>";
+    }
+
+    /* 캔들 */
+    bars.forEach((b, i) => {
+      const up = b[3] >= b[0];
+      const col = up ? "#e11d48" : "#2563eb";
+      const x = X(i).toFixed(1);
+      svg += '<line x1="' + x + '" y1="' + Y(b[1]).toFixed(1) + '" x2="' + x + '" y2="' + Y(b[2]).toFixed(1) +
+        '" stroke="' + col + '" stroke-width="1"/>';
+      const top = Y(Math.max(b[0], b[3]));
+      const bh = Math.max(1.3, Math.abs(Y(Math.min(b[0], b[3])) - top));
+      svg += '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) +
+        '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col +
+        '" stroke="' + col + '" stroke-width="1" rx="0.6"/>';
+    });
+
+    /* 이동평균선 */
+    const linePath = (vals, color, wpx, dash) => {
+      let d = "", started = false;
+      vals.forEach((v, i) => {
+        if (v == null) return;
+        d += (started ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1);
+        started = true;
+      });
+      if (!d) return "";
+      return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + wpx +
+        '" stroke-linejoin="round" stroke-linecap="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
+    };
+    svg += linePath(ma5, "#f59e0b", 1.2);
+    svg += linePath(ma20, "#6d28d9", 1.4, "4 3");
+
+    /* 마지막 종가 */
+    const lastClose = closes[n - 1];
+    const ly = Y(lastClose);
+    svg += '<line x1="' + padL + '" y1="' + ly.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + ly.toFixed(1) +
+      '" stroke="#101828" stroke-width="1" stroke-dasharray="2 3" opacity=".4"/>' +
+      '<rect x="' + (padL + plotW + 2) + '" y="' + (ly - 7).toFixed(1) + '" width="' + (padR - 3) +
+      '" height="14" rx="3" fill="#101828"/>' +
+      '<text x="' + (padL + plotW + 5) + '" y="' + (ly + 3.2).toFixed(1) +
+      '" font-size="8" fill="#fff" font-weight="800">' + lastClose.toLocaleString("ko-KR") + "</text>";
+
+    /* 날짜 축 */
+    const marks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i);
+    marks.forEach((i, k) => {
+      const isFirst = k === 0;
+      const isLast = k === marks.length - 1 && marks.length > 1;
+      const x = isFirst ? padL : (isLast ? padL + plotW : X(i));
+      svg += '<text x="' + x.toFixed(1) + '" y="' + (H - 4) + '" font-size="8" fill="#818da3" font-weight="700" text-anchor="' +
+        (isFirst ? "start" : isLast ? "end" : "middle") + '">' + barDate(dates[i]) + "</text>";
+    });
+
+    return svg + "</svg>";
   }
 
   function wireTechnicalDialog() {
     const dlg = $("#taDialog");
     if (!dlg) return;
     $("#taClose").addEventListener("click", () => dlg.close());
+    const tabs = $("#taTabs");
+    if (tabs) {
+      tabs.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-taview]");
+        if (!b) return;
+        setTaView(b.getAttribute("data-taview"));
+      });
+      tabs.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        setTaView(TA.view === "text" ? "chart" : "text");
+        const next = tabs.querySelector('[data-taview="' + TA.view + '"]');
+        if (next) next.focus();
+      });
+    }
     dlg.addEventListener("click", (e) => {
       if (e.target === dlg) dlg.close();
     });
@@ -5408,7 +5865,8 @@ const REPORT_DATA = [
 
   /* ---------------- 주도 섹터 카드 ---------------- */
   function sStockRow(s) {
-    return "<li>" +
+    return '<li class="stkrow" data-stock="' + esc(s.name) + '" role="button" tabindex="0" ' +
+      'aria-label="' + esc(s.name) + ' 차트 분석 보기">' +
       '<span class="s-name">' + esc(s.name) + "</span>" +
       (s.price ? '<span class="s-price">' + esc(s.price) + "원</span>" : '<span class="s-price"></span>') +
       '<span class="s-chg ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
@@ -5457,10 +5915,11 @@ const REPORT_DATA = [
   function sChip(s) {
     if (!s || !s.name) return "";
     const meta = [s.tv || "", s.rank ? s.rank + "위" : ""].filter(Boolean).join(" · ");
-    return '<span class="chip-stk">' + esc(s.name) +
+    return '<button type="button" class="chip-stk" data-stock="' + esc(s.name) + '" ' +
+      'aria-label="' + esc(s.name) + ' 차트 분석 보기">' + esc(s.name) +
       ' <b class="' + sDir(s.chg) + '">' + sPct(s.chg) + "</b>" +
       (meta ? ' <em class="chip-meta">' + esc(meta) + "</em>" : "") +
-    "</span>";
+    "</button>";
   }
 
   function sMacroBox(m) {
@@ -5564,7 +6023,8 @@ const REPORT_DATA = [
     $("#sRankCaption").textContent = (col && (col.caption || col.title)) || "";
     $("#sRankBasis").textContent = (col && col.sub) || "";
     box.innerHTML = items.map((it, i) =>
-      '<li class="row">' +
+      '<li class="row" data-stock="' + esc(it.name) + '" role="button" tabindex="0" ' +
+        'aria-label="' + esc(it.name) + ' 차트 분석 보기">' +
         '<span class="rk">' + (i + 1) + "</span>" +
         '<span class="n-name"><span class="nm">' + esc(it.name) + "</span>" +
           (it.note ? '<span class="flag">' + esc(it.note) + "</span>" : "") + "</span>" +
@@ -5703,7 +6163,7 @@ const REPORT_DATA = [
       if (!btn) return;
       const report = findReport(activeDate);
       const w = (report.watchlist || [])[Number(btn.getAttribute("data-idx"))];
-      if (w) openTechnical(w, btn, report);
+      if (w) openAnalysis(w, btn, report);
     });
   }
 
@@ -6019,6 +6479,9 @@ const REPORT_DATA = [
         '<div class="qa-stat"><i>시세 기준</i><b>' + esc(report.stamp || "—") + "</b></div>" +
       "</div>";
 
+    h += '<div style="margin:2px 0 9px"><button type="button" class="qa-ana" data-stock="' + esc(s.name) + '">' +
+      "📈 분석 화면 열기 · 글 요약/차트</button></div>";
+
     const why = s.why || (s.contexts || [])[0] || "";
     if (why) h += '<span class="qa-k">왜 움직였나 · data.json 기록</span><p class="qa-p">' + esc(why) + "</p>";
 
@@ -6066,7 +6529,9 @@ const REPORT_DATA = [
         '<div class="qa-stat"><i>시세 기준</i><b>' + esc(report.stamp || "—") + "</b></div>" +
       "</div>" +
       '<p class="qa-p" style="margin-top:8px">상위 수급 카드에는 없지만, data.json 전 종목 시세 인덱스에서 찾은 종목입니다. ' +
-        "현재가·등락률·거래대금·업종은 아래 시각 기준 기록값 그대로입니다.</p>";
+        "현재가·등락률·거래대금·업종은 아래 시각 기준 기록값 그대로입니다.</p>" +
+      '<div style="margin:2px 0 9px"><button type="button" class="qa-ana" data-stock="' + esc(s.name) + '">' +
+        "📈 분석 화면 열기 · 글 요약/차트</button></div>";
 
     h += qaAskHTML(report, s.name, "stock");
 
@@ -6114,6 +6579,8 @@ const REPORT_DATA = [
           (s.price ? '<span class="p">' + esc(s.price) + "원</span>" : "") +
           '<span class="c ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
           '<span class="t">' + esc(s.turnover || "—") + "</span>" +
+          '<span class="qa-anbtn" data-stock="' + esc(s.name) + '" role="button" tabindex="0" ' +
+            'aria-label="' + esc(s.name) + ' 차트 분석 보기">📈</span>' +
         "</button>").join("") + "</div>";
     }
 
@@ -6146,6 +6613,8 @@ const REPORT_DATA = [
           (s.price ? '<span class="p">' + esc(s.price) + "원</span>" : "") +
           '<span class="c ' + sDir(s.chg) + '">' + sPct(s.chg) + "</span>" +
           '<span class="t">' + esc(s.turnover || "—") + "</span>" +
+          '<span class="qa-anbtn" data-stock="' + esc(s.name) + '" role="button" tabindex="0" ' +
+            'aria-label="' + esc(s.name) + ' 차트 분석 보기">📈</span>' +
         "</button>").join("") +
       "</div>" +
       '<p class="qa-note">종목을 누르면 data.json에 기록된 수치로 다시 조회합니다.</p></div>';
@@ -6337,6 +6806,8 @@ const REPORT_DATA = [
       const intent = e.target.closest("[data-intent]");
       if (intent) { qaSetIntent(intent.getAttribute("data-intent")); return; }
 
+      if (e.target.closest("[data-stock]")) return;   /* 종목 분석 모달이 처리 */
+
       const go = e.target.closest("[data-qa-q]");
       if (go) {
         const v = go.getAttribute("data-qa-q") || "";
@@ -6367,7 +6838,27 @@ const REPORT_DATA = [
     }
   }
 
+  /* 어느 뷰에서든 [data-stock] 을 누르면 같은 종목 분석 모달 */
+  function wireStockClicks() {
+    document.addEventListener("click", (e) => {
+      const node = e.target.closest("[data-stock]");
+      if (!node) return;
+      const name = node.getAttribute("data-stock");
+      if (!name) return;
+      e.preventDefault();
+      openAnalysis(name, node, findReport(activeDate));
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const node = e.target.closest && e.target.closest("[data-stock]");
+      if (!node) return;
+      e.preventDefault();
+      openAnalysis(node.getAttribute("data-stock"), node, findReport(activeDate));
+    });
+  }
+
   wireTechnicalDialog();
+  wireStockClicks();
   wireRefresh();
 
   function start() {

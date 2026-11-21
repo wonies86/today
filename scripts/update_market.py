@@ -59,6 +59,11 @@ ALL_STOCK_CAP = 300     # 시장별 최대 종목 수 (KOSPI 300 + KOSDAQ 300)
 ALL_MV_KEEP = 150       # 시가총액 상위 150위 안이면 거래대금과 무관하게 우선 포함
 ALL_STOCKS_MARK = "__ALLSTOCKS_JSON__"   # data.json 한 줄 압축 저장용 자리표시자
 
+# 차트(일봉) — 대시보드 모달의 📈 차트 탭이 쓰는 실측 일봉
+CHARTS_DAYS = 30          # 종목당 보관 일봉 수(이동평균 5·20일선 계산에 충분)
+CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
+CHARTS_MARK = "__CHARTS_JSON__"
+
 WARNINGS: list[str] = []
 
 
@@ -530,6 +535,105 @@ def fetch_chart(code: str, count: int = CHART_DAYS):
         except ValueError:
             continue
     return rows or None
+
+
+# ---------------------------------------------------------------- 차트(일봉) 데이터
+def charts_fresh(cached, codes, now):
+    """이미 받아 둔 charts 를 그대로 써도 되는지.
+
+    · 같은 날 마감(15:40) 뒤에 만든 최종본이면 다시 받지 않는다
+      (5분마다 599종목 일봉을 다시 받으면 GitHub Actions가 감당하지 못한다)
+    · 마감 전에 만든 것이면 그대로 쓰고, 마감 뒤 첫 실행에서 정식 종가로 한 번 더 만든다
+    """
+    if not isinstance(cached, dict) or not cached.get("stocks"):
+        return False
+    as_of = str(cached.get("asOf") or "")
+    if not as_of:
+        return False
+    have = {str(k) for k in cached["stocks"].keys()}
+    missing = len(set(codes) - have)
+    if missing > max(3, int(len(codes) * 0.02)):
+        return False                      # 새로 편입된 종목이 많으면 다시 만든다
+    today = now.strftime("%Y%m%d")
+    minutes = now.hour * 60 + now.minute
+    if as_of < today:
+        return False                      # 지난 봉이면 새로 받는다
+    try:
+        gen = datetime.fromisoformat(str(cached.get("generatedAt") or ""))
+        gen_minutes = gen.hour * 60 + gen.minute
+    except Exception:                     # noqa: BLE001
+        gen_minutes = -1
+    if gen_minutes >= 15 * 60 + 40:
+        return True                       # 마감 뒤 만든 최종본
+    if minutes < 15 * 60 + 40:
+        return True                       # 아직 마감 전 — 장중 봉으로 그대로 사용
+    return False                          # 마감 뒤 첫 실행에서 정식 종가로 재생성
+
+
+def build_charts(codes, cached, now):
+    """data.json charts — 종목별 최근 일봉 OHLC 경량 배열.
+
+    · 네이버 금융 일봉(fchart) 실측값만 넣는다. 없는 봉은 보간·추정하지 않는다
+    · 날짜 배열을 한 벌만 두고 종목은 [[시,고,저,종], ...] 만 저장한다(용량 절감)
+    · 봉 날짜가 기준 날짜와 어긋나는 종목(거래정지·신규상장)은 넣지 않는다
+    """
+    codes = [str(c) for c in (codes or []) if c]
+    if not codes:
+        return cached or None
+    if charts_fresh(cached, codes, now):
+        return cached
+
+    rows_by_code = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {code: pool.submit(fetch_chart, code, CHARTS_DAYS) for code in codes}
+        for code, future in futures.items():
+            rows = future.result() or []
+            if len(rows) >= CHARTS_MIN_BARS:
+                rows_by_code[code] = rows[-CHARTS_DAYS:]
+    if not rows_by_code:
+        warn("일봉 차트 데이터를 받지 못했습니다 — 기존 charts 유지")
+        return cached or None
+
+    counts = {}
+    for rows in rows_by_code.values():
+        counts[rows[-1]["d"]] = counts.get(rows[-1]["d"], 0) + 1
+    latest = max(counts, key=counts.get)
+    base = next(rows for rows in rows_by_code.values() if rows[-1]["d"] == latest)
+    dates = [r["d"] for r in base]
+
+    stocks = {}
+    for code, rows in rows_by_code.items():
+        if [r["d"] for r in rows] != dates:
+            continue                      # 봉 날짜가 어긋나면 그리지 않는다(가짜 봉 금지)
+        stocks[code] = [[r["o"], r["h"], r["l"], r["c"]] for r in rows]
+    if not stocks:
+        return cached or None
+
+    return {
+        "asOf": latest,
+        "basis": f"{latest[:4]}-{latest[4:6]}-{latest[6:]} 종가",
+        "generatedAt": now.isoformat(timespec="seconds"),
+        "days": len(dates),
+        "dates": dates,
+        "stocks": stocks,
+    }
+
+
+def serialize_data(data):
+    """data.json 본문 문자열 — allStocks·charts 는 배열이라 한 줄 압축으로 둔다."""
+    saved = []
+    for entry in data:
+        for key, mark in (("allStocks", ALL_STOCKS_MARK), ("charts", CHARTS_MARK)):
+            value = entry.get(key)
+            if isinstance(value, (list, dict)) and value:
+                entry[key] = mark
+                saved.append((entry, key, mark, value))
+    text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+    for entry, key, mark, value in saved:
+        entry[key] = value
+        text = text.replace(f'"{mark}"',
+                            json.dumps(value, ensure_ascii=False, separators=(",", ":")), 1)
+    return text
 
 
 # ---------------------------------------------------------------- 지표 계산
@@ -1609,7 +1713,43 @@ def _without_dynamic(entry):
     return clone
 
 
+def charts_only(argv):
+    """--charts-only — data.json 은 그대로 두고 일봉(charts)만 다시 만든다."""
+    now = datetime.now(KST)
+    if not DATA_PATH.exists():
+        log("  · data.json 없음 — 먼저 전체 갱신을 실행하세요.")
+        return 1
+    try:
+        data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:                # noqa: BLE001
+        log(f"  · data.json 읽기 실패({type(exc).__name__})")
+        return 1
+    if not isinstance(data, list) or not data:
+        log("  · data.json 형식이 아닙니다.")
+        return 1
+    entry = data[0]
+    codes = [row[0] for row in (entry.get("allStocks") or []) if row]
+    if not codes:
+        log("  · allStocks 가 없어 차트를 만들 수 없습니다.")
+        return 1
+    charts = build_charts(codes, entry.get("charts"), now)
+    if not charts:
+        log("  · 차트 생성 실패 — data.json 그대로 둡니다.")
+        return 1
+    entry["charts"] = charts
+    text = serialize_data(data)
+    if DATA_PATH.exists() and text == DATA_PATH.read_text(encoding="utf-8"):
+        log("  · 변경 없음 — data.json 그대로 둡니다.")
+        return 0
+    DATA_PATH.write_text(text, encoding="utf-8")
+    log(f"  · charts 갱신: {charts['asOf']} · {len(charts['stocks'])}종목 · "
+        f"{len(text.encode()) / 1024:.1f}KB · 경고 {len(WARNINGS)}건")
+    return 0
+
+
 def main(argv):
+    if "--charts-only" in argv:
+        return charts_only(argv)
     force = "--force" in argv
     now = datetime.now(KST)
     date_str = now.strftime("%Y-%m-%d")
@@ -1804,6 +1944,14 @@ def main(argv):
     entry.pop("_value_ranks", None)
     entry["updatedAt"] = now.isoformat(timespec="seconds")
 
+    # 6-1) 차트(일봉) — 모달 📈 차트 탭용. 전 종목 인덱스 + 관찰·카드 종목
+    chart_codes = [row[0] for row in (all_stocks or []) if row] + target_codes + card_codes
+    charts = build_charts(chart_codes, entry.get("charts"), now)
+    if charts:
+        entry["charts"] = charts
+    else:
+        entry.pop("charts", None)
+
     # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
     if old_entry and _without_dynamic(entry) == _without_dynamic(old_entry):
         log("  · 시세가 그대로 — data.json 변경 없음.")
@@ -1815,16 +1963,11 @@ def main(argv):
     for d in data:
         if d is not entry and d.get("date") != date_str:
             d.pop("allStocks", None)
+            d.pop("charts", None)
 
     # allStocks는 종목 수가 많아 한 줄 압축(다른 필드는 그대로 읽기 좋게 들여쓰기 유지)
-    rows = entry.pop("allStocks", None)
-    if rows:
-        entry["allStocks"] = ALL_STOCKS_MARK
-    text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
-    if rows:
-        compact = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
-        text = text.replace(f'"{ALL_STOCKS_MARK}"', compact, 1)
-        entry["allStocks"] = rows
+    rows = entry.get("allStocks")
+    text = serialize_data(data)
     previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
     if text == previous:
         log("  · 변경 없음 — data.json 그대로 둡니다.")
