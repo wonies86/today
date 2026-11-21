@@ -5155,10 +5155,18 @@ const REPORT_DATA = [
     const LIM = max || 34;
     if (!t) return "";
     if (t.length <= LIM) return t;
-    const tidy = (s) => String(s || "")
-      .replace(/\s*[\u2460-\u2469\u2160-\u2179]$/, "")   /* 끝에 붙은 ①②·Ⅰ 같은 번호 */
-      .replace(/[,·—\-]$/, "")
-      .trim();
+    const tidy = (s) => {
+      let v = String(s || "")
+        .replace(/\s*[\u2460-\u2469\u2160-\u2179]$/, "")   /* 끝에 붙은 ①②·Ⅰ 같은 번호 */
+        .replace(/[,·—\-]$/, "")
+        .trim();
+      /* 괄호가 열린 채 끊기면 괄호 앞에서 끊는다: "...(오늘 종가" → "..." */
+      if ((v.match(/\(/g) || []).length > (v.match(/\)/g) || []).length) {
+        const at = v.lastIndexOf("(");
+        if (at >= 6) v = v.slice(0, at).replace(/[,·—\-]$/, "").trim();
+      }
+      return v;
+    };
     const sent = t.match(/^(.{6,}?[.!?])(\s|$)/);            /* 첫 문장 */
     if (sent && sent[1].trim().length <= LIM) return tidy(sent[1]);
     /* ①②③ 같은 체크포인트 나열은 첫 항목까지만 */
