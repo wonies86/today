@@ -857,6 +857,17 @@
     padding:2.5px 6px;
   }
   .pick-sector{font-size:9px;font-weight:750;color:var(--mute)}
+  /* 종가배팅 분봉 패턴 배지 — data.json `closingPattern` 이 있는 종목만 (심플·상세 카드·모달 공통) */
+  .pat-badge{
+    display:inline-flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0;max-width:100%;
+    font-size:9.5px;font-weight:800;letter-spacing:-.02em;line-height:1.2;
+    color:#5b21b6;background:linear-gradient(180deg,#f7f2ff,#efe6ff);
+    border:1px solid #e2d4ff;border-radius:5px;padding:1.5px 6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums;
+  }
+  .pat-badge .pat-dot{width:4px;height:4px;border-radius:50%;background:#8b5cf6;flex:0 0 auto}
+  .pick-pat{align-self:flex-start;margin-top:-2px}
 
   /* ============================================================
      기사 · 파이프라인 · 푸터
@@ -1028,6 +1039,22 @@
   .ta-sig .k{font-size:9px;font-weight:800;color:var(--mute)}
   .ta-sig .v{font-size:10px;font-weight:700;color:var(--ink);line-height:1.4;font-variant-numeric:tabular-nums}
   .ta-note{margin:8px 0 0;font-size:9px;line-height:1.55;color:var(--mute);font-weight:600}
+  /* 종가배팅 분봉 흐름 & 재료 — 관찰 5선 종목에만 (data.json closingPattern) */
+  .ta-pat-sec{
+    padding:10px 11px;margin-bottom:13px;border:1px solid #e3d8ff;border-radius:12px;
+    background:linear-gradient(180deg,#faf7ff,#fff)
+  }
+  .ta-pat-sec .ta-sec-head{margin-bottom:7px}
+  .ta-pat-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .ta-pat-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:11.5px;font-weight:850;letter-spacing:-.02em;line-height:1.15;
+    color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);
+    border-radius:7px;padding:4px 9px;
+    box-shadow:0 4px 10px -6px rgba(109,40,217,.85)
+  }
+  .ta-pat-badge .pat-dot{width:4px;height:4px;border-radius:50%;background:#fff;flex:0 0 auto;opacity:.85}
+  .ta-pat-line .ta-pat-when{font-size:9px;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums}
 
   /* ============================================================
      1줄 요약 + 클릭 펼침 (종목 설명·분석 공통)
@@ -1637,6 +1664,10 @@
 }
 #viewSimple .wr-chg{
   flex:0 0 52px;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right
+}
+/* 한 줄 폭에 맞춘 컴팩트 배지 — 종목명 옆에 붙어 행 높이를 늘리지 않는다 */
+#viewSimple .wr-pat{
+  flex:0 0 auto;font-size:9px;padding:1px 5px;border-radius:4px;letter-spacing:-.03em
 }
 #viewSimple .watch li.has-why .wr{
   padding-bottom:1px
@@ -5276,15 +5307,55 @@ const REPORT_DATA = [
   /* 웹폰트가 늦게 붙으면 한 줄 높이가 달라진다 — 준비되면 한 번 더 측정 */
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayoutSums);
 
+  /* ============================================================
+     종가배팅 분봉 패턴 — data.json `closingPattern`
+     ------------------------------------------------------------
+     · 사용자 기준 4가지 표준 라벨(선정 1순위는 재료·이슈, 분봉 패턴은 그 다음)
+       1 ① 오전수급 유지       장초반 들어온 돈이 오후에도 빠지지 않고 조정 횡보
+       2 ② 눌림 후 막판 재돌파  오전 수급 → 오후 눌림 → 막판 다시 끌어올림
+       3 ③ 오후수급+막판투매    오후 자금 유입(장중 이슈) → 막판 투매
+       4 ④ 오후 우상향          오후부터 장 끝까지 완만한 우상향
+     · 없는 종목(패턴 미해당·과거/장전 기록)은 아무것도 그리지 않는다 — 추측 금지
+     ============================================================ */
+  const PAT_LABEL = {
+    "1": "① 오전수급 유지",
+    "2": "② 눌림 후 막판 재돌파",
+    "3": "③ 오후수급+막판투매",
+    "4": "④ 오후 우상향"
+  };
+
+  /* 종목 객체 → { code, label, catalyst, reason, basis } 또는 null */
+  function patOf(o) {
+    const p = o && o.closingPattern;
+    if (!p || typeof p !== "object") return null;
+    const code = p.code == null ? "" : String(p.code).trim();
+    const label = String(p.label || PAT_LABEL[code] || "").trim();
+    if (!label) return null;
+    return {
+      code: code,
+      label: label,
+      catalyst: String(p.catalyst || "").trim(),
+      reason: String(p.reason || "").trim(),
+      basis: String(p.basis || "").trim()
+    };
+  }
+
+  function patBadge(p, cls) {
+    return '<span class="pat-badge' + (cls ? " " + cls : "") + '">' +
+      '<span class="pat-dot" aria-hidden="true"></span>' + esc(p.label) + "</span>";
+  }
+
   function renderWatchlist(report) {
     const box = $("#watchList");
     box.innerHTML = "";
     (report.watchlist || []).forEach((w) => {
+      const pat = patOf(w);
       const card = el("article", "pick");
       card.setAttribute("role", "button");
       card.setAttribute("tabindex", "0");
       card.setAttribute("aria-haspopup", "dialog");
-      card.setAttribute("aria-label", w.name + " 차트 기술적 분석 보기 · " + pct(w.chg));
+      card.setAttribute("aria-label", w.name + " 차트 기술적 분석 보기 · " + pct(w.chg) +
+        (pat ? " · 종가배팅 " + pat.label : ""));
       let h =
         '<span class="pick-top">' +
           '<span class="pick-rank" aria-hidden="true">' + w.rank + "</span>" +
@@ -5297,6 +5368,8 @@ const REPORT_DATA = [
           "</span>" +
           '<span class="pick-chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>" +
         "</span>";
+      /* 종가배팅 패턴 배지 — 카드 상단, 한 줄 폭에 맞춤 */
+      if (pat) h += patBadge(pat, "pick-pat");
       /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침 */
       if (w.why) h += '<span class="pick-why sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</span>";
       h += '<span class="pick-foot">' +
@@ -5510,6 +5583,7 @@ const REPORT_DATA = [
     const resistance = t.resistance || kl.resistance || "—";
     const sigs = (t.signals || []).map((s) =>
       '<div class="ta-sig"><div class="k">' + esc(s.k) + '</div><div class="v">' + esc(s.v) + "</div></div>").join("");
+    const pat = patOf(w);
 
     return '<div class="ta-price"><b>' + esc(w.price || "—") + "원</b>" +
         (w.chg == null ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") + "</div>" +
@@ -5527,6 +5601,7 @@ const REPORT_DATA = [
           : "") +
       "</div>" +
       rangeBar(w.day, report.rangeLabels) +
+      (pat ? taPatternHTML(pat, report) : "") +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
         '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</p>" +
@@ -5554,6 +5629,26 @@ const REPORT_DATA = [
           " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
           (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
+      "</div>";
+  }
+
+  /* ---- 종가배팅 분봉 흐름 & 재료 (closingPattern 이 있는 종목만) ---- */
+  function taPatternHTML(p, report) {
+    const when = p.basis || (report && report.date ? String(report.date).replace(/-/g, ".") : "");
+    return '<div class="ta-sec ta-pat-sec">' +
+        '<div class="ta-sec-head"><span class="ta-bar"></span><h4>종가배팅 분봉 흐름 &amp; 재료</h4>' +
+          '<span class="ta-tag">' + (when ? esc(when) + " " : "") + "실측 분봉</span></div>" +
+        '<div class="ta-pat-line"><span class="ta-pat-badge">' +
+          '<span class="pat-dot" aria-hidden="true"></span>' + esc(p.label) + "</span>" +
+        "</div>" +
+        '<div class="ta-blocks">' +
+          '<div class="ta-block is-key"><span class="k">핵심 재료</span>' +
+            '<span class="v">' + esc(p.catalyst || "—") + "</span></div>" +
+          '<div class="ta-block"><span class="k">당일 분봉 흐름</span>' +
+            '<span class="v">' + esc(p.reason || "—") + "</span></div>" +
+        "</div>" +
+        '<p class="ta-note">분봉 패턴은 보조 기준입니다 — 선정은 재료·이슈가 1순위이고, ' +
+          "1~4번 표준 패턴 중 당일 분봉에 실제로 맞는 것만 표시합니다.</p>" +
       "</div>";
   }
 
@@ -6442,13 +6537,15 @@ const REPORT_DATA = [
   function renderSimpleWatch(report) {
     const box = $("#sWatchList");
     if (!box) return;
-    box.innerHTML = (report.watchlist || []).map((w, i) =>
-      "<li" + (w.why ? ' class="has-why"' : "") + ">" +
+    box.innerHTML = (report.watchlist || []).map((w, i) => {
+      const pat = patOf(w);
+      return "<li" + (w.why ? ' class="has-why"' : "") + ">" +
         '<button type="button" class="wr" data-idx="' + i + '" aria-haspopup="dialog" ' +
-          'aria-label="' + esc(w.name) + " 차트 기술적 분석 보기\">" +
+          'aria-label="' + esc(w.name) + " 차트 기술적 분석 보기" + (pat ? " · 종가배팅 " + esc(pat.label) : "") + "\">" +
           '<span class="rk">' + esc(w.rank) + "</span>" +
           '<span class="wr-main">' +
             '<span class="wr-top"><span class="wr-name">' + esc(w.name) + "</span>" +
+              (pat ? patBadge(pat, "wr-pat") : "") +
               '<span class="wr-price">' + esc(w.price ? w.price + "원" : (w.turnover || "")) + "</span>" +
               '<span class="wr-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span></span>" +
           "</span>" +
@@ -6456,7 +6553,8 @@ const REPORT_DATA = [
         "</button>" +
         /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침(행을 누르면 분석 모달) */
         (w.why ? '<div class="wr-sum sum" data-sum>' + sumInner(esc(w.why), esc(sumOf(w, "why"))) + "</div>" : "") +
-      "</li>").join("");
+      "</li>";
+    }).join("");
   }
 
   /* ---------------- 상승·거래대금 ---------------- */
