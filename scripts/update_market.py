@@ -18,6 +18,8 @@
   data.json 최신 날짜의 scanners 배열에 담는다(첫 조건식 = '세력꿈틀이').
   포착·관찰 종목의 차트 구조와 과거 유사 지점 5일 반응도 조건식마다 함께 담는다.
   새 조건식은 SCANNER_DEFS 에 항목 하나만 추가하면 대시보드에 자동으로 늘어난다.
+  원본 조건식 문구(영웅문 원문)는 SCANNER_DEFS 의 rawRules·rawFormula·rawIntersection
+  으로 scanners 배열에 그대로 실어 화면의 `원본 조건식` 팝업이 그대로 보여준다.
   하위 호환: 첫 조건식 결과는 기존 키(conditionHits·conditionScan·chartReactions)에도 남긴다.
   (거래량은 data.json에 저장하지 않는다 — charts 는 [시,고,저,종] 그대로)
 
@@ -722,6 +724,18 @@ SCANNER_DEFS = [
             {"key": "E", "label": "20·60이평 2% 이내", "detail": "|20이평-60이평| ÷ 작은 값 ≤ 2%"},
         ],
         "intersection": f"당일 거래대금 {SCAN_MIN_VALUE}억+",
+        # ── 키움증권 영웅문 [조건검색식] 원문 그대로 (별도 보관: scanners/세력꿈틀이.md) ──
+        "rawSource": "키움증권 영웅문 조건검색식",
+        "rawTarget": "대상변경",
+        "rawRules": [
+            {"key": "A", "text": "주가이평배열(3):[일]0봉전 20이평 < 60이평 < 115이평"},
+            {"key": "B", "text": "[일]1봉전 5봉 평균거래량 55555이상 999999999이하"},
+            {"key": "C", "text": "5일 평균거래대금(단위:백만) 50이상 999999999이하 (<금일제외>)"},
+            {"key": "D", "text": "가격-이동평균 비교:[일]0봉전 (종가 20)이평 < 종가"},
+            {"key": "E", "text": "이평이격도:[일]0봉전(종가 20, 종가 60) 2%이내 근접 1회이상"},
+        ],
+        "rawFormula": "A and (B or C) and D and E",
+        "rawIntersection": "당일 거래대금 100억+ 교집합",
         "evaluate": condition_scan,
         "pick": lambda scan: bool(scan["pass"]),
     },
@@ -852,8 +866,12 @@ def reaction_backtest(rows):
 
 
 def scanner_meta(definition: dict) -> dict:
-    """정의 → data.json 에 남길 메타(화면이 그대로 그리는 값)."""
-    return {
+    """정의 → data.json 에 남길 메타(화면이 그대로 그리는 값).
+
+    원본 조건식 문구(rawRules·rawFormula·rawIntersection)는 있으면 그대로 싣는다 —
+    화면의 `원본 조건식` 팝업이 영웅문 원문을 그대로 보여주는 근거다.
+    """
+    meta = {
         "id": definition["id"],
         "name": definition["name"],
         "summary": definition.get("summary", ""),
@@ -862,6 +880,10 @@ def scanner_meta(definition: dict) -> dict:
         "rules": definition.get("rules", []),
         "intersection": definition.get("intersection", ""),
     }
+    for key in ("rawSource", "rawTarget", "rawRules", "rawFormula", "rawIntersection"):
+        if definition.get(key):
+            meta[key] = definition[key]
+    return meta
 
 
 def build_scanner_scan(definition, series, info, extra_codes, now):

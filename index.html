@@ -2180,13 +2180,21 @@
    · 행을 누르면 심플·상세와 같은 종목 분석 모달(차트 + 조건식 & 과거 반응)
    ============================================================ */
 #viewScanner{max-width:1000px;margin:0 auto;padding:10px 12px 26px}
-#viewScanner .sc-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 2px 1px}
+#viewScanner .sc-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 2px 0}
 #viewScanner .sc-eyebrow{
   font-size:9.5px;font-weight:850;letter-spacing:.05em;color:#5b21b6;
   background:var(--violet-soft);border:1px solid #e3d8ff;border-radius:5px;padding:2px 6px;
 }
-#viewScanner .sc-h1{margin:0;font-size:17px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
-#viewScanner .sc-lede{margin:5px 2px 9px;font-size:11px;line-height:1.5;font-weight:600;color:var(--ink-2)}
+#viewScanner .sc-h1{margin:0;font-size:19px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
+/* 원본 조건식 열람 — 헤더 우측 컴팩트 버튼(결과 화면은 그대로 두고 원문만 팝업으로) */
+#viewScanner .sc-raw{
+  margin-left:auto;flex:0 0 auto;appearance:none;display:inline-flex;align-items:center;gap:4px;
+  border:1px solid #ddd0ff;background:#fff;color:#5b21b6;border-radius:999px;padding:5px 10px;
+  font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:-.02em;cursor:pointer;
+  white-space:nowrap;-webkit-tap-highlight-color:transparent;
+}
+#viewScanner .sc-raw:hover{background:#f8f5ff}
+#viewScanner .sc-raw:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
 #viewScanner .sc-chips{
   display:flex;gap:6px;overflow-x:auto;padding:1px 2px 9px;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;
@@ -2203,33 +2211,14 @@
   box-shadow:inset 0 0 0 1px #ddd0ff;
 }
 #viewScanner .sc-chip:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
-#viewScanner .sc-card{
-  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:11px 12px;
+/* 첫 화면은 결과 중심 — 기준·수식 박스 없이 한 줄 메타만 남긴다 */
+#viewScanner .sc-meta{
+  margin:5px 2px 0;font-size:9.5px;line-height:1.5;color:var(--mute);
+  font-variant-numeric:tabular-nums;
 }
-#viewScanner .sc-lab{
-  display:flex;align-items:baseline;gap:5px;margin:0 0 7px;
-  font-size:10px;font-weight:850;letter-spacing:.02em;color:var(--mute);
-}
-#viewScanner .sc-lab b{color:var(--ink)}
-#viewScanner .sc-formula{
-  margin:0;font-size:11.5px;font-weight:800;letter-spacing:-.01em;color:#4c1d95;
-  background:#f8f5ff;border:1px solid #e7dcff;border-radius:var(--radius-xs);padding:6px 8px;
-  overflow-x:auto;white-space:nowrap;scrollbar-width:none;
-}
-#viewScanner .sc-formula::-webkit-scrollbar{display:none}
-#viewScanner .sc-rules{display:flex;flex-wrap:wrap;gap:4px;margin:7px 0 0}
-#viewScanner .sc-rule{
-  display:inline-flex;align-items:baseline;gap:4px;border:1px solid #e5e9f0;background:#f7f8fb;
-  color:#5a657a;border-radius:6px;padding:3px 6px;font-size:10px;font-weight:750;line-height:1.35;
-  white-space:nowrap;
-}
-#viewScanner .sc-rule b{color:#5b21b6;font-weight:850}
-#viewScanner .sc-rule.ix{border-color:#ffe0b8;background:var(--amber-soft);color:#8a5a12}
-#viewScanner .sc-rule.ix b{color:var(--amber)}
-#viewScanner .sc-meta{margin:8px 0 0;font-size:9.5px;line-height:1.5;color:var(--mute)}
+#viewScanner .sc-chips[hidden]{display:none}
 #viewScanner .sc-note{margin:10px 2px 0;font-size:9.5px;line-height:1.5;color:var(--mute)}
-#viewScanner .sc-sec{display:flex;align-items:baseline;gap:6px;margin:13px 3px 7px}
+#viewScanner .sc-sec{display:flex;align-items:baseline;gap:6px;margin:12px 3px 7px}
 #viewScanner .sc-sec h2{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.02em;color:var(--ink)}
 #viewScanner .sc-sec .n{
   font-size:10.5px;font-weight:800;color:#5b21b6;
@@ -2268,18 +2257,53 @@
 #viewScanner .sc-l3{margin-top:2px;font-size:10px;font-weight:600;line-height:1.45;color:var(--mute)}
 #viewScanner .sc-empty{margin:10px 2px;font-size:11px;line-height:1.55;color:var(--mute)}
 @media (max-width:430px){
-  #viewScanner .sc-h1{font-size:16px}
+  #viewScanner .sc-h1{font-size:17px}
   #viewScanner .sc-name{font-size:12px}
+  #viewScanner .sc-raw{font-size:10px;padding:4px 8px}
 }
 
-/* ---------- 모달: 조건식 & 과거 차트 반응 (차트 분석 모달 전용) ---------- */
-.ta-scan-sec .scan-conds{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
-.ta-scan-sec .scan-cond{
-  border:1px solid #e5e9f0;background:#f7f8fb;color:#8b93a7;
-  border-radius:6px;padding:2px 6px;font-size:9.5px;font-weight:750;white-space:nowrap;
+/* ---------- 원본 조건식 팝업 — 영웅문 원문 그대로 ---------- */
+.raw-dialog{
+  width:min(520px, calc(100vw - 20px));max-height:84vh;padding:0;
+  border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);
+  box-shadow:0 30px 60px -24px rgba(16,24,40,.45);overflow:hidden;
+  display:flex;flex-direction:column;
 }
-.ta-scan-sec .scan-cond.on{border-color:#ddd0ff;background:#f4efff;color:#5b21b6}
-.ta-scan-sec .scan-cond.head{border-color:#d5e3ff;background:#eef4ff;color:#1d4ed8}
+.raw-dialog:not([open]){display:none}
+.raw-dialog::backdrop{background:rgba(16,24,40,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.raw-head{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:12px 13px 10px;
+  border-bottom:1px solid var(--line);background:linear-gradient(180deg,#faf7ff,#fff);
+}
+.raw-head-main{flex:1 1 auto;min-width:0}
+.raw-eyebrow{display:block;font-size:8.5px;font-weight:850;letter-spacing:.06em;color:#5b21b6}
+.raw-title{margin:1px 0 0;font-size:15px;font-weight:850;letter-spacing:-.03em;line-height:1.25}
+.raw-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 13px 14px;-webkit-overflow-scrolling:touch}
+.raw-item{display:flex;align-items:flex-start;gap:6px;margin:0 0 6px}
+.raw-k{
+  flex:0 0 auto;margin-top:1px;font-size:9.5px;font-weight:850;color:#5b21b6;
+  background:var(--violet-soft);border:1px solid #ddd0ff;border-radius:5px;padding:1px 5px;
+}
+.raw-k.ix{color:#8a5a12;background:var(--amber-soft);border-color:#ffe0b8}
+.raw-code{
+  flex:1 1 auto;min-width:0;display:block;margin:0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:10.5px;line-height:1.55;font-weight:600;color:var(--ink);
+  background:#f8f9fc;border:1px solid var(--line-2);border-radius:7px;padding:6px 8px;
+  white-space:pre-wrap;overflow-wrap:break-word;word-break:keep-all;
+}
+.raw-code .nw{white-space:nowrap}
+.raw-note{margin:10px 0 0;font-size:9.5px;line-height:1.55;color:var(--mute)}
+.raw-foot{
+  flex:0 0 auto;padding:8px 13px 10px;border-top:1px solid var(--line);
+  font-size:9px;line-height:1.5;color:var(--mute);background:#fcfcfd;
+}
+
+/* ---------- 모달: 조건식 포착 & 과거 차트 반응 (차트 분석 모달 전용) ---------- */
+.ta-scan-sec .ta-scan-badge{
+  font-size:9.5px;font-weight:850;letter-spacing:-.01em;color:#5b21b6;
+  background:#f4efff;border:1px solid #ddd0ff;border-radius:999px;padding:1.5px 7px;
+}
 .ta-scan-sec .scan-sample{margin:6px 0 0;font-size:10px;line-height:1.5;color:#5a657a}
 .ta-scan-sec .scan-sample b{color:#101828;font-weight:800}
 
@@ -2487,22 +2511,19 @@
     </div>
   </main>
 
-  <!-- ======================= 조건식 관리 페이지 (상단 `조건식` 탭) ======================= -->
+  <!-- ======================= 조건식 관리 페이지 (상단 `조건식` 탭) =======================
+       결과 중심 — 기준·수식 박스 없이 `세력꿈틀이` 헤더 + 포착 종목이 첫 화면.
+       원본 조건식(영웅문 문구 그대로)은 헤더 우측 `원본 조건식` 팝업으로 본다.
+       ============================================================================== -->
   <main id="viewScanner" aria-label="조건식 관리" hidden>
     <div class="sc-head">
-      <span class="sc-eyebrow">조건식 관리</span>
+      <span class="sc-eyebrow">조건식</span>
       <h1 class="sc-h1" id="scTitle">세력꿈틀이</h1>
+      <button type="button" class="sc-raw" id="scRawBtn" aria-haspopup="dialog">원본 조건식</button>
     </div>
-    <p class="sc-lede" id="scLede"></p>
+    <p class="sc-meta" id="scMeta"></p>
 
-    <div class="sc-chips" id="scChips" role="tablist" aria-label="등록된 조건식"></div>
-
-    <section class="sc-card" aria-labelledby="scFormulaLab">
-      <p class="sc-lab" id="scFormulaLab"><b>수식 · 필터 기준</b><span id="scFormulaName"></span></p>
-      <p class="sc-formula" id="scFormula">—</p>
-      <div class="sc-rules" id="scRules"></div>
-      <p class="sc-meta" id="scMeta"></p>
-    </section>
+    <div class="sc-chips" id="scChips" role="tablist" aria-label="등록된 조건식" hidden></div>
 
     <div class="sc-sec">
       <h2>포착 종목</h2><span class="n" id="scCount">—</span>
@@ -2533,6 +2554,19 @@
   <div class="ta-foot" id="taFoot">
     ※ 기술적 지표와 가격 구간은 당일 기준 객관적 참고용이며 매수·매도 추천이 아닙니다.
   </div>
+</dialog>
+
+<!-- ======================= 원본 조건식 팝업 (영웅문 원문 그대로) ======================= -->
+<dialog class="raw-dialog" id="scRawDialog" aria-labelledby="scRawTitle">
+  <div class="raw-head">
+    <div class="raw-head-main">
+      <span class="raw-eyebrow" id="scRawSource">키움증권 영웅문 조건검색식</span>
+      <h3 class="raw-title" id="scRawTitle">세력꿈틀이</h3>
+    </div>
+    <button type="button" class="ta-x" id="scRawClose" aria-label="원본 조건식 닫기">✕</button>
+  </div>
+  <div class="raw-scroll" id="scRawBody"></div>
+  <div class="raw-foot">영웅문 원문 그대로입니다 · 대시보드 계산은 같은 조건을 일봉 120거래일 실측값으로 재현합니다.</div>
 </dialog>
 
 <!-- ======================= 날짜 선택 달력 (상단 날짜 버튼) ======================= -->
@@ -7647,32 +7681,22 @@ const REPORT_DATA = [
     return null;
   }
 
-  /* 모달 "📝 글 요약" 안의 조건식·과거 반응 블록 — 기록이 없으면 아무것도 그리지 않는다 */
+  /* 모달 "📝 글 요약" 안의 조건식·과거 반응 블록 — 기록이 없으면 아무것도 그리지 않는다.
+     결과 중심: 이름 배지 + 현재 구조 + 과거 반응 + 당일 수급·이격만 (A~E 수식 나열 없음). */
   function scanBlockHTML(item, report) {
     if (!item) return "";
     const meta = (report && report.conditionScan) || {};
-    const c = item.conditions || {};
-    const conds = [
-      ["A", "20<60<115이평", c.A],
-      ["B", "5봉 평균거래량 5.5만+", c.B],
-      ["C", "5봉 평균거래대금 5천만+", c.C],
-      ["D", "종가 > 20이평", c.D],
-      ["E", "20·60 이격 2% 이내", c.E]
-    ];
-    const chips = conds.map((row) =>
-      '<span class="scan-cond' + (row[2] ? " on" : "") + '">' + row[0] + " " + row[1] + "</span>").join("");
+    const list = scannerList(report);
+    const name = (list[0] && list[0].name) || meta.name || "세력꿈틀이";
     const bt = item.backtest || {};
     const gap = item.gap == null ? "—" : Number(item.gap).toFixed(2) + "%";
     const verdict = item.passed
-      ? "교집합 통과 " + (item.valueText || "") + ""
+      ? "교집합 통과 " + (item.valueText || "")
       : "교집합 미통과 · 조건 참고용";
     return '<div class="ta-sec ta-scan-sec">' +
-      '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🔍 조건식 &amp; 과거 차트 반응</h4>' +
+      '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🔍 조건식 포착</h4>' +
+        '<span class="ta-scan-badge">' + esc(name) + '</span>' +
         '<span class="ta-tag">120일 일봉 실측</span></div>' +
-      '<div class="scan-conds">' +
-        '<span class="scan-cond head">' + esc(meta.rule || "A and (B or C) and D and E") + '</span>' +
-        chips +
-      "</div>" +
       '<div class="ta-blocks">' +
         '<div class="ta-block"><span class="k">현재 차트 구조</span>' +
           '<span class="v">' + esc(item.patternText || "—") + "</span></div>" +
@@ -7779,14 +7803,99 @@ const REPORT_DATA = [
     return cur;
   }
 
-  /* 필터 기준 카드 — A~E 칩 + 교집합 칩 */
-  function scannerRulesHTML(s) {
-    const items = (s.rules || []).map((r) =>
-      '<span class="sc-rule"><b>' + esc(r.key || "") + "</b>" +
-      esc(r.label || r.detail || "") + "</span>");
-    items.push('<span class="sc-rule ix"><b>∩</b>' +
-      esc(s.intersection || ("당일 거래대금 " + (s.minValue || 100) + "억+")) + "</span>");
-    return items.join("");
+  /* 원본 조건식 문구 — data.json 의 scanners[].rawRules/rawFormula 가 있으면 그걸 쓰고,
+     옛 기록이거나 필드가 없으면 이 기본값(사용자가 알려준 영웅문 원문)으로 보여준다. */
+  const SCANNER_RAW = {
+    source: "키움증권 영웅문 조건검색식",
+    target: "대상변경",
+    rules: [
+      { key: "A", text: "주가이평배열(3):[일]0봉전 20이평 < 60이평 < 115이평" },
+      { key: "B", text: "[일]1봉전 5봉 평균거래량 55555이상 999999999이하" },
+      { key: "C", text: "5일 평균거래대금(단위:백만) 50이상 999999999이하 (<금일제외>)" },
+      { key: "D", text: "가격-이동평균 비교:[일]0봉전 (종가 20)이평 < 종가" },
+      { key: "E", text: "이평이격도:[일]0봉전(종가 20, 종가 60) 2%이내 근접 1회이상" }
+    ],
+    formula: "A and (B or C) and D and E",
+    intersection: "당일 거래대금 100억+ 교집합"
+  };
+
+  function scannerRawOf(cur) {
+    if (cur && Array.isArray(cur.rawRules) && cur.rawRules.length) {
+      return {
+        source: cur.rawSource || SCANNER_RAW.source,
+        target: cur.rawTarget || SCANNER_RAW.target,
+        rules: cur.rawRules,
+        formula: cur.rawFormula || cur.formula || SCANNER_RAW.formula,
+        intersection: cur.rawIntersection || cur.intersection || SCANNER_RAW.intersection
+      };
+    }
+    return {
+      source: SCANNER_RAW.source,
+      target: SCANNER_RAW.target,
+      rules: SCANNER_RAW.rules,
+      formula: SCANNER_RAW.formula,
+      intersection: (cur && cur.intersection) || SCANNER_RAW.intersection
+    };
+  }
+
+  /* 원문 그대로 — 괄호 안 문구는 줄바꿈으로 쪼개지 않게 한 덩어리로 둔다 */
+  function rawCodeHTML(text) {
+    return esc(text).replace(/(\([^()]*\))/g, '<span class="nw">$1</span>');
+  }
+
+  /* 원본 조건식 팝업 — 영웅문 원문(A~E + 조건식 + 수급 교집합)만 그대로 보여준다 */
+  function renderRawScan(cur) {
+    const body = $("#scRawBody");
+    const title = $("#scRawTitle");
+    const src = $("#scRawSource");
+    const raw = scannerRawOf(cur);
+    if (title) title.textContent = (cur && cur.name) || "세력꿈틀이";
+    if (src) src.textContent = raw.source;
+    if (!body) return;
+    const rows = [
+      '<div class="raw-item"><span class="raw-k">대상</span>' +
+        '<code class="raw-code">' + esc(raw.target) + "</code></div>"
+    ];
+    (raw.rules || []).forEach((row) => {
+      const isObj = row && typeof row === "object";
+      const key = isObj ? (row.key || "") : "";
+      const text = isObj ? (row.text || row.detail || row.label || "") : String(row);
+      rows.push('<div class="raw-item">' +
+        (key ? '<span class="raw-k">' + esc(key) + ":</span>" : "") +
+        '<code class="raw-code">' + rawCodeHTML(text) + "</code></div>");
+    });
+    rows.push('<div class="raw-item"><span class="raw-k">조건식</span>' +
+      '<code class="raw-code">' + rawCodeHTML(raw.formula) + "</code></div>");
+    rows.push('<div class="raw-item"><span class="raw-k ix">교집합</span>' +
+      '<code class="raw-code">' + rawCodeHTML(raw.intersection) + "</code></div>");
+    body.innerHTML = rows.join("") +
+      '<p class="raw-note">A·D·E를 모두 만족하고 B·C 중 하나 이상을 통과한 종목 중 ' +
+      esc(raw.intersection) + "만 포착으로 남깁니다.</p>";
+  }
+
+  function wireScannerRaw() {
+    const btn = $("#scRawBtn");
+    const dlg = $("#scRawDialog");
+    if (!btn || !dlg) return;
+    const close = $("#scRawClose");
+    let opener = null;
+    btn.addEventListener("click", () => {
+      renderRawScan(scannerCurrent(findReport(activeDate)));
+      opener = btn;
+      if (typeof dlg.showModal === "function") {
+        if (!dlg.open) dlg.showModal();
+      } else {
+        dlg.setAttribute("open", "");
+      }
+    });
+    if (close) close.addEventListener("click", () => dlg.close());
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) dlg.close();
+    });
+    dlg.addEventListener("close", () => {
+      if (opener && typeof opener.focus === "function") opener.focus();
+      opener = null;
+    });
   }
 
   function scannerRowHTML(h, i) {
@@ -7817,7 +7926,10 @@ const REPORT_DATA = [
     const cur = scannerCurrent(report);
     const chips = $("#scChips");
     if (chips) {
-      chips.innerHTML = list.map((s) =>
+      /* 조건식이 2개 이상일 때만 칩 줄을 보여준다 — 한 개면 헤더와 같은 이름이 겹친다 */
+      const multi = list.length > 1;
+      chips.hidden = !multi;
+      chips.innerHTML = !multi ? "" : list.map((s) =>
         '<button type="button" class="sc-chip" role="tab" data-scanner="' + esc(s.id) + '" ' +
         'aria-selected="' + String(cur && s.id === cur.id) + '">' + esc(s.name) + " <b>" +
         ((s.hits || []).length) + "종목</b></button>").join("");
@@ -7825,10 +7937,6 @@ const REPORT_DATA = [
     const empty = $("#scEmpty");
     if (!cur) {
       $("#scTitle").textContent = "조건식";
-      $("#scLede").textContent = "이 날짜에는 조건식 스캔 결과가 없습니다.";
-      $("#scFormulaName").textContent = "";
-      $("#scFormula").textContent = "—";
-      $("#scRules").innerHTML = "";
       $("#scMeta").textContent = "";
       $("#scCount").textContent = "0종목";
       $("#scBasis").textContent = "";
@@ -7843,17 +7951,14 @@ const REPORT_DATA = [
     }
     const hits = cur.hits || [];
     $("#scTitle").textContent = cur.name || "조건식";
-    $("#scLede").textContent = cur.summary ||
-      (cur.formula ? "조건식 " + cur.formula + " · 당일 수급 교집합" : "");
-    $("#scFormulaName").textContent = "";
-    $("#scFormula").textContent = cur.formula || "—";
-    $("#scRules").innerHTML = scannerRulesHTML(cur);
-    $("#scMeta").textContent = (cur.basis ? cur.basis + " 기준 · " : "") +
-      (cur.scanned || 0) + "종목 일봉 실측 · 조건 통과 " +
-      (cur.passed == null ? hits.length : cur.passed) + "종목 · 거래대금 " +
-      (cur.minValue || 100) + "억↑ 교집합";
+    /* 기준은 한 줄로만 — 수식·필터 박스 없이 결과가 먼저 보이게 */
+    $("#scMeta").textContent = [
+      (cur.basis || "최근 종가") + " 기준",
+      (cur.scanned || 0) + "종목 일봉 실측",
+      "당일 거래대금 " + (cur.minValue || 100) + "억↑ 교집합"
+    ].join(" · ");
     $("#scCount").textContent = hits.length + "종목";
-    $("#scBasis").textContent = cur.basis || "";
+    $("#scBasis").textContent = "거래대금순";
     $("#scList").innerHTML = hits.map(scannerRowHTML).join("");
     if (empty) {
       empty.hidden = hits.length > 0;
@@ -7937,6 +8042,7 @@ const REPORT_DATA = [
     qaInit();
     wireScan();
     wireScanner();
+    wireScannerRaw();
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
