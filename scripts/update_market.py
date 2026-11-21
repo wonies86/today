@@ -13,9 +13,17 @@
 · 새 날짜는 실시간 데이터로 요약을 새로 만듭니다.
 · 어떤 엔드포인트가 실패해도 스크립트는 죽지 않습니다(이전 값 유지 + 경고).
 
+· 조건식 × 당일 수급 교집합: 일봉 120거래일(거래량 포함)을 메모리에서 계산해
+  키움 조건식 A·B·C·D·E + 거래대금 100억 이상 종목만 conditionHits 로 저장하고,
+  포착·관찰 종목의 차트 구조와 과거 유사 지점 5일 반응을 chartReactions 에 담는다.
+  (거래량은 data.json에 저장하지 않는다 — charts 는 [시,고,저,종] 그대로)
+
 사용법
   python3 scripts/update_market.py            # 자동 (주말·휴장일·거래시간 판단)
   python3 scripts/update_market.py --force    # 수동 강제 갱신 (workflow_dispatch)
+  python3 scripts/update_market.py --charts-only     # data.json 은 두고 일봉만 재생성
+  python3 scripts/update_market.py --scan-only [--date YYYY-MM-DD]  # 조건식 스캔만 재계산
+  python3 scripts/verify_scan.py [--live]     # 스캔 결과 검증(정적/독립 재계산)
 """
 
 from __future__ import annotations
