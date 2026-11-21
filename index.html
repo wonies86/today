@@ -847,6 +847,7 @@
     font-variant-numeric:tabular-nums;
   }
   .pick-why{font-size:10.5px;line-height:1.5;color:var(--ink-2);font-weight:550;margin:0}
+  .pick .sum-tgl{color:#6d28d9}
   .pick-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto;padding-top:2px}
   .pick-hint{
     display:inline-flex;align-items:center;gap:3px;
@@ -941,6 +942,7 @@
   .ta-head{flex:0 0 auto}
   .ta-tabs{flex:0 0 auto}
   .ta-foot{flex:0 0 auto}
+  .ta-dialog:not([open]){display:none}
   .ta-dialog::backdrop{background:rgba(16,24,40,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
   .ta-head{
     display:flex;
@@ -1026,6 +1028,33 @@
   .ta-sig .k{font-size:9px;font-weight:800;color:var(--mute)}
   .ta-sig .v{font-size:10px;font-weight:700;color:var(--ink);line-height:1.4;font-variant-numeric:tabular-nums}
   .ta-note{margin:8px 0 0;font-size:9px;line-height:1.55;color:var(--mute);font-weight:600}
+
+  /* ============================================================
+     1줄 요약 + 클릭 펼침 (종목 설명·분석 공통)
+     ------------------------------------------------------------
+     · .sum 안의 .sum-text 는 기본 1줄(말줄임). 한 줄을 넘칠 때만
+       '상세 ▾' 가 나타나고, 누르면 그 자리에서 부연설명이 펼쳐진다.
+     · data.json 은 건드리지 않는다 — 그릴 때 접었다 펴는 방식.
+     ============================================================ */
+  .sum{display:flex;align-items:baseline;gap:6px;min-width:0}
+  .sum > .sum-text{
+    flex:1 1 auto;min-width:0;display:-webkit-box;-webkit-line-clamp:1;
+    -webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis
+  }
+  .sum.is-open{display:block}
+  .sum.is-open > .sum-text{display:inline;-webkit-line-clamp:unset;overflow:visible}
+  .sum.is-measuring > .sum-text{display:block !important;-webkit-line-clamp:unset !important;overflow:visible !important}
+  .sum.is-more:not(.is-open){cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sum-tgl{
+    flex:0 0 auto;display:inline-flex;align-items:baseline;gap:1px;
+    font:inherit;font-size:.92em;font-weight:780;line-height:inherit;letter-spacing:-.02em;
+    color:#6d28d9;background:none;border:0;padding:0;margin:0;cursor:pointer;white-space:nowrap
+  }
+  .sum-tgl:hover{color:#4c1d95}
+  .sum-tgl:focus-visible{outline:2px solid #a855f7;outline-offset:2px;border-radius:4px}
+  .sum-tgl[hidden]{display:none}
+  .sum-tgl .sum-car{margin-left:2px;font-size:1em;line-height:1;transform:translateY(-.06em)}
+  .sum.is-open > .sum-tgl{margin-left:4px}
   /* 기술적 분석 보기 전환 — 기본은 글 요약 */
   .ta-tabs{display:flex;gap:4px;padding:9px 14px 8px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#faf7ff,#fff)}
   .ta-tabs button{
@@ -1519,7 +1548,10 @@
   font-size:10px;color:var(--mute);white-space:nowrap;margin-left:auto;flex:0 0 auto
 }
 #viewSimple .rot-why{
-  margin:1px 0 0;font-size:10.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  margin:1px 0 0;font-size:10.5px;color:var(--mute)
+}
+#viewSimple .rot-why.sum{
+  white-space:normal;overflow:visible;text-overflow:clip
 }
 #viewSimple .chips{
   display:flex;flex-wrap:wrap;gap:4px;margin-top:4px
@@ -1603,9 +1635,18 @@
 #viewSimple .wr-chg{
   flex:0 0 52px;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right
 }
-#viewSimple .wr-why{
-  display:block;margin:1px 0 0;font-size:10.5px;color:#78839a;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+#viewSimple .watch li.has-why .wr{
+  padding-bottom:1px
+}
+#viewSimple .wr-sum{
+  display:flex;margin:0 12px 8px 39px;font-size:10.5px;line-height:1.5;color:#78839a;
+  font-weight:550
+}
+#viewSimple .wr-sum.is-open{
+  display:block
+}
+#viewSimple .wr-sum .sum-tgl{
+  font-weight:800
 }
 #viewSimple .wr-go{
   font-size:14px;color:#c3cbdb;line-height:1;padding-left:1px
@@ -4741,7 +4782,7 @@ const REPORT_DATA = [
         (card.csub ? '<span class="csub">' + esc(card.csub) + "</span>" : "") +
       "</span>" +
     "</div>";
-    if (card.issue) h += '<div class="scard-issue">' + card.issue + "</div>";
+    if (card.issue) h += '<div class="scard-issue sum" data-sum>' + sumInner(card.issue) + "</div>";
 
     if (card.stats && card.stats.length) {
       h += '<div class="scard-stats">';
@@ -4773,11 +4814,11 @@ const REPORT_DATA = [
 
     if (card.notes && card.notes.length) {
       h += '<ul class="scard-notes">';
-      card.notes.forEach((t) => { h += "<li>" + esc(t) + "</li>"; });
+      card.notes.forEach((t) => { h += '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>"; });
       h += "</ul>";
     }
 
-    if (card.foot) h += '<div class="scard-foot">' + esc(card.foot) + "</div>";
+    if (card.foot) h += '<div class="scard-foot sum" data-sum>' + sumInner(esc(card.foot)) + "</div>";
     n.innerHTML = h;
     return n;
   }
@@ -4947,8 +4988,9 @@ const REPORT_DATA = [
       return '<div class="rot-line">' + (head || "") + "<b>" + esc(k.sector || "") + "</b>" +
           (k.meta ? '<span class="rot-share">' + esc(k.meta) + "</span>" : "") + "</div>" +
         (stocks ? '<div class="rot-stocks">' + stocks + "</div>" : "") +
-        ((k.why || k.reason) ? '<p class="rot-why">' + esc(k.why || k.reason) + "</p>" : "") +
-        (k.trigger ? '<p class="rot-trig"><b>' + esc(k.triggerLabel || "진입·관찰") + "</b> " + esc(k.trigger) + "</p>" : "");
+        ((k.why || k.reason) ? '<p class="rot-why sum" data-sum>' + sumInner(esc(k.why || k.reason)) + "</p>" : "") +
+        (k.trigger ? '<p class="rot-trig sum" data-sum>' + sumInner("<b>" +
+          esc(k.triggerLabel || "진입·관찰") + "</b> " + esc(k.trigger)) + "</p>" : "");
     };
     /* 큰 판의 배경 — 뉴욕·달러·오늘 밤 촉매를 한 상자에 */
     const macroHTML = () => {
@@ -4958,7 +5000,7 @@ const REPORT_DATA = [
         '<div class="rot-macro-head"><span class="k">' + esc(m.label || "큰 판의 배경") + "</span>" +
           (m.title ? "<b>" + esc(m.title) + "</b>" : "") + "</div>" +
         '<ul class="rot-facts">' + m.facts.map((f) =>
-          '<li><span class="k">' + esc(f.k) + '</span><span class="v">' + esc(f.v) + "</span></li>").join("") +
+          '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v)) + "</span></li>").join("") +
         "</ul></div>";
     };
     /* 체크 변수 — 시간표·수급 리스크 */
@@ -4968,7 +5010,8 @@ const REPORT_DATA = [
       return '<div class="rot-risk">' +
         '<div class="rot-risk-head"><span class="k">' + esc(k.label || "체크 변수") + "</span>" +
           (k.title ? "<b>" + esc(k.title) + "</b>" : "") + "</div>" +
-        "<ul>" + k.items.map((t) => "<li>" + esc(t) + "</li>").join("") + "</ul></div>";
+        "<ul>" + k.items.map((t) => '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>").join("") +
+          "</ul></div>";
     };
 
     let h = '<div class="rot"><div class="rot-head"><h4>🔄 ' + esc(r.title || "수급 순환 시나리오") + "</h4>" +
@@ -4983,7 +5026,7 @@ const REPORT_DATA = [
         '<div class="rot-body">' + body(k) + "</div></div>";
     });
     h += riskHTML();
-    if (r.note) h += '<p class="rot-note">' + esc(r.note) + "</p>";
+    if (r.note) h += '<p class="rot-note sum" data-sum>' + sumInner(esc(r.note)) + "</p>";
     return h + "</div>";
   }
 
@@ -5003,7 +5046,7 @@ const REPORT_DATA = [
         '<span class="reason-num">' + (i + 1) + "</span>" +
         '<div class="reason-body">' +
           "<strong>" + esc(r.title) + "</strong>" +
-          "<p>" + esc(r.body) + "</p>" +
+          '<p class="sum" data-sum>' + sumInner(esc(r.body)) + "</p>" +
         "</div>" +
       "</div>";
     });
@@ -5032,7 +5075,7 @@ const REPORT_DATA = [
     if (c.prev) {
       const p = el("div", "ctxbox");
       let ph = "<h4>" + esc(c.prev.title) + '<span class="tagline">' + esc(c.prev.tag) + "</span></h4>";
-      (c.prev.paras || []).forEach((t) => { ph += "<p>" + t + "</p>"; });
+      (c.prev.paras || []).forEach((t) => { ph += '<p class="sum" data-sum>' + sumInner(t) + "</p>"; });
       p.innerHTML = ph;
       side.appendChild(p);
     }
@@ -5068,15 +5111,94 @@ const REPORT_DATA = [
     );
   }
 
+  /* ============================================================
+     1줄 요약 + 클릭 펼침 — 설명·분석 블록 공통 유틸
+     ------------------------------------------------------------
+     · sumInner(html): 블록 안에 넣을 요약+토글 마크업
+     · 한 줄을 넘칠 때만 '상세 ▾' 를 보여주고(실제 높이 측정), 누르면 펼친다
+     · data.json 구조는 그대로 — 그릴 때만 접는다(과거 날짜·자동 갱신 모두 동일)
+     ============================================================ */
+  const SUM_LBL = { more: "상세", less: "접기", car: { more: "▾", less: "▴" } };
+
+  function sumInner(html) {
+    return '<span class="sum-text">' + html + "</span>" +
+      '<button type="button" class="sum-tgl" aria-expanded="false" hidden>' +
+        SUM_LBL.more + '<span class="sum-car" aria-hidden="true">' + SUM_LBL.car.more + "</span></button>";
+  }
+
+  /* 접힌 1줄에 다 들어가는지 — 측정용으로 잠시 펼쳤다가 되돌린다 */
+  function sumOverflows(s) {
+    const t = s.querySelector(".sum-text");
+    if (!t || !t.textContent.trim()) return false;
+    s.classList.add("is-measuring");
+    const full = t.scrollHeight;
+    s.classList.remove("is-measuring");
+    const cs = getComputedStyle(t);
+    let one = parseFloat(cs.lineHeight);
+    if (!one || isNaN(one)) one = (parseFloat(cs.fontSize) || 11) * 1.5;
+    return full > one * 1.45;
+  }
+
+  /* 화면에 보이는 블록만 측정한다(숨은 뷰·숨은 탭은 건너뜀) */
+  function syncSums(root) {
+    const scope = root || document;
+    if (!scope.querySelectorAll) return;
+    const list = Array.prototype.slice.call(scope.querySelectorAll("[data-sum]"));
+    if (scope.matches && scope.matches("[data-sum]")) list.push(scope);
+    list.forEach((s) => {
+      const tgl = s.querySelector(".sum-tgl");
+      if (!tgl) return;
+      if (!s.offsetParent && !s.getClientRects().length) return;   /* 숨은 영역은 나중에 */
+      if (s.classList.contains("is-open")) return;                 /* 펼친 채로는 유지 */
+      const more = sumOverflows(s);
+      s.classList.toggle("is-more", more);
+      tgl.hidden = !more;
+    });
+  }
+
+  function setSumOpen(s, open) {
+    if (!s) return;
+    s.classList.toggle("is-open", open);
+    const tgl = s.querySelector(".sum-tgl");
+    if (!tgl) return;
+    tgl.hidden = false;
+    tgl.setAttribute("aria-expanded", open ? "true" : "false");
+    tgl.innerHTML = (open ? SUM_LBL.less : SUM_LBL.more) +
+      '<span class="sum-car" aria-hidden="true">' + (open ? SUM_LBL.car.less : SUM_LBL.car.more) + "</span>";
+  }
+
+  /* '상세' 탭은 카드/종목 클릭(모달 열기)과 겹치지 않도록 문서 캡처 단계에서 먼저 받는다 */
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest && e.target.closest("[data-sum]");
+    if (!s) return;
+    const onTgl = !!(e.target.closest && e.target.closest(".sum-tgl"));
+    const open = s.classList.contains("is-open");
+    if (!onTgl && (open || !s.classList.contains("is-more"))) return;   /* 펼친 뒤엔 토글로만 접기 */
+    e.preventDefault();
+    e.stopPropagation();
+    setSumOpen(s, !open);
+  }, true);
+
+  let sumResizeTimer = 0;
+  function relayoutSums() {
+    clearTimeout(sumResizeTimer);
+    sumResizeTimer = setTimeout(() => syncSums(document), 140);
+  }
+  window.addEventListener("resize", relayoutSums);
+  window.addEventListener("orientationchange", relayoutSums);
+  /* 웹폰트가 늦게 붙으면 한 줄 높이가 달라진다 — 준비되면 한 번 더 측정 */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayoutSums);
+
   function renderWatchlist(report) {
     const box = $("#watchList");
     box.innerHTML = "";
     (report.watchlist || []).forEach((w) => {
-      const card = el("button", "pick");
-      card.type = "button";
+      const card = el("article", "pick");
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
       card.setAttribute("aria-haspopup", "dialog");
       card.setAttribute("aria-label", w.name + " 차트 기술적 분석 보기 · " + pct(w.chg));
-      card.innerHTML =
+      let h =
         '<span class="pick-top">' +
           '<span class="pick-rank" aria-hidden="true">' + w.rank + "</span>" +
           '<span class="pick-main">' +
@@ -5087,13 +5209,24 @@ const REPORT_DATA = [
             "</span>" +
           "</span>" +
           '<span class="pick-chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>" +
-        "</span>" +
-        '<span class="pick-why">' + esc(w.why) + "</span>" +
-        '<span class="pick-foot">' +
+        "</span>";
+      /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침 */
+      if (w.why) h += '<span class="pick-why sum" data-sum>' + sumInner(esc(w.why)) + "</span>";
+      h += '<span class="pick-foot">' +
           '<span class="pick-sector">' + esc(w.sector || "") + "</span>" +
           '<span class="pick-hint">차트 분석 보기 <span aria-hidden="true">↗</span></span>' +
         "</span>";
-      card.addEventListener("click", () => openAnalysis(w, card, report));
+      card.innerHTML = h;
+      card.addEventListener("click", (e) => {
+        if (e.target.closest && e.target.closest("[data-sum]")) return;   /* 상세 펼치기 */
+        openAnalysis(w, card, report);
+      });
+      card.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (e.target !== card) return;   /* 안쪽 '상세' 버튼 키는 버튼이 처리 */
+        e.preventDefault();
+        openAnalysis(w, card, report);
+      });
       box.appendChild(card);
     });
   }
@@ -5244,6 +5377,8 @@ const REPORT_DATA = [
     } else {
       dlg.setAttribute("open", "");
     }
+    /* 모달이 화면에 붙은 뒤에야 1줄 높이를 잴 수 있다 */
+    syncSums($("#taScroll"));
   }
 
   function syncTaTabs() {
@@ -5269,6 +5404,7 @@ const REPORT_DATA = [
     const w = TA.w, report = TA.report;
     const pack = barsOf(report, w.ticker);
     box.innerHTML = TA.view === "chart" ? taChartHTML(w, report, pack) : taTextHTML(w, report, pack);
+    syncSums(box);
     box.scrollTop = 0;
     if (TA.view === "chart") mountTvChart(box, w, pack);
   }
@@ -5306,30 +5442,31 @@ const REPORT_DATA = [
       rangeBar(w.day, report.rangeLabels) +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>선정 이유</h4></div>' +
-        '<p class="ta-para">' + esc(w.why) + "</p>" +
+        '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why)) + "</p>" +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
           '<span class="ta-tag">' + esc(indicatorBasis) + "</span></div>" +
-        '<p class="ta-para">' + esc(t.trend || "") + "</p>" +
+        (t.trend ? '<p class="ta-para sum" data-sum>' + sumInner(esc(t.trend)) + "</p>" : "") +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
-            '<span class="v">' + esc(support) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(support)) + "</span></div>" +
           '<div class="ta-block is-res"><span class="k">주요 저항 구간</span>' +
-            '<span class="v">' + esc(resistance) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(resistance)) + "</span></div>" +
           '<div class="ta-block"><span class="k">거래량·캔들 흐름</span>' +
-            '<span class="v">' + esc(t.volumeFlow || "—") + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(t.volumeFlow || "—")) + "</span></div>" +
           '<div class="ta-block is-key"><span class="k">기술적 체크포인트</span>' +
-            '<span class="v">' + esc(t.checkpoint || "—") + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(t.checkpoint || "—")) + "</span></div>" +
         "</div>" +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
           '<span class="ta-tag">객관 지표</span></div>' +
         '<div class="ta-signals">' + sigs + "</div>" +
-        '<p class="ta-note">지표는 ' + esc(indicatorBasis) + " 일봉 데이터로 계산된 값이며, " +
+        '<p class="ta-note sum" data-sum>' + sumInner("지표는 " + esc(indicatorBasis) +
+          " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
-          (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
+          (t.maNote ? " " + esc(t.maNote) : "")) + "</p>" +
       "</div>";
   }
 
@@ -5357,7 +5494,7 @@ const REPORT_DATA = [
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>왜 움직였나</h4>' +
         '<span class="ta-tag">data.json 기록</span></div>' +
       (w.why
-        ? '<p class="ta-para">' + esc(w.why) + "</p>"
+        ? '<p class="ta-para sum" data-sum>' + sumInner(esc(w.why)) + "</p>"
         : '<p class="ta-para">이 종목은 관찰 5선·주도 섹터 카드에 수기 분석이 없습니다. ' +
           "수급·재료 문장은 data.json에 기록된 곳만 보여주고, 없는 사유는 만들지 않습니다.</p>") +
       "</div>";
@@ -5366,23 +5503,24 @@ const REPORT_DATA = [
       h += '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>차트 기술적 분석</h4>' +
           '<span class="ta-tag">일봉 자동 계산 · ' + esc(barDate(st.lastDate)) + " 종가</span></div>" +
-        '<p class="ta-para">' + esc(taTrendLine(st)) + "</p>" +
+        '<p class="ta-para sum" data-sum>' + sumInner(esc(taTrendLine(st))) + "</p>" +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-sup"><span class="k">주요 지지 구간</span>' +
-            '<span class="v">' + esc(taSupportLine(st)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taSupportLine(st))) + "</span></div>" +
           '<div class="ta-block is-res"><span class="k">주요 저항 구간</span>' +
-            '<span class="v">' + esc(taResistLine(st)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taResistLine(st))) + "</span></div>" +
           '<div class="ta-block"><span class="k">최근 흐름</span>' +
-            '<span class="v">' + esc(taRangeLine(st)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taRangeLine(st))) + "</span></div>" +
           '<div class="ta-block is-key"><span class="k">기술적 체크포인트</span>' +
-            '<span class="v">' + esc(taCheckLine(st)) + "</span></div>" +
+            '<span class="v sum" data-sum>' + sumInner(esc(taCheckLine(st))) + "</span></div>" +
         "</div></div>" +
         '<div class="ta-sec">' +
           '<div class="ta-sec-head"><span class="ta-bar"></span><h4>지표 스냅샷</h4>' +
             '<span class="ta-tag">객관 지표 · 자동 계산</span></div>' +
           '<div class="ta-signals">' + taSignalsHTML(st) + "</div>" +
-          '<p class="ta-note">일봉 ' + st.n + "거래일(마지막 " + esc(barDate(st.lastDate)) + " 종가)로 계산했습니다. " +
-            "이동평균·고저는 종가·고가·저가 실측값이며, 60일선·RSI·MACD는 관찰 5선 종목에만 기록되어 있습니다.</p>" +
+          '<p class="ta-note sum" data-sum>' + sumInner("일봉 " + st.n + "거래일(마지막 " +
+            esc(barDate(st.lastDate)) + " 종가)로 계산했습니다. " +
+            "이동평균·고저는 종가·고가·저가 실측값이며, 60일선·RSI·MACD는 관찰 5선 종목에만 기록되어 있습니다.") + "</p>" +
         "</div>";
     } else {
       h += '<div class="ta-sec">' +
@@ -6066,7 +6204,7 @@ const REPORT_DATA = [
         "</div>" +
         '<span class="sec-chg ' + sDir(chgOfText(card.cmain)) + '">' + esc(card.cmain || "") + "</span>" +
       "</div>";
-    if (card.issue) h += '<p class="sec-issue">' + sRich(card.issue) + "</p>";
+    if (card.issue) h += '<p class="sec-issue sum" data-sum>' + sumInner(sRich(card.issue)) + "</p>";
     if (card.stocks && card.stocks.length) {
       h += '<ul class="stk">' + card.stocks.slice(0, 3).map(sStockRow).join("") + "</ul>";
     } else if (card.stats && card.stats.length) {
@@ -6075,9 +6213,9 @@ const REPORT_DATA = [
         '<span class="v">' + esc(s.v) + "</span></div>").join("") + "</div>";
     } else if (card.notes && card.notes.length) {
       h += '<ul class="sec-notes">' + card.notes.slice(0, 3)
-        .map((n) => "<li>" + esc(n) + "</li>").join("") + "</ul>";
+        .map((n) => '<li class="sum" data-sum>' + sumInner(esc(n)) + "</li>").join("") + "</ul>";
     }
-    if (card.foot) h += '<p class="sec-foot">' + esc(card.foot) + "</p>";
+    if (card.foot) h += '<p class="sec-foot sum" data-sum>' + sumInner(esc(card.foot)) + "</p>";
     return h + "</article>";
   }
 
@@ -6106,7 +6244,7 @@ const REPORT_DATA = [
   function sMacroBox(m) {
     if (!m) return "";
     const facts = (m.facts || []).map((f) =>
-      '<li><span class="k">' + esc(f.k) + '</span><span class="v">' + esc(f.v) + "</span></li>").join("");
+      '<li><span class="k">' + esc(f.k) + '</span><span class="v sum" data-sum>' + sumInner(esc(f.v)) + "</span></li>").join("");
     return '<div class="s-macro">' +
       '<div class="s-macro-head"><span class="k">' + esc(m.label || "큰 판의 배경") + "</span>" +
         (m.title ? "<b>" + esc(m.title) + "</b>" : "") + "</div>" +
@@ -6116,7 +6254,8 @@ const REPORT_DATA = [
 
   function sRiskBox(k) {
     if (!k) return "";
-    const items = (k.items || []).map((t) => "<li>" + esc(t) + "</li>").join("");
+    const items = (k.items || []).map((t) =>
+      '<li class="sum" data-sum>' + sumInner(esc(t)) + "</li>").join("");
     return '<div class="s-risk">' +
       '<div class="s-risk-head"><span class="k">' + esc(k.label || "체크 변수") + "</span>" +
         (k.title ? "<b>" + esc(k.title) + "</b>" : "") + "</div>" +
@@ -6133,11 +6272,11 @@ const REPORT_DATA = [
       '<div class="rot-main">' +
         '<div class="rot-line"><span class="rot-name">' + esc(blk.sector || "") + "</span>" +
           '<span class="rot-mark">' + esc(mark || "") + "</span></div>" +
-        (blk.meta ? '<p class="rot-why">' + esc(blk.meta) + "</p>" : "") +
+        (blk.meta ? '<p class="rot-why sum" data-sum>' + sumInner(esc(blk.meta)) + "</p>" : "") +
         (chips ? '<div class="chips">' + chips + "</div>" : "") +
-        (why ? '<p class="s-why">' + esc(why) + "</p>" : "") +
-        (blk.trigger ? '<p class="s-trig"><b>' + esc(blk.triggerLabel || "관찰") + "</b> " +
-          esc(blk.trigger) + "</p>" : "") +
+        (why ? '<p class="s-why sum" data-sum>' + sumInner(esc(why)) + "</p>" : "") +
+        (blk.trigger ? '<p class="s-trig sum" data-sum>' + sumInner("<b>" +
+          esc(blk.triggerLabel || "관찰") + "</b> " + esc(blk.trigger)) + "</p>" : "") +
       "</div>" +
     "</div>";
   }
@@ -6159,14 +6298,14 @@ const REPORT_DATA = [
         h += sRotRow(c.label || (i ? "C" : "B"), tone, c, "대안 " + (i + 1));
       });
       h += sRiskBox(r.riskCheck);
-      if (r.note) h += '<p class="s-note">' + esc(r.note) + "</p>";
+      if (r.note) h += '<p class="s-note sum" data-sum>' + sumInner(esc(r.note)) + "</p>";
     } else {
       (ctx.reasons || []).slice(0, 3).forEach((rs, i) => {
         h += '<div class="rot-row">' +
           '<span class="rot-badge ' + ["a", "b", "c"][i] + '" aria-hidden="true">' + (i + 1) + "</span>" +
           '<div class="rot-main">' +
             '<div class="rot-line"><span class="rot-name">' + esc(rs.title || "") + "</span></div>" +
-            (rs.body ? '<p class="s-why">' + esc(rs.body) + "</p>" : "") +
+            (rs.body ? '<p class="s-why sum" data-sum>' + sumInner(esc(rs.body)) + "</p>" : "") +
           "</div>" +
         "</div>";
       });
@@ -6179,17 +6318,20 @@ const REPORT_DATA = [
     const box = $("#sWatchList");
     if (!box) return;
     box.innerHTML = (report.watchlist || []).map((w, i) =>
-      '<li><button type="button" class="wr" data-idx="' + i + '" aria-haspopup="dialog" ' +
-        'aria-label="' + esc(w.name) + " 차트 기술적 분석 보기\">" +
-        '<span class="rk">' + esc(w.rank) + "</span>" +
-        '<span class="wr-main">' +
-          '<span class="wr-top"><span class="wr-name">' + esc(w.name) + "</span>" +
-            '<span class="wr-price">' + esc(w.price ? w.price + "원" : (w.turnover || "")) + "</span>" +
-            '<span class="wr-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span></span>" +
-          '<span class="wr-why">' + esc(w.why || "") + "</span>" +
-        "</span>" +
-        '<span class="wr-go" aria-hidden="true">›</span>' +
-      "</button></li>").join("");
+      "<li" + (w.why ? ' class="has-why"' : "") + ">" +
+        '<button type="button" class="wr" data-idx="' + i + '" aria-haspopup="dialog" ' +
+          'aria-label="' + esc(w.name) + " 차트 기술적 분석 보기\">" +
+          '<span class="rk">' + esc(w.rank) + "</span>" +
+          '<span class="wr-main">' +
+            '<span class="wr-top"><span class="wr-name">' + esc(w.name) + "</span>" +
+              '<span class="wr-price">' + esc(w.price ? w.price + "원" : (w.turnover || "")) + "</span>" +
+              '<span class="wr-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span></span>" +
+          "</span>" +
+          '<span class="wr-go" aria-hidden="true">›</span>' +
+        "</button>" +
+        /* 선정 이유 — 기본 1줄, 누르면 부연설명 펼침(행을 누르면 분석 모달) */
+        (w.why ? '<div class="wr-sum sum" data-sum>' + sumInner(esc(w.why)) + "</div>" : "") +
+      "</li>").join("");
   }
 
   /* ---------------- 상승·거래대금 ---------------- */
@@ -6256,6 +6398,7 @@ const REPORT_DATA = [
     if (ranks) Array.prototype.forEach.call(ranks.children, (b) => {
       b.setAttribute("aria-selected", String(b.getAttribute("data-rank") === SVIEW.rank));
     });
+    syncSums(document);
   }
 
   function renderSimple(report) {
@@ -7015,6 +7158,7 @@ const REPORT_DATA = [
     renderFooter(report);
     renderSimple(report);
     qaRender(report);
+    syncSums(document);
     /* 달력이 열려 있으면 선택·날짜가 바뀐 뒤에도 그리드를 최신 상태로 유지한다 */
     if (calIsOpen()) {
       renderCalendar();
