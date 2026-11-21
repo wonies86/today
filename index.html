@@ -7848,8 +7848,8 @@ const REPORT_DATA = [
     $("#scFormulaName").textContent = "";
     $("#scFormula").textContent = cur.formula || "—";
     $("#scRules").innerHTML = scannerRulesHTML(cur);
-    $("#scMeta").textContent = (cur.basis ? cur.basis + " 일봉 실측 · " : "") +
-      (cur.scanned || 0) + "종목 계산 · 조건 통과 " +
+    $("#scMeta").textContent = (cur.basis ? cur.basis + " 기준 · " : "") +
+      (cur.scanned || 0) + "종목 일봉 실측 · 조건 통과 " +
       (cur.passed == null ? hits.length : cur.passed) + "종목 · 거래대금 " +
       (cur.minValue || 100) + "억↑ 교집합";
     $("#scCount").textContent = hits.length + "종목";
