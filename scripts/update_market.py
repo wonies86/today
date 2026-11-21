@@ -60,7 +60,7 @@ ALL_MV_KEEP = 150       # 시가총액 상위 150위 안이면 거래대금과 �
 ALL_STOCKS_MARK = "__ALLSTOCKS_JSON__"   # data.json 한 줄 압축 저장용 자리표시자
 
 # 차트(일봉) — 대시보드 모달의 📈 차트 탭이 쓰는 실측 일봉
-CHARTS_DAYS = 30          # 종목당 보관 일봉 수(이동평균 5·20일선 계산에 충분)
+CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·60일선 계산·확대/축소에 충분)
 CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
 CHARTS_MARK = "__CHARTS_JSON__"
 
@@ -550,24 +550,28 @@ def charts_fresh(cached, codes, now):
     as_of = str(cached.get("asOf") or "")
     if not as_of:
         return False
+    # 보관 일봉이 줄었으면(과거 30일본 등) 120거래일로 다시 받는다
+    if int(cached.get("days") or 0) < CHARTS_DAYS:
+        return False
     have = {str(k) for k in cached["stocks"].keys()}
     missing = len(set(codes) - have)
     if missing > max(3, int(len(codes) * 0.02)):
         return False                      # 새로 편입된 종목이 많으면 다시 만든다
     today = now.strftime("%Y%m%d")
     minutes = now.hour * 60 + now.minute
-    if as_of < today:
-        return False                      # 지난 봉이면 새로 받는다
     try:
         gen = datetime.fromisoformat(str(cached.get("generatedAt") or ""))
         gen_minutes = gen.hour * 60 + gen.minute
     except Exception:                     # noqa: BLE001
         gen = None
         gen_minutes = -1
-    # 방금 만든 것을 다시 받지 않는다 — 일부 종목 조회가 실패해도 5분마다 599종목을
+    # 방금 만든 것을 다시 받지 않는다 — 일부 종목 조회가 실패해도 5분마다 599종목×120봉을
     # 다시 받는 일이 없도록 20분간은 그대로 쓴다(다음 실행에서 보완된다).
+    # 개장 전에는 오늘 봉이 없어 asOf가 어제로 남으므로, 이 검사를 asOf 검사보다 먼저 둔다.
     if gen is not None and 0 <= (now - gen).total_seconds() < 20 * 60:
         return True
+    if as_of < today:
+        return False                      # 지난 봉이면 새로 받는다
     if gen_minutes >= 15 * 60 + 40:
         return True                       # 마감 뒤 만든 최종본
     if minutes < 15 * 60 + 40:
@@ -589,7 +593,7 @@ def build_charts(codes, cached, now):
         return cached
 
     rows_by_code = {}
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=10) as pool:
         futures = {code: pool.submit(fetch_chart, code, CHARTS_DAYS) for code in codes}
         for code, future in futures.items():
             rows = future.result() or []

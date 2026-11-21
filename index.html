@@ -1038,14 +1038,37 @@
   }
   .ta-rank[hidden]{display:none}
   /* 차트 화면 */
-  .ta-chartbox{margin:2px 0 8px;background:#fff;border:1px solid var(--line-2);border-radius:11px;padding:8px 6px 5px;overflow:hidden}
-  .ta-chartbox svg{display:block;width:100%;height:auto}
+  .ta-chartwrap{margin:2px 0 8px;background:#fff;border:1px solid var(--line-2);border-radius:11px;padding:7px 6px 5px;overflow:hidden}
+  .tv-top{display:flex;align-items:center;gap:6px;padding:0 3px 5px;flex-wrap:wrap}
+  .tv-ohlc{font-size:9.5px;font-weight:700;color:var(--ink-2);line-height:1.4;font-variant-numeric:tabular-nums}
+  .tv-ohlc b{color:var(--ink);font-weight:850}
+  .tv-chg{font-weight:850}
+  .tv-chg.u{color:var(--up)}
+  .tv-chg.d{color:var(--down)}
+  /* 차트 캔버스 — 모달 스크롤이 핀치·드래그를 가로채지 않도록 touch-action:none */
+  .tv-plot{position:relative;height:300px;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:contain;cursor:crosshair}
+  .tv-plot canvas{display:block}
+  .tv-loading,.tv-fail{position:absolute;inset:0;display:grid;place-items:center;padding:0 18px;text-align:center;
+    font-size:11px;font-weight:700;line-height:1.6;color:var(--mute)}
+  .tv-tools{display:flex;align-items:center;gap:5px;padding:6px 2px 1px;flex-wrap:wrap}
+  .tv-btn{
+    appearance:none;font-family:inherit;font-size:10px;font-weight:800;letter-spacing:-.01em;
+    color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:7px;
+    padding:4px 8px;cursor:pointer;text-decoration:none;line-height:1.4;
+  }
+  .tv-btn:hover{border-color:var(--line-3);background:var(--bg-soft);color:var(--ink)}
+  .tv-btn[aria-pressed="true"]{color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-color:transparent;box-shadow:0 3px 8px -5px rgba(109,40,217,.9)}
+  .tv-link{margin-left:auto;color:#6d28d9;border-color:#e3d8ff;background:var(--violet-soft)}
+  .tv-link:hover{background:#efe7ff;color:#5b21b6}
+  .tv-delay{margin:5px 2px 1px;font-size:8.5px;font-weight:650;color:var(--mute);line-height:1.5}
+  @media (min-width:520px){ .tv-plot{height:330px} }
   .ta-legend{display:flex;flex-wrap:wrap;gap:5px 10px;font-size:9.5px;font-weight:700;color:var(--ink-2);margin:0 0 10px;font-variant-numeric:tabular-nums}
   .ta-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:0}
   .ta-legend .lg-up{background:var(--up)}
   .ta-legend .lg-down{background:var(--down)}
   .ta-legend .lg-ma5{background:#f59e0b}
   .ta-legend .lg-ma20{background:var(--violet)}
+  .ta-legend .lg-ma60{background:#0f766e}
   .ta-facts{display:grid;grid-template-columns:1fr 1fr;gap:4px}
   .ta-kv{display:flex;flex-direction:column;gap:1px;padding:6px 8px;background:var(--bg-soft);border:1px solid var(--line-2);border-radius:8px;min-width:0}
   .ta-kv .k{font-size:9px;font-weight:800;color:var(--mute)}
@@ -5234,6 +5257,7 @@ const REPORT_DATA = [
   function setTaView(v) {
     const next = v === "chart" ? "chart" : "text";
     if (next === TA.view) return;
+    if (next === "text") tvDispose();
     TA.view = next;
     syncTaTabs();
     renderTaBody();
@@ -5246,7 +5270,7 @@ const REPORT_DATA = [
     const pack = barsOf(report, w.ticker);
     box.innerHTML = TA.view === "chart" ? taChartHTML(w, report, pack) : taTextHTML(w, report, pack);
     box.scrollTop = 0;
-    if (TA.view === "chart" && pack) fillChartSVG(box, pack);
+    if (TA.view === "chart") mountTvChart(box, w, pack);
   }
 
   function taTextHTML(w, report, pack) {
@@ -5423,7 +5447,71 @@ const REPORT_DATA = [
     return out.join("");
   }
 
-  /* ---- 차트 화면 ---- */
+  /* ---- 차트 화면 (TradingView Lightweight Charts) ---- */
+  /* TradingView 공식 오픈소스 lightweight-charts standalone 번들을 📈 차트 탭을 처음 열 때만 불러온다
+     (대시보드 첫 화면 로딩에는 영향이 없도록 지연 로드). 버전은 고정하고 로드 후 실제 버전을 확인한다. */
+  const LWC_VERSION = "5.3.0";
+  const LWC_URL = "https://cdn.jsdelivr.net/npm/lightweight-charts@" + LWC_VERSION +
+    "/dist/lightweight-charts.standalone.production.js";
+  let lwcPromise = null;
+
+  function loadLWC() {
+    if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+    if (lwcPromise) return lwcPromise;
+    lwcPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = LWC_URL;
+      s.async = true;
+      s.crossOrigin = "anonymous";
+      s.onload = () => {
+        if (window.LightweightCharts) resolve(window.LightweightCharts);
+        else reject(new Error("LightweightCharts 전역 객체 없음"));
+      };
+      s.onerror = () => reject(new Error("CDN 로드 실패"));
+      document.head.appendChild(s);
+    }).catch((err) => { lwcPromise = null; throw err; });
+    return lwcPromise;
+  }
+
+  /* 열려 있는 차트 인스턴스 — 탭 전환·모달 닫기 때 반드시 정리한다 */
+  const TV = { chart: null, plot: null, ro: null, candles: [], ma: [], pack: null, name: "" };
+
+  const tvNum = (v) => Number(v).toLocaleString("ko-KR");
+
+  /* "20261120" → "2026-11-20" (Lightweight Charts의 business day 문자열) */
+  function tvTime(d) {
+    const s = String(d || "");
+    return s.length === 8 ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6) : "";
+  }
+
+  function tvOhlcHTML(bar, prev) {
+    if (!bar) return "";
+    const chg = prev && prev.close ? (bar.close / prev.close - 1) * 100 : null;
+    const cls = chg == null ? "" : chg > 0 ? "u" : chg < 0 ? "d" : "";
+    return "<b>" + esc(bar.time.replace(/-/g, ".")) + "</b> 시 " + tvNum(bar.open) +
+      " 고 " + tvNum(bar.high) + " 저 " + tvNum(bar.low) +
+      " 종 <b>" + tvNum(bar.close) + "</b>" +
+      (chg == null ? "" : ' <span class="tv-chg ' + cls + '">' +
+        (chg > 0 ? "+" : chg < 0 ? "−" : "") + Math.abs(chg).toFixed(2) + "%</span>");
+  }
+
+  function tvLinkOf(w) {
+    const code = String((w && w.ticker) || "").replace(/[^0-9A-Za-z]/g, "");
+    return code ? "https://kr.tradingview.com/chart/?symbol=KRX:" + encodeURIComponent(code) : "";
+  }
+
+  /* 이동평균 — 종가 기준, 값이 모자란 구간은 그리지 않는다 */
+  function tvMA(closes, k) {
+    const out = [];
+    let sum = 0;
+    for (let i = 0; i < closes.length; i++) {
+      sum += closes[i];
+      if (i >= k) sum -= closes[i - k];
+      if (i >= k - 1) out.push({ i, v: sum / k });
+    }
+    return out;
+  }
+
   function taChartHTML(w, report, pack) {
     const price = w.price ? (String(w.price).slice(-1) === "원" ? String(w.price) : String(w.price) + "원") : "—";
     let h = '<div class="ta-price"><b>' + esc(price) + "</b>" +
@@ -5435,10 +5523,26 @@ const REPORT_DATA = [
     }
 
     const st = barsStats(pack);
-    h += '<div class="ta-chartbox" role="img" aria-label="' + esc(w.name) + ' 일봉 차트"></div>' +
+    const link = tvLinkOf(w);
+    const has60 = st.n >= 60;
+    h += '<div class="ta-chartwrap">' +
+        '<div class="tv-top"><span class="tv-ohlc" id="tvOhlc">' +
+          tvOhlcHTML({ time: tvTime(st.lastDate), open: st.last[0], high: st.last[1], low: st.last[2], close: st.last[3] },
+            st.n > 1 ? { close: pack.bars[st.n - 2][3] } : null) +
+        "</span></div>" +
+        '<div class="tv-plot" id="tvPlot" role="img" aria-label="' + esc(w.name) + ' 일봉 캔들 차트 · 확대·축소와 드래그로 이동"></div>' +
+        '<div class="tv-tools">' +
+          '<button type="button" class="tv-btn" id="tvAll" aria-pressed="true" aria-label="전체 ' + st.n + '거래일 보기">전체 ' + st.n + "일</button>" +
+          '<button type="button" class="tv-btn" id="tv30" aria-pressed="false" aria-label="최근 30거래일 보기">최근 30일</button>' +
+          (link ? '<a class="tv-btn tv-link" id="tvLink" href="' + esc(link) +
+            '" target="_blank" rel="noopener noreferrer">📊 트레이딩뷰에서 크게 보기 ↗</a>' : "") +
+        "</div>" +
+        (link ? '<p class="tv-delay">트레이딩뷰 무료 차트의 KRX 개별 종목은 20분 지연 시세입니다.</p>' : "") +
+      "</div>" +
       '<div class="ta-legend">' +
         '<span><i class="lg-up"></i>상승</span><span><i class="lg-down"></i>하락</span>' +
         '<span><i class="lg-ma5"></i>5일선</span><span><i class="lg-ma20"></i>20일선</span>' +
+        (has60 ? '<span><i class="lg-ma60"></i>60일선</span>' : "") +
       "</div>" +
       '<div class="ta-sec">' +
         '<div class="ta-sec-head"><span class="ta-bar"></span><h4>일봉 요약</h4>' +
@@ -5453,123 +5557,168 @@ const REPORT_DATA = [
         "</div>" +
       "</div>" +
       '<p class="ta-note">출처: 네이버 금융 일봉 ' + st.n + "거래일(data.json charts) · 마지막 봉 " +
-        esc(barDate(st.lastDate)) + " · 이동평균은 종가 기준 자동 계산값이며, " +
-        "20일선은 20거래일이 쌓인 지점부터 그립니다.</p>";
+        esc(barDate(st.lastDate)) + " · 이동평균은 종가 기준 자동 계산값(5·20·60일선)이며, " +
+        "해당 일수가 쌓인 지점부터 그립니다. 차트: " +
+        '<a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener noreferrer">' +
+        "TradingView Lightweight Charts™</a> v" + LWC_VERSION +
+        " (핀치·휠 확대/축소, 드래그 이동, 십자선 날짜별 시·고·저·종).</p>";
     return h;
   }
 
-  function fillChartSVG(box, pack) {
-    const host = box.querySelector(".ta-chartbox");
-    if (!host) return;
-    const width = Math.max(240, Math.min(560, host.clientWidth - 12));
-    host.innerHTML = chartSVG(pack.bars, pack.dates, width);
+  function tvDispose() {
+    if (TV.ro) { try { TV.ro.disconnect(); } catch (e) { /* noop */ } }
+    if (TV.chart) { try { TV.chart.remove(); } catch (e) { /* noop */ } }
+    TV.ro = null; TV.chart = null; TV.plot = null; TV.candles = []; TV.ma = []; TV.pack = null; TV.name = "";
+    window.__krTvChart = null;
   }
 
-  function chartSVG(bars, dates, width) {
-    const n = bars.length;
-    const padL = 4, padR = 52, padT = 10, padB = 18;
-    const H = 198;
-    const plotW = Math.max(120, width - padL - padR);
-    const plotH = H - padT - padB;
-    const closes = bars.map((b) => b[3]);
+  function tvLegendText(w) { return w && w.name ? w.name : "종목"; }
 
-    const maAt = (i, k) => {
-      if (i < k - 1) return null;
-      let s = 0;
-      for (let j = i - k + 1; j <= i; j++) s += closes[j];
-      return s / k;
-    };
-    const ma5 = closes.map((_, i) => maAt(i, 5));
-    const ma20 = closes.map((_, i) => maAt(i, 20));
+  async function mountTvChart(box, w, pack) {
+    tvDispose();
+    const plot = box.querySelector("#tvPlot");
+    if (!plot || !pack) return;
+    TV.plot = plot;
+    TV.name = tvLegendText(w);
 
-    let hi = -Infinity, lo = Infinity;
-    bars.forEach((b) => { hi = Math.max(hi, b[1]); lo = Math.min(lo, b[2]); });
-    ma5.concat(ma20).forEach((v) => {
-      if (v == null) return;
-      hi = Math.max(hi, v);
-      lo = Math.min(lo, v);
+    const dates = pack.dates || [];
+    const candles = [];
+    pack.bars.forEach((b, i) => {
+      const t = tvTime(dates[i]);
+      if (!t || b == null) return;
+      candles.push({ time: t, open: b[0], high: b[1], low: b[2], close: b[3] });
     });
-    if (!(hi > lo)) return "";
+    if (!candles.length) return;
+    TV.candles = candles;
 
-    /* 축 눈금은 읽기 좋은 값으로 (1·2·2.5·5 × 10^n) */
-    const rawStep = (hi - lo) / 4;
-    const pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
-    const nm = rawStep / pow;
-    const niceMul = nm <= 1 ? 1 : nm <= 2 ? 2 : nm <= 2.5 ? 2.5 : nm <= 5 ? 5 : 10;
-    const tick = niceMul * pow;
-    const top = Math.ceil((hi + (hi - lo) * 0.04) / tick) * tick;
-    const bottom = Math.floor((lo - (hi - lo) * 0.04) / tick) * tick;
-    hi = top;
-    lo = bottom;
-    if (!(hi > lo)) return "";
+    plot.innerHTML = '<div class="tv-loading">차트를 불러오는 중…</div>';
 
-    const Y = (v) => padT + (hi - v) / (hi - lo) * plotH;
-    const step = plotW / n;
-    const X = (i) => padL + step * (i + 0.5);
-    const bw = Math.max(2.2, Math.min(9, step * 0.62));
-
-    let svg = '<svg viewBox="0 0 ' + width + " " + H + '" width="' + width + '" height="' + H +
-      '" role="img" aria-label="일봉 캔들 차트">';
-
-    /* 가로 눈금 + 가격 축 */
-    for (let v = lo; v <= hi + tick * 0.01; v += tick) {
-      const y = Y(v).toFixed(1);
-      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (padL + plotW) + '" y2="' + y +
-        '" stroke="#eef1f6" stroke-width="1"/>' +
-        '<text x="' + (padL + plotW + 5) + '" y="' + (+y + 3).toFixed(1) +
-        '" font-size="8" fill="#818da3" font-weight="700">' + Math.round(v).toLocaleString("ko-KR") + "</text>";
+    let lib;
+    try {
+      lib = await loadLWC();
+    } catch (err) {
+      plot.innerHTML = '<div class="tv-fail">차트 라이브러리(CDN)를 불러오지 못했습니다. 잠시 뒤 다시 열거나 ' +
+        "트레이딩뷰에서 확인해 주세요.</div>";
+      return;
     }
+    /* 그 사이 탭을 닫았거나 다시 그렸으면 중복 생성하지 않는다 */
+    if (!box.isConnected || box.querySelector("#tvPlot") !== plot) return;
 
-    /* 캔들 */
-    bars.forEach((b, i) => {
-      const up = b[3] >= b[0];
-      const col = up ? "#e11d48" : "#2563eb";
-      const x = X(i).toFixed(1);
-      svg += '<line x1="' + x + '" y1="' + Y(b[1]).toFixed(1) + '" x2="' + x + '" y2="' + Y(b[2]).toFixed(1) +
-        '" stroke="' + col + '" stroke-width="1"/>';
-      const top = Y(Math.max(b[0], b[3]));
-      const bh = Math.max(1.3, Math.abs(Y(Math.min(b[0], b[3])) - top));
-      svg += '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) +
-        '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + col +
-        '" stroke="' + col + '" stroke-width="1" rx="0.6"/>';
+    const width = Math.max(200, plot.clientWidth || 320);
+    const height = Math.max(200, plot.clientHeight || 300);
+
+    const chart = lib.createChart(plot, {
+      width: width,
+      height: height,
+      autoSize: false,
+      layout: {
+        background: { type: "solid", color: "#ffffff" },
+        textColor: "#44506a",
+        fontSize: 10,
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic",sans-serif',
+        attributionLogo: false          /* 로고 대신 각주에 TradingView Lightweight Charts™ 출처 표기 */
+      },
+      grid: { vertLines: { color: "#f2f4f9" }, horzLines: { color: "#f2f4f9" } },
+      rightPriceScale: {
+        borderColor: "#e3e7f0",
+        scaleMargins: { top: 0.13, bottom: 0.1 },
+        minimumWidth: 54
+      },
+      timeScale: {
+        borderColor: "#e3e7f0",
+        timeVisible: false,
+        secondsVisible: false,
+        rightOffset: 4,
+        barSpacing: 6,
+        minBarSpacing: 1,
+        lockVisibleTimeRangeOnResize: true,
+        tickMarkFormatter: (time) => {
+          let y = 0, m = 0, d = 0;
+          if (time && typeof time === "object" && time.year) { y = time.year; m = time.month; d = time.day; }
+          else if (typeof time === "string" && time.length >= 10) { y = +time.slice(0, 4); m = +time.slice(5, 7); d = +time.slice(8, 10); }
+          else if (typeof time === "number") { const dt = new Date(time * 1000); y = dt.getUTCFullYear(); m = dt.getUTCMonth() + 1; d = dt.getUTCDate(); }
+          if (!y) return "";
+          if (d === 1 && m === 1) return y + "년";
+          return d === 1 ? m + "월" : m + "/" + d;
+        }
+      },
+      crosshair: {
+        mode: lib.CrosshairMode.Normal,
+        vertLine: { color: "#98a2b3", width: 1, style: lib.LineStyle.Dashed, labelBackgroundColor: "#101828" },
+        horzLine: { color: "#98a2b3", width: 1, style: lib.LineStyle.Dashed, labelBackgroundColor: "#101828" }
+      },
+      localization: {
+        locale: "ko-KR",
+        priceFormatter: (p) => Math.round(Number(p)).toLocaleString("ko-KR")
+      },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
     });
+    TV.chart = chart;
+    window.__krTvChart = chart;      /* 화면 검증(확대·리셋 상태 확인)용 참조 */
 
-    /* 이동평균선 */
-    const linePath = (vals, color, wpx, dash) => {
-      let d = "", started = false;
-      vals.forEach((v, i) => {
-        if (v == null) return;
-        d += (started ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1);
-        started = true;
-      });
-      if (!d) return "";
-      return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + wpx +
-        '" stroke-linejoin="round" stroke-linecap="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
+    const candleOpts = {
+      upColor: "#e11d48", downColor: "#2563eb", borderVisible: false,
+      wickUpColor: "#e11d48", wickDownColor: "#2563eb",
+      priceFormat: { type: "price", precision: 0, minMove: 1 }
     };
-    svg += linePath(ma5, "#f59e0b", 1.2);
-    svg += linePath(ma20, "#6d28d9", 1.4, "4 3");
+    /* v5는 addSeries(seriesDefinition), v4는 addCandlestickSeries — 둘 다 대응 */
+    const isV5 = typeof chart.addSeries === "function" && !!lib.CandlestickSeries;
+    const candleSeries = isV5 ? chart.addSeries(lib.CandlestickSeries, candleOpts) : chart.addCandlestickSeries(candleOpts);
+    candleSeries.setData(candles);
 
-    /* 마지막 종가 */
-    const lastClose = closes[n - 1];
-    const ly = Y(lastClose);
-    svg += '<line x1="' + padL + '" y1="' + ly.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + ly.toFixed(1) +
-      '" stroke="#101828" stroke-width="1" stroke-dasharray="2 3" opacity=".4"/>' +
-      '<rect x="' + (padL + plotW + 2) + '" y="' + (ly - 7).toFixed(1) + '" width="' + (padR - 3) +
-      '" height="14" rx="3" fill="#101828"/>' +
-      '<text x="' + (padL + plotW + 5) + '" y="' + (ly + 3.2).toFixed(1) +
-      '" font-size="8" fill="#fff" font-weight="800">' + lastClose.toLocaleString("ko-KR") + "</text>";
-
-    /* 날짜 축 */
-    const marks = [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i);
-    marks.forEach((i, k) => {
-      const isFirst = k === 0;
-      const isLast = k === marks.length - 1 && marks.length > 1;
-      const x = isFirst ? padL : (isLast ? padL + plotW : X(i));
-      svg += '<text x="' + x.toFixed(1) + '" y="' + (H - 4) + '" font-size="8" fill="#818da3" font-weight="700" text-anchor="' +
-        (isFirst ? "start" : isLast ? "end" : "middle") + '">' + barDate(dates[i]) + "</text>";
+    const closes = candles.map((c) => c.close);
+    const maDefs = [
+      { k: 5, color: "#f59e0b" },
+      { k: 20, color: "#6d28d9" },
+      { k: 60, color: "#0f766e" }
+    ];
+    maDefs.forEach((d) => {
+      if (candles.length < d.k) return;
+      const lineOpts = {
+        color: d.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
+        crosshairMarkerVisible: false, priceFormat: { type: "price", precision: 0, minMove: 1 }
+      };
+      const series = isV5 ? chart.addSeries(lib.LineSeries, lineOpts) : chart.addLineSeries(lineOpts);
+      series.setData(tvMA(closes, d.k).map((p) => ({ time: candles[p.i].time, value: Math.round(p.v) })));
     });
 
-    return svg + "</svg>";
+    /* 기본은 전체 기간(최대 120거래일) 보기 — 양 끝에 한 봉씩 여유를 두어
+       가장자리 날짜 눈금이 잘리지 않게 한다 */
+    chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: candles.length + 4 });
+
+    const btnAll = box.querySelector("#tvAll");
+    const btn30 = box.querySelector("#tv30");
+    function setRange(days) {
+      const n = candles.length;
+      const all = days >= n;
+      if (btnAll) btnAll.setAttribute("aria-pressed", String(all));
+      if (btn30) btn30.setAttribute("aria-pressed", String(!all));
+      if (all) { chart.timeScale().setVisibleLogicalRange({ from: -1.5, to: n + 4 }); return; }
+      chart.timeScale().setVisibleLogicalRange({ from: n - days - 0.5, to: n + 0.5 });
+    }
+    if (btnAll) btnAll.addEventListener("click", () => setRange(candles.length));
+    if (btn30) btn30.addEventListener("click", () => setRange(30));
+
+    /* 십자선 — 그 날짜의 시·고·저·종(전일 종가 대비)을 위에 표시 */
+    const ohlc = box.querySelector("#tvOhlc");
+    const idxByTime = new Map(candles.map((c, i) => [c.time, i]));
+    chart.subscribeCrosshairMove((param) => {
+      if (!ohlc) return;
+      const hit = param && param.time != null ? idxByTime.get(param.time) : undefined;
+      const i = hit == null ? candles.length - 1 : hit;
+      ohlc.innerHTML = tvOhlcHTML(candles[i], i > 0 ? candles[i - 1] : null);
+    });
+
+    /* 모달 폭·높이가 바뀌면 차트 크기를 맞춘다 */
+    if (typeof ResizeObserver !== "undefined") {
+      TV.ro = new ResizeObserver(() => {
+        if (!TV.chart || !TV.plot) return;
+        const wpx = TV.plot.clientWidth, hpx = TV.plot.clientHeight;
+        if (wpx > 0 && hpx > 0) TV.chart.resize(wpx, hpx);
+      });
+      TV.ro.observe(plot);
+    }
   }
 
   function wireTechnicalDialog() {
@@ -5595,6 +5744,7 @@ const REPORT_DATA = [
       if (e.target === dlg) dlg.close();
     });
     dlg.addEventListener("close", () => {
+      tvDispose();
       document.body.classList.remove("ta-lock");
       if (taOpener && typeof taOpener.focus === "function") taOpener.focus();
       taOpener = null;
