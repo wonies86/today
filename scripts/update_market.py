@@ -15,12 +15,15 @@
 
 · 조건식 × 당일 수급 교집합: 일봉 120거래일(거래량 포함)을 메모리에서 계산해
   등록된 조건식(SCANNER_DEFS)마다 통과 + 거래대금 기준 이상 종목을 골라
-  data.json 최신 날짜의 scanners 배열에 담는다(첫 조건식 = '세력꿈틀이').
+  data.json 최신 날짜 항목에 담는다(첫 조건식 = '세력꿈틀이').
   포착·관찰 종목의 차트 구조와 과거 유사 지점 5일 반응도 조건식마다 함께 담는다.
   새 조건식은 SCANNER_DEFS 에 항목 하나만 추가하면 대시보드에 자동으로 늘어난다.
   원본 조건식 문구(영웅문 원문)는 SCANNER_DEFS 의 rawRules·rawFormula·rawIntersection
-  으로 scanners 배열에 그대로 실어 화면의 `원본 조건식` 팝업이 그대로 보여준다.
-  하위 호환: 첫 조건식 결과는 기존 키(conditionHits·conditionScan·chartReactions)에도 남긴다.
+  으로 함께 담기고, 화면의 `원본 조건식` 팝업이 그대로 보여준다.
+  **저장은 암호문만**: 이 결과 전체(scanners·conditionHits·conditionScan·chartReactions)를
+  `scannersEncrypted`(PBKDF2-SHA256 300k → AES-256-GCM) 한 덩어리로만 남긴다.
+  키는 저장소 밖 `../.scanner_key` 또는 환경변수 SCANNER_KEY — 저장소(Public)에는 절대 적지 않는다.
+  키가 없는 실행(GitHub Actions)은 스캔을 새로 저장하지 않고 기존 `scannersEncrypted`를 그대로 보존한다.
   (거래량은 data.json에 저장하지 않는다 — charts 는 [시,고,저,종] 그대로)
 
 사용법
@@ -33,9 +36,13 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import math
+import os
 import re
+import secrets
 import sys
 import time
 import urllib.request
@@ -82,6 +89,13 @@ SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
 SCAN_RULE = "A and (B or C) and D and E"
 SCAN_FETCH = 130          # 스캔용 일봉 조회 개수(보관 120봉에 여유를 둔다)
 SCAN_KEYS = ("scanners", "conditionHits", "conditionScan", "chartReactions")
+
+# 조건식(scanners) 잠금 — data.json 에는 암호문만 남기고 평문 키는 저장하지 않는다.
+# 키는 저장소 **밖** 파일(/workspace/kr-market-project/.scanner_key) 또는 환경변수만 쓴다.
+# (Public 저장소이므로 index.html·이 스크립트·워크플로 어디에도 비밀번호를 적지 않는다)
+SCAN_ENC_KEY = "scannersEncrypted"
+SCAN_ITER = 300000                      # PBKDF2-SHA256 반복 (웹 프런트와 같아야 한다)
+SCAN_KEY_PATH = ROOT.parent / ".scanner_key"
 
 WARNINGS: list[str] = []
 
@@ -958,10 +972,10 @@ def build_scanner_scan(definition, series, info, extra_codes, now):
 
 
 def build_condition_scan(series, all_stocks, extra_codes, now):
-    """등록된 조건식 전부(SCANNER_DEFS)를 계산해 scanners 배열을 만든다.
+    """등록된 조건식 전부(SCANNER_DEFS)를 계산해 스캔 결과를 만든다.
 
-    하위 호환: 첫 조건식의 결과를 기존 키(conditionHits·conditionScan·chartReactions)
-    에도 같은 모양으로 넣는다 — 옛 화면·검증 스크립트가 그대로 동작한다.
+    반환값은 메모리에서만 쓰는 모양이다 — 저장은 apply_scan 이 암호화해
+    `scannersEncrypted` 한 덩어리로만 남긴다(평문 키는 data.json 에 남기지 않는다).
     """
     if not series:
         return None
@@ -988,31 +1002,122 @@ def build_condition_scan(series, all_stocks, extra_codes, now):
             "reactions": primary["reactions"], "scanners": scanners}
 
 
-def apply_scan(entry, result):
-    """스캔 결과를 항목에 붙인다 — 결과가 없으면 아무 것도 하지 않는다."""
+def scanner_key() -> str | None:
+    """조건식 잠금 키 — 환경변수 SCANNER_KEY 우선, 없으면 저장소 밖 키 파일.
+
+    키가 없으면(Actions·CI) 스캔 결과를 새로 저장하지 않고 기존 암호문을 그대로 둔다.
+    """
+    env = (os.environ.get("SCANNER_KEY") or "").strip()
+    if env:
+        return env
+    try:
+        text = SCAN_KEY_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text or None
+
+
+def encrypt_scan_payload(payload, password: str):
+    """PBKDF2-SHA256 300k → AES-256-GCM. 브라우저 Web Crypto 와 같은 포맷:
+    {v, alg, kdf, iter, salt, iv, ct} (base64)
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    salt = secrets.token_bytes(16)
+    iv = secrets.token_bytes(12)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, SCAN_ITER, 32)
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ct = AESGCM(key).encrypt(iv, raw, None)
+    return {
+        "v": 1, "alg": "AES-256-GCM", "kdf": "PBKDF2-SHA256", "iter": SCAN_ITER,
+        "salt": base64.b64encode(salt).decode(),
+        "iv": base64.b64encode(iv).decode(),
+        "ct": base64.b64encode(ct).decode(),
+    }
+
+
+def strip_scan_plaintext(obj):
+    """조건식 평문 키를 지운다(scannersEncrypted 는 건드리지 않는다)."""
+    if not isinstance(obj, dict):
+        return obj
+    for key in SCAN_KEYS:
+        obj.pop(key, None)
+    return obj
+
+
+def scrub_scan_plaintext(data):
+    """data.json 전체에서 조건식 평문 노출을 없앤다 — 저장 직전 안전장치."""
+    for entry in data or []:
+        if isinstance(entry, dict):
+            strip_scan_plaintext(entry)
+
+
+def legacy_scan_payload(src):
+    """옛 기록(평문 scanners/conditionHits)을 암호화할 payload 모양으로 바꾼다."""
+    if not isinstance(src, dict):
+        return None
+    if src.get("scanners") is None and src.get("conditionHits") is None:
+        return None
+    return {
+        "scanners": src.get("scanners"),
+        "conditionHits": src.get("conditionHits"),
+        "conditionScan": src.get("conditionScan"),
+        "chartReactions": src.get("chartReactions"),
+    }
+
+
+def apply_scan(entry, result, password: str | None = None):
+    """스캔 결과를 **암호문으로만** 항목에 붙인다.
+
+    · 결과가 없으면 아무 것도 하지 않는다
+    · 잠금 키가 없으면(키 파일 없는 Actions) 저장하지 않고 False — 평문 저장 금지
+    """
     if not result:
         return False
-    entry["scanners"] = result["scanners"]
-    entry["conditionHits"] = result["hits"]
-    entry["conditionScan"] = result["meta"]
-    entry["chartReactions"] = result["reactions"]
+    password = password or scanner_key()
+    if not password:
+        log(f"  · 잠금 키가 없어 스캔 결과를 저장하지 않습니다(평문 저장 금지) — "
+            f"기존 {SCAN_ENC_KEY} 유지")
+        return False
+    payload = {
+        "scanners": result.get("scanners"),
+        "conditionHits": result.get("hits"),
+        "conditionScan": result.get("meta"),
+        "chartReactions": result.get("reactions"),
+    }
+    try:
+        entry[SCAN_ENC_KEY] = encrypt_scan_payload(payload, password)
+    except Exception as exc:                # noqa: BLE001 - 암호화 실패 시 평문 금지
+        warn(f"스캔 암호화 실패({type(exc).__name__}) — 평문으로 저장하지 않습니다")
+        return False
+    strip_scan_plaintext(entry)
     return True
 
 
 def carry_scan(entry, *sources):
     """이번 실행에서 스캔을 계산하지 못했습니다 — 가장 최근 스캔을 그대로 옮긴다.
 
-    (기준일은 conditionScan.asOf 에 남아 있어 화면이 '며칠 종가 기준'인지 밝힌다)
+    암호문(scannersEncrypted)은 복호화하지 않고 그대로 옮긴다 — Actions 실행에서도
+    절대 지우거나 덮어쓰지 않는다. 옛 평문 기록은 키가 있을 때만 그 자리에서 암호화한다.
     """
     for src in sources:
         if not isinstance(src, dict):
             continue
-        if src.get("scanners") is None and src.get("conditionHits") is None:
-            continue
-        for key in SCAN_KEYS:
-            if src.get(key) is not None:
-                entry[key] = src[key]
-        return True
+        enc = src.get(SCAN_ENC_KEY)
+        if isinstance(enc, dict) and enc.get("ct"):
+            entry[SCAN_ENC_KEY] = enc
+            strip_scan_plaintext(entry)
+            return True
+        payload = legacy_scan_payload(src)
+        if payload:
+            password = scanner_key()
+            if not password:
+                warn(f"{src.get('date')} 스캔이 평문인데 잠금 키가 없어 옮기지 못했습니다")
+                continue
+            entry[SCAN_ENC_KEY] = encrypt_scan_payload(payload, password)
+            strip_scan_plaintext(entry)
+            return True
+    strip_scan_plaintext(entry)
     return False
 
 
@@ -2201,17 +2306,21 @@ def scan_only(argv):
         return 1
 
     # 다른 필드가 한 글자라도 바뀌면 쓰지 않는다(서사·마감 시각·closingPattern 보존)
+    # · 스캔 저장분(scannersEncrypted)은 매번 새 salt 로 암호화되므로 비교에서 뺀다
     def without_scan(obj):
         clone = json.loads(json.dumps(obj, ensure_ascii=False))
-        for key in SCAN_KEYS:
+        for key in SCAN_KEYS + (SCAN_ENC_KEY,):
             clone.pop(key, None)
         return json.dumps(clone, ensure_ascii=False, sort_keys=True)
 
     before = without_scan(entry)
-    apply_scan(entry, result)
+    if not apply_scan(entry, result):
+        log("  · 스캔을 암호화해 저장하지 못했습니다 — data.json 그대로 둡니다.")
+        return 1
     if without_scan(entry) != before:
         log("  · 스캔 외 필드가 바뀌었습니다 — 쓰기를 중단합니다.")
         return 1
+    scrub_scan_plaintext(data)
     text = serialize_data(data)
     DATA_PATH.write_text(text, encoding="utf-8")
     meta = result["meta"]
@@ -2440,9 +2549,8 @@ def main(argv):
     # 6-2) 조건식 × 당일 수급 교집합 + 과거 차트 반응 (거래량은 메모리에서만)
     if series:
         scan = build_condition_scan(series, all_stocks, set(target_codes + card_codes), now)
-        if scan:
-            apply_scan(entry, scan)
-            log(f"    조건식×수급: {scan['meta']['scanned']}종목 계산 → {len(scan['hits'])}종목 포착")
+        if scan and apply_scan(entry, scan):
+            log(f"    조건식×수급: {scan['meta']['scanned']}종목 계산 → {len(scan['hits'])}종목 포착 (암호화 저장)")
         else:
             carry_scan(entry, old_entry, prev_entry)
     else:
@@ -2464,6 +2572,7 @@ def main(argv):
 
     # allStocks는 종목 수가 많아 한 줄 압축(다른 필드는 그대로 읽기 좋게 들여쓰기 유지)
     rows = entry.get("allStocks")
+    scrub_scan_plaintext(data)              # 조건식 평문은 어떤 경우에도 저장하지 않는다
     text = serialize_data(data)
     previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
     if text == previous:

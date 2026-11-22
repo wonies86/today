@@ -2262,6 +2262,49 @@
   #viewScanner .sc-raw{font-size:10px;padding:4px 8px}
 }
 
+/* ---------- 조건식 탭 잠금 (AES-256-GCM · PBKDF2-SHA256) ---------- */
+#viewScanner .sc-lock{display:flex;align-items:center;justify-content:center;padding:22px 4px 40px}
+#viewScanner .sc-lock[hidden]{display:none !important}
+#viewScanner .sc-body[hidden]{display:none !important}
+#viewScanner .sc-lockcard{
+  width:100%;max-width:330px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 18px 18px;text-align:center;
+}
+#viewScanner .sc-lockico{
+  width:44px;height:44px;margin:0 auto 10px;border-radius:14px;background:var(--violet-soft);
+  display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;
+  border:1px solid #ded0ff;
+}
+#viewScanner .sc-locktitle{margin:0;font-size:15.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
+#viewScanner .sc-lockdesc{margin:6px 0 0;font-size:11px;line-height:1.55;color:var(--mute)}
+#viewScanner .sc-lockform{display:flex;gap:6px;margin:14px 0 0}
+#viewScanner .sc-lockinput{
+  flex:1 1 auto;min-width:0;height:38px;padding:0 12px;border:1px solid var(--line-3);border-radius:10px;
+  background:var(--bg-soft);font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.28em;
+  color:var(--ink);text-align:center;outline:none;
+}
+#viewScanner .sc-lockinput:focus{border-color:var(--violet);background:#fff;box-shadow:0 0 0 3px rgba(109,40,217,.12)}
+#viewScanner .sc-lockinput::placeholder{letter-spacing:.02em;font-weight:600;color:#aab3c5}
+#viewScanner .sc-lockgo{
+  flex:0 0 auto;height:38px;padding:0 14px;border:0;border-radius:10px;background:var(--violet);
+  color:#fff;font-family:inherit;font-size:12px;font-weight:850;letter-spacing:-.01em;cursor:pointer;
+}
+#viewScanner .sc-lockgo:active{transform:translateY(1px)}
+#viewScanner .sc-lockgo[disabled]{opacity:.6;cursor:default}
+#viewScanner .sc-lockerr{margin:9px 0 0;font-size:10.5px;font-weight:750;line-height:1.45;color:var(--rose)}
+#viewScanner .sc-lockerr[hidden]{display:none}
+#viewScanner .sc-lockok{margin:9px 0 0;font-size:10.5px;font-weight:750;color:var(--teal)}
+#viewScanner .sc-locknote{margin:12px 0 0;font-size:9px;line-height:1.5;color:#9aa4b8}
+#viewScanner .sc-lock.shake .sc-lockcard{animation:scShake .3s ease}
+@keyframes scShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+/* 헤더 우측 — 잠금 해제 뒤에만 보이는 다시 잠그기 */
+#viewScanner .sc-lockbtn{
+  margin-left:2px;flex:0 0 auto;border:1px solid var(--line-3);background:#fff;border-radius:999px;
+  padding:3.5px 9px;font-family:inherit;font-size:9.5px;font-weight:800;color:var(--ink-2);cursor:pointer;
+}
+#viewScanner .sc-lockbtn:hover{background:var(--bg-soft)}
+#viewScanner .sc-lockbtn[hidden]{display:none !important}
+
 /* ---------- 원본 조건식 팝업 — 영웅문 원문 그대로 ---------- */
 .raw-dialog{
   width:min(520px, calc(100vw - 20px));max-height:84vh;padding:0;
@@ -2514,24 +2557,45 @@
   <!-- ======================= 조건식 관리 페이지 (상단 `조건식` 탭) =======================
        결과 중심 — 기준·수식 박스 없이 `세력꿈틀이` 헤더 + 포착 종목이 첫 화면.
        원본 조건식(영웅문 문구 그대로)은 헤더 우측 `원본 조건식` 팝업으로 본다.
+       이 탭만 잠금 — data.json 의 scannersEncrypted 를 비밀번호로 풀어야 내용이 그려진다.
        ============================================================================== -->
   <main id="viewScanner" aria-label="조건식 관리" hidden>
-    <div class="sc-head">
-      <span class="sc-eyebrow">조건식</span>
-      <h1 class="sc-h1" id="scTitle">세력꿈틀이</h1>
-      <button type="button" class="sc-raw" id="scRawBtn" aria-haspopup="dialog">원본 조건식</button>
-    </div>
-    <p class="sc-meta" id="scMeta"></p>
+    <!-- 잠금 카드 — 복호화 전 기본 화면 -->
+    <section class="sc-lock" id="scLock" aria-labelledby="scLockTitle">
+      <div class="sc-lockcard">
+        <div class="sc-lockico" aria-hidden="true">🔒</div>
+        <h1 class="sc-locktitle" id="scLockTitle">🔒 조건식 전용 잠금</h1>
+        <p class="sc-lockdesc">등록한 조건식과 포착 종목은<br>비밀번호로만 열립니다.</p>
+        <form class="sc-lockform" id="scLockForm" autocomplete="off" novalidate>
+          <input class="sc-lockinput" id="scLockPw" type="password" inputmode="numeric"
+                 pattern="[0-9]*" maxlength="12" placeholder="비밀번호" enterkeyhint="go"
+                 aria-label="조건식 비밀번호">
+          <button type="submit" class="sc-lockgo" id="scLockGo">잠금 해제</button>
+        </form>
+        <p class="sc-lockerr" id="scLockErr" role="alert" hidden></p>
+        <p class="sc-locknote">AES-256-GCM · PBKDF2-SHA256 30만 회<br>이 브라우저 세션에서만 열려 있습니다</p>
+      </div>
+    </section>
 
-    <div class="sc-chips" id="scChips" role="tablist" aria-label="등록된 조건식" hidden></div>
+    <div class="sc-body" id="scBody" hidden>
+      <div class="sc-head">
+        <span class="sc-eyebrow">조건식</span>
+        <h1 class="sc-h1" id="scTitle">세력꿈틀이</h1>
+        <button type="button" class="sc-raw" id="scRawBtn" aria-haspopup="dialog">원본 조건식</button>
+        <button type="button" class="sc-lockbtn" id="scLockBtn" title="조건식을 다시 잠급니다">🔒 다시 잠그기</button>
+      </div>
+      <p class="sc-meta" id="scMeta"></p>
 
-    <div class="sc-sec">
-      <h2>포착 종목</h2><span class="n" id="scCount">—</span>
-      <span class="r" id="scBasis"></span>
+      <div class="sc-chips" id="scChips" role="tablist" aria-label="등록된 조건식" hidden></div>
+
+      <div class="sc-sec">
+        <h2>포착 종목</h2><span class="n" id="scCount">—</span>
+        <span class="r" id="scBasis"></span>
+      </div>
+      <div class="sc-list" id="scList"></div>
+      <p class="sc-empty" id="scEmpty" hidden></p>
+      <p class="sc-note" id="scNote"></p>
     </div>
-    <div class="sc-list" id="scList"></div>
-    <p class="sc-empty" id="scEmpty" hidden></p>
-    <p class="sc-note" id="scNote"></p>
   </main>
 
 </div>
@@ -7762,6 +7826,162 @@ const REPORT_DATA = [
     });
   }
 
+  /* ---------------- 조건식 잠금 (AES-256-GCM · PBKDF2-SHA256 300,000회) ----------------
+     · data.json 각 날짜의 scannersEncrypted {v,alg,kdf,iter,salt,iv,ct} 만 Web Crypto 로 푼다
+       — 비밀번호는 이 파일·저장소 어디에도 적지 않는다(사용자만 입력)
+     · 복호화 결과는 sessionStorage 에만 두고, 탭을 오가도 다시 묻지 않는다
+     · `다시 잠그기`면 메모리·sessionStorage 에서 지우고 잠금 카드로 돌아간다
+     ======================================================================= */
+  const SCAN_LOCK = { SKEY: "kr_scan_unlock_v1", open: false, byDate: null, busy: false };
+
+  function scanB64(b64) {
+    const s = atob(b64), u = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return u;
+  }
+
+  function scanLockTargets() {
+    return REPORT_DATA.filter((r) => r && r.scannersEncrypted && r.scannersEncrypted.ct);
+  }
+
+  function scanDecrypt(pw, meta) {
+    const enc = new TextEncoder();
+    return crypto.subtle
+      .importKey("raw", enc.encode(pw), { name: "PBKDF2" }, false, ["deriveKey"])
+      .then((k) => crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: scanB64(meta.salt), iterations: meta.iter || 300000, hash: "SHA-256" },
+        k, { name: "AES-GCM", length: 256 }, false, ["decrypt"]))
+      .then((key) => crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: scanB64(meta.iv), tagLength: 128 }, key, scanB64(meta.ct)))
+      .then((buf) => JSON.parse(new TextDecoder().decode(buf)));
+  }
+
+  /* 잠긴 날짜들을 차례로 풀어 {date: payload} 로 — 비밀번호가 틀리면 아무것도 남지 않는다 */
+  function scanUnlock(pw) {
+    const targets = scanLockTargets();
+    if (!targets.length) return Promise.reject(new Error("norecord"));
+    return targets.reduce((chain, r) => chain.then((acc) => {
+      if (Object.keys(acc).length) return acc;
+      return scanDecrypt(pw, r.scannersEncrypted)
+        .then((p) => { acc[r.date] = p; return acc; })
+        .catch(() => acc);
+    }), Promise.resolve({})).then((acc) => {
+      if (!Object.keys(acc).length) throw new Error("badpw");
+      return acc;
+    });
+  }
+
+  /* 복호화 결과를 지금 REPORT_DATA(최신 data.json)에 붙인다 — liveRefresh 뒤에도 다시 부른다 */
+  function scanApply(payloads) {
+    SCAN_LOCK.byDate = payloads || null;
+    SCAN_LOCK.open = !!(payloads && Object.keys(payloads).length);
+    if (!SCAN_LOCK.open) return;
+    REPORT_DATA.forEach((r) => {
+      const p = SCAN_LOCK.byDate[r.date];
+      if (!p) return;
+      if (Array.isArray(p.scanners) && p.scanners.length) r.scanners = p.scanners;
+      if (p.conditionHits !== undefined) r.conditionHits = p.conditionHits;
+      if (p.conditionScan !== undefined) r.conditionScan = p.conditionScan;
+      if (p.chartReactions !== undefined) r.chartReactions = p.chartReactions;
+    });
+  }
+
+  function scanRemember() {
+    try { sessionStorage.setItem(SCAN_LOCK.SKEY, JSON.stringify(SCAN_LOCK.byDate)); } catch (e) { /* 무시 */ }
+  }
+
+  function scanForget() {
+    SCAN_LOCK.open = false;
+    SCAN_LOCK.byDate = null;
+    REPORT_DATA.forEach((r) => {
+      if (!r) return;
+      delete r.scanners;
+      delete r.conditionHits;
+      delete r.conditionScan;
+      delete r.chartReactions;
+    });
+    try { sessionStorage.removeItem(SCAN_LOCK.SKEY); } catch (e) { /* 무시 */ }
+  }
+
+  function scanRestore() {
+    let raw = null;
+    try { raw = sessionStorage.getItem(SCAN_LOCK.SKEY); } catch (e) { raw = null; }
+    if (!raw) return false;
+    try {
+      scanApply(JSON.parse(raw));
+    } catch (e) {
+      scanForget();
+      return false;
+    }
+    return SCAN_LOCK.open;
+  }
+
+  function scanLockMsg(text) {
+    const e = $("#scLockErr");
+    if (!e) return;
+    e.textContent = text || "";
+    e.hidden = !text;
+  }
+
+  function scanLockBusy(on) {
+    const b = $("#scLockGo");
+    if (!b) return;
+    b.disabled = !!on;
+    b.textContent = on ? "여는 중…" : "잠금 해제";
+  }
+
+  function scanLockShake() {
+    const lock = $("#scLock");
+    if (!lock) return;
+    lock.classList.remove("shake");
+    void lock.offsetWidth;
+    lock.classList.add("shake");
+  }
+
+  function wireScannerLock() {
+    const form = $("#scLockForm");
+    if (form) form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = $("#scLockPw");
+      const pw = input ? input.value.trim() : "";
+      if (!pw) { scanLockMsg("비밀번호를 입력해 주세요."); if (input) input.focus(); return; }
+      if (!window.crypto || !crypto.subtle) {
+        scanLockMsg("이 브라우저에서는 잠금 해제를 쓸 수 없어요. https 주소로 열어 주세요.");
+        return;
+      }
+      if (SCAN_LOCK.busy) return;
+      SCAN_LOCK.busy = true;
+      scanLockMsg("");
+      scanLockBusy(true);
+      scanUnlock(pw).then((payloads) => {
+        scanApply(payloads);
+        scanRemember();
+        SCAN_LOCK.busy = false;
+        scanLockBusy(false);
+        if (input) input.value = "";
+        render();
+      }).catch(() => {
+        SCAN_LOCK.busy = false;
+        scanLockBusy(false);
+        scanLockShake();
+        scanLockMsg(scanLockTargets().length
+          ? "비밀번호가 맞지 않습니다. 다시 확인해 주세요."
+          : "이 기록에는 잠긴 조건식이 없습니다. 최근 거래일로 이동해 보세요.");
+        if (input) input.select();
+      });
+    });
+    const btn = $("#scLockBtn");
+    if (btn) btn.addEventListener("click", () => {
+      scanForget();
+      SCANNER.id = null;
+      scanLockMsg("");
+      const input = $("#scLockPw");
+      render();
+      window.scrollTo(0, 0);
+      if (input) { try { input.focus(); } catch (e) { /* 무시 */ } }
+    });
+  }
+
   /* ---------------- 조건식 관리 페이지 (상단 `조건식` 탭) ----------------
      · data.json scanners[] 를 그대로 그린다 — 조건식을 늘리면 칩·카드·목록이 자동으로 는다
      · scanners 가 없는 옛 기록은 conditionHits/conditionScan 을 1개짜리 조건식으로 폴백
@@ -7803,20 +8023,14 @@ const REPORT_DATA = [
     return cur;
   }
 
-  /* 원본 조건식 문구 — data.json 의 scanners[].rawRules/rawFormula 가 있으면 그걸 쓰고,
-     옛 기록이거나 필드가 없으면 이 기본값(사용자가 알려준 영웅문 원문)으로 보여준다. */
+  /* 원본 조건식 문구 — 잠금 해제된 scanners[].rawRules/rawFormula 를 그대로 쓴다.
+     (평문 기본값은 두지 않는다 — 이 파일은 공개 저장소에 올라간다) */
   const SCANNER_RAW = {
     source: "키움증권 영웅문 조건검색식",
     target: "대상변경",
-    rules: [
-      { key: "A", text: "주가이평배열(3):[일]0봉전 20이평 < 60이평 < 115이평" },
-      { key: "B", text: "[일]1봉전 5봉 평균거래량 55555이상 999999999이하" },
-      { key: "C", text: "5일 평균거래대금(단위:백만) 50이상 999999999이하 (<금일제외>)" },
-      { key: "D", text: "가격-이동평균 비교:[일]0봉전 (종가 20)이평 < 종가" },
-      { key: "E", text: "이평이격도:[일]0봉전(종가 20, 종가 60) 2%이내 근접 1회이상" }
-    ],
-    formula: "A and (B or C) and D and E",
-    intersection: "당일 거래대금 100억+ 교집합"
+    rules: [],
+    formula: "",
+    intersection: ""
   };
 
   function scannerRawOf(cur) {
@@ -7849,9 +8063,14 @@ const REPORT_DATA = [
     const title = $("#scRawTitle");
     const src = $("#scRawSource");
     const raw = scannerRawOf(cur);
-    if (title) title.textContent = (cur && cur.name) || "세력꿈틀이";
+    if (title) title.textContent = (cur && cur.name) || "조건식";
     if (src) src.textContent = raw.source;
     if (!body) return;
+    if (!(raw.rules || []).length && !raw.formula) {
+      body.innerHTML = '<p class="raw-note">이 기록에는 원본 조건식 문구가 없습니다. ' +
+        "잠금을 풀고 최근 거래일로 이동하면 영웅문 원문을 볼 수 있습니다.</p>";
+      return;
+    }
     const rows = [
       '<div class="raw-item"><span class="raw-k">대상</span>' +
         '<code class="raw-code">' + esc(raw.target) + "</code></div>"
@@ -7922,8 +8141,23 @@ const REPORT_DATA = [
   function renderScanner(report) {
     const page = $("#viewScanner");
     if (!page) return;
+    /* 잠금 — 복호화 전에는 잠금 카드만, 내용·원본 조건식 버튼은 숨긴다 */
+    const lock = $("#scLock");
+    const body = $("#scBody");
+    const lockBtn = $("#scLockBtn");
+    const rawBtn = $("#scRawBtn");
+    if (lock) lock.hidden = SCAN_LOCK.open;
+    if (body) body.hidden = !SCAN_LOCK.open;
+    if (lockBtn) lockBtn.hidden = !SCAN_LOCK.open;
+    if (rawBtn) rawBtn.hidden = true;
+    if (!SCAN_LOCK.open) {
+      const t = $("#scTitle");
+      if (t) t.textContent = "조건식";
+      return;
+    }
     const list = scannerList(report);
     const cur = scannerCurrent(report);
+    if (rawBtn) rawBtn.hidden = !cur;
     const chips = $("#scChips");
     if (chips) {
       /* 조건식이 2개 이상일 때만 칩 줄을 보여준다 — 한 개면 헤더와 같은 이름이 겹친다 */
@@ -7990,6 +8224,8 @@ const REPORT_DATA = [
 
   /* ---------------- 전체 ---------------- */
   function render() {
+    /* 잠금을 풀어 둔 세션이면, data.json 을 새로 받아온 뒤에도 복호화 결과를 다시 붙인다 */
+    if (SCAN_LOCK.open && SCAN_LOCK.byDate) scanApply(SCAN_LOCK.byDate);
     const report = findReport(activeDate);
     renderChrome(report);
     renderSwitcher(report);
@@ -8043,6 +8279,8 @@ const REPORT_DATA = [
     wireScan();
     wireScanner();
     wireScannerRaw();
+    wireScannerLock();
+    scanRestore();                     /* 이 탭 세션에서 이미 풀어 둔 잠금 복원 */
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
