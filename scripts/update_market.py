@@ -1036,6 +1036,17 @@ def encrypt_scan_payload(payload, password: str):
     }
 
 
+def decrypt_scan_payload(blob, password: str):
+    """scannersEncrypted 를 푼다 — 검증 스크립트·로컬 확인용(화면은 Web Crypto 로 푼다)."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
+                              base64.b64decode(blob["salt"]),
+                              int(blob.get("iter") or SCAN_ITER), 32)
+    raw = AESGCM(key).decrypt(base64.b64decode(blob["iv"]), base64.b64decode(blob["ct"]), None)
+    return json.loads(raw.decode("utf-8"))
+
+
 def strip_scan_plaintext(obj):
     """조건식 평문 키를 지운다(scannersEncrypted 는 건드리지 않는다)."""
     if not isinstance(obj, dict):

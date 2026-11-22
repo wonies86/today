@@ -6,6 +6,8 @@
     python3 scripts/verify_scan.py --live     # 네이버 일봉을 다시 받아 독립 재계산해 대조
 
 검사 항목
+  · 최신 항목의 scannersEncrypted(평문이 없는 경우)를 키로 풀어 검사 — 키는 저장소 밖
+    `../.scanner_key` 또는 환경변수 SCANNER_KEY(키가 없으면 조건식 검사는 건너뛴다)
   · 최신 항목에 conditionScan / conditionHits / chartReactions 가 있고 규칙이 맞는지
   · 포착 종목마다 A·D·E 참, B 또는 C 참, 거래대금 100억 이상, 거래대금 내림차순
   · charts.stocks 는 [시,고,저,종] 4개만 (용량 규칙)
@@ -132,11 +134,44 @@ def check_scanner(s: dict) -> None:
               f"[{name}] {h.get('name')}: B·C 모두 미충족")
 
 
+def load_scan(entry: dict) -> bool:
+    """data.json 은 조건식 결과를 암호문으로만 가지고 있다 — 키가 있으면 풀어서 entry 에 붙인다."""
+    if entry.get("scanners") or entry.get("conditionHits"):
+        return True                              # 옛 평문 기록
+    blob = entry.get("scannersEncrypted")
+    if not (isinstance(blob, dict) and blob.get("ct")):
+        return False
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        import update_market as um            # noqa: WPS433 - 같은 폴더 스크립트
+    except Exception as exc:                  # noqa: BLE001
+        print(f"  ! 잠금 해제 모듈을 불러오지 못했습니다({type(exc).__name__})")
+        return False
+    pw = um.scanner_key()
+    if not pw:
+        print("  ! 잠금 키가 없어 조건식 검사를 건너뜁니다 "
+              "(../.scanner_key 또는 환경변수 SCANNER_KEY)")
+        return False
+    try:
+        payload = um.decrypt_scan_payload(blob, pw)
+    except Exception as exc:                  # noqa: BLE001
+        print(f"  ! 잠금을 풀지 못했습니다({type(exc).__name__}) — 키가 다를 수 있습니다")
+        return False
+    for key in ("scanners", "conditionHits", "conditionScan", "chartReactions"):
+        if key in payload:
+            entry[key] = payload[key]
+    print("  · scannersEncrypted 를 키로 풀었습니다")
+    return True
+
+
 def main(argv) -> int:
     live = "--live" in argv
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     entry = data[0]
     print(f"[verify_scan] {entry.get('date')} · {DATA_PATH.stat().st_size / 1024:.0f}KB")
+    if not load_scan(entry):
+        print("  · data.json 에 풀 수 있는 조건식 기록이 없습니다.")
+        return 1
     meta = entry.get("conditionScan") or {}
     hits = entry.get("conditionHits") or []
     rx = entry.get("chartReactions") or {}
