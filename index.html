@@ -7111,14 +7111,21 @@ const REPORT_DATA = [
     const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
     const bar = $("#domBar");
     if (bar) {
-      /* 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 테마 4개(17%·7.7%)도 이름이 읽히게 */
+      /* 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 구간이 좁으면
+         이름만, 더 좁으면 퍼센트만, 그것도 안 들어가면 비운다(카드에 숫자가 있다) */
       const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 360;
+      const textW = (s) => Array.from(String(s || "")).reduce((a, ch) =>
+        a + (/[\u3000-\u9fff\uff00-\uffdc]/.test(ch) ? 10.5 : 6.3), 0);
       bar.innerHTML = items.map(({ item, tone, dim }) => {
         const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
         const share = domShareText(item.share);
         const px = w / 100 * barPx;
-        const label = px >= 50 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
-          : px >= 24 ? "<b>" + share + "</b>" : "";
+        const nameW = textW(item.name);
+        const shareW = textW(share);
+        const label = px - 8 >= nameW + 5 + shareW
+          ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
+          : px - 6 >= nameW ? '<em>' + esc(item.name) + "</em>"
+          : px - 6 >= shareW ? "<b>" + share + "</b>" : "";
         return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
           "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
       }).join("");
