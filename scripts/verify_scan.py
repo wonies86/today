@@ -108,6 +108,18 @@ def recompute(rows):
             "last": rows[-1]["d"]}
 
 
+def formula_rule(formula: str):
+    """'A and (B or C) and D' → (필수 키 [A, D], 또는 묶음 [B, C])."""
+    groups = re.findall(r"\(([^)]*)\)", formula or "")
+    flat = re.sub(r"\([^)]*\)", "", formula or "")
+    req = [t for t in re.split(r"\s+", flat) if re.fullmatch(r"[A-Z]", t)]
+    grp = []
+    for g in groups:
+        keys = [t.strip() for t in g.split("or") if re.fullmatch(r"[A-Z]", t.strip())]
+        grp.extend(keys)
+    return req, grp
+
+
 def check_scanner(s: dict) -> None:
     """scanners[] 항목 하나 — 필수 키·포착 규칙·정렬."""
     name = s.get("name") or s.get("id") or "?"
@@ -126,12 +138,16 @@ def check_scanner(s: dict) -> None:
           f"[{name}] 미통과 종목이 hits 에 있음")
     codes = [h.get("code") for h in hits]
     check(len(codes) == len(set(codes)), f"[{name}] 포착 종목 중복 없음", f"[{name}] 포착 종목 중복")
+    formula = s.get("formula") or ""
+    req, grp = formula_rule(formula)
     for h in hits:
         cnd = h.get("conditions") or {}
-        check(all(cnd.get(k) for k in ("A", "D", "E")), f"[{name}] {h.get('name')}: A·D·E 충족",
-              f"[{name}] {h.get('name')}: A·D·E 미충족 {cnd}")
-        check(bool(cnd.get("B") or cnd.get("C")), f"[{name}] {h.get('name')}: B 또는 C 충족",
-              f"[{name}] {h.get('name')}: B·C 모두 미충족")
+        # 조건식마다 규칙이 다르다 — formula 에 적힌 필수 키와 (X or Y) 묶음만 검사한다
+        check(all(cnd.get(k) for k in req), f"[{name}] {h.get('name')}: {'·'.join(req)} 충족",
+              f"[{name}] {h.get('name')}: {'·'.join(req)} 미충족 {cnd}")
+        if grp:
+            check(any(cnd.get(k) for k in grp), f"[{name}] {h.get('name')}: {' 또는 '.join(grp)} 충족",
+                  f"[{name}] {h.get('name')}: {'·'.join(grp)} 모두 미충족 {cnd}")
 
 
 def load_scan(entry: dict) -> bool:
