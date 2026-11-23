@@ -2382,10 +2382,11 @@
 .dsec{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:7px 8px 6px;min-width:0;box-shadow:0 1px 2px rgba(16,24,40,.03)}
 .dsec-h{display:flex;align-items:center;gap:5px;min-width:0}
 .dsec-r{flex:0 0 15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:#fff;line-height:1}
-.dsec-n{font-size:11.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.dsec-c{margin-left:auto;font-size:10.5px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsec-n{flex:1 1 auto;font-size:11.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dsec-rv{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+.dsec-c{font-size:10.5px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsec-rv span{font-size:8.5px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .dsec-m{margin:2px 0 5px;font-size:9px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.dsec-m b{color:var(--ink-2);font-weight:750}
 .dsec-l{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 .drow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "p v" "b b";gap:0 4px;padding:2px 2px 3px;border-radius:6px;cursor:pointer}
 .drow:hover{background:#faf7ff}
@@ -6923,16 +6924,19 @@ const REPORT_DATA = [
   }
 
   function domCard(item, idx, tone, report, dim) {
-    const meta = [domEok(item.valueEok), item.count + "종목"]
+    const meta = [domShareText(item.share), item.count + "종목"]
       .concat(item.rise == null ? [] : ["▲" + item.rise + " ▼" + item.fall]).join(" · ");
     return '<article class="dsec">' +
       '<div class="dsec-h">' +
         (dim ? "" : '<span class="dsec-r" style="background:' + tone + '" aria-hidden="true">' +
           (idx + 1) + "</span>") +
-        '<span class="dsec-n"' + (dim ? ' style="flex:1"' : "") + ">" + esc(item.name) + "</span>" +
-        '<span class="dsec-c ' + sDir(item.chg) + '">' + sPct(item.chg) + "</span>" +
+        '<span class="dsec-n">' + esc(item.name) + "</span>" +
+        '<span class="dsec-rv">' +
+          '<b class="dsec-c ' + sDir(item.chg) + '">' + sPct(item.chg) + "</b>" +
+          "<span>" + esc(domEok(item.valueEok)) + "</span>" +
+        "</span>" +
       "</div>" +
-      '<p class="dsec-m"><b>' + esc(domShareText(item.share)) + "</b> · " + esc(meta) + "</p>" +
+      '<p class="dsec-m">' + esc(meta) + "</p>" +
       '<ul class="dsec-l">' +
         (item.stocks || []).map((st) => domStockRow(report, st, tone)).join("") +
       "</ul>" +
