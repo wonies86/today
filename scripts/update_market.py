@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import html as html_lib
 import json
 import math
 import os
@@ -93,6 +94,35 @@ DOM_FOURTH_SHARE = 5.0   # 4번째 섹터를 넣는 최소 점유율(%) — 테�
                          #   걸려 개별이슈로 사라지던 문제로 10.0 → 5.0 (2026-11-23 사용자 지적)
 DOM_STOCKS = 5           # 섹터 카드에 담는 종목 수(거래대금 순)
 DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
+
+# ── 기관·외국인 연속 순매수(investorStreak) + 종목 뉴스 악재 스캔 ────────────────
+# 599종목을 매번 긁으면 갱신이 느려진다 — 화면에 실제로 노출되는 종목(주도 섹터 카드·
+# 관찰 5선·조건식 포착)만 병렬로 받는다. 실패한 종목은 배지만 빠지고 나머지는 그대로.
+INVESTOR_TREND_URL = API + "/stock/{code}/trend"        # itemCode·bizdate·foreignerPureBuyQuant·organPureBuyQuant
+INVESTOR_NEWS_URL = API + "/news/stock/{code}"          # [{items:[{title, body, mobileNewsUrl, datetime, officeName}]}]
+INVESTOR_TIMEOUT = 4          # 종목당 타임아웃(초)
+INVESTOR_WORKERS = 10         # 병렬 수집 스레드 수
+INVESTOR_MAX_CODES = 48       # 한 실행에서 수집할 최대 종목 수(갱신 시간 상한)
+INVESTOR_DAYS = 10            # trend API 가 주는 최근 거래일(최대 10)
+INVESTOR_RECENT = 5           # recent5 에 담는 거래일 수
+INVESTOR_MIN_STREAK = 2       # 배지를 붙이는 최소 연속 일수
+INVESTOR_TTL_MIN = 30         # 연속매수 캐시 유효 시간(분) — 순매수 수량은 하루 한 번 바뀐다
+NEWS_TTL_MIN = 15             # 뉴스 캐시 유효 시간(분)
+NEWS_COUNT = 3                # 종목당 수집 기사 수
+
+# 악재 키워드 — 종목 뉴스 제목·요약에서 찾는다(사전에 없는 단어는 만들지 않는다)
+NEWS_BAD_WORDS = (
+    "유상증자", "전환사채", "CB", "BW", "신주인수권", "3자배정", "횡령", "배임",
+    "투자경고", "투자주의환기", "거래정지", "감사의견", "실적쇼크",
+    "관리종목", "불성실공시", "상장폐지", "파산", "회생절차",
+    "압수수색", "경영권분쟁", "무상감자", "감자결정", "소송",
+    "리콜", "단기과열", "공매도과열", "목표가하향",
+)
+# 영문 약어는 단어 경계로만 — 'CBE'·'BWTS' 같은 낱말 안에서는 잡지 않는다
+NEWS_BAD_ASCII = {
+    "CB": r"(?<![A-Za-z0-9])CB(?![A-Za-z0-9])",
+    "BW": r"(?<![A-Za-z0-9])BW(?![A-Za-z0-9])",
+}
 
 # ── 실전 테마 매핑 ─────────────────────────────────────────────────────────────
 # 네이버 업종명(`기계`·`화장품`·`소프트웨어` …)은 같은 테마를 여러 업종으로 찢어 놓는다.
@@ -712,6 +742,291 @@ def build_sector_dominance(all_stocks, now):
         "individual": individual,
         "rule": f"점유율 = 섹터 합산 거래대금 ÷ {_rise_label()} 종목 거래대금",
     }
+
+
+# ---------------------------------------------------------------- 기관·외인 연속매수
+def _clean_text(value, limit: int = 0) -> str:
+    """뉴스 제목·요약에서 HTML 태그·엔티티를 걷어낸 평문."""
+    s = html_lib.unescape(str(value or ""))
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:limit].rstrip() if limit and len(s) > limit else s
+
+
+def scan_bad_keywords(text: str) -> list[str]:
+    """글에서 악재 키워드를 찾는다 — 등장한 키워드 목록(중복 없음).
+
+    · 한글 키워드는 부분 문자열, 영문 약어(CB·BW)는 단어 경계로만 본다
+    · 사전(NEWS_BAD_WORDS)에 있는 말만 돌려준다 — 문장을 새로 해석하지 않는다
+    """
+    s = _clean_text(text)
+    if not s:
+        return []
+    found = []
+    for word in NEWS_BAD_WORDS:
+        pattern = NEWS_BAD_ASCII.get(word)
+        if pattern:
+            hit = bool(re.search(pattern, s))
+        else:
+            hit = word in s
+        if hit and word not in found:
+            found.append(word)
+    return found
+
+
+def _streak(values) -> int:
+    """최신일 우선 순매수 수량 목록 → 연속 순매수 일수(순매도 연속이면 음수).
+
+    · 첫날(최신)이 순매수가 아니면 순매도 연속을 음수로 센다
+    · 0(보합)은 연속을 끊는다 — 없는 수를 이어 붙이지 않는다
+    """
+    if not values:
+        return 0
+    first = values[0]
+    if not first:
+        return 0
+    sign = 1 if first > 0 else -1
+    n = 0
+    for v in values:
+        if v is not None and v * sign > 0:
+            n += 1
+        else:
+            break
+    return sign * n
+
+
+def build_investor_streak(rows):
+    """trend API 응답 → 종목 하나의 연속매수 요약(실패·빈 값이면 None).
+
+    반환: {asOf, days, frgnStreak, instStreak, dualStreak, recent5, instDetail}
+      · frgnStreak / instStreak : 연속 순매수 일수(순매도 연속이면 음수)
+      · dualStreak              : 외국인·기관이 같은 날 모두 순매수인 연속 일수(아니면 0)
+      · recent5                 : 최근 5거래일 [{dt, frgn, orgn}] — **오래된 → 최신** 순
+      · instDetail              : 키움 REST ka10059(투신·연기금) 세분화 자리 — 지금은 None
+    """
+    clean = []
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        dt = str(r.get("bizdate") or "")
+        if len(dt) != 8 or not dt.isdigit():
+            continue
+        clean.append({"dt": dt,
+                      "frgn": to_int(r.get("foreignerPureBuyQuant")),
+                      "orgn": to_int(r.get("organPureBuyQuant"))})
+    if not clean:
+        return None
+    clean.sort(key=lambda x: x["dt"], reverse=True)
+    clean = clean[:INVESTOR_DAYS]
+    dual = 0
+    for c in clean:
+        if c["frgn"] is not None and c["orgn"] is not None and c["frgn"] > 0 and c["orgn"] > 0:
+            dual += 1
+        else:
+            break
+    recent = list(reversed(clean[:INVESTOR_RECENT]))      # 오래된 → 최신
+    return {
+        "asOf": clean[0]["dt"],
+        "days": len(clean),
+        "frgnStreak": _streak([c["frgn"] for c in clean]),
+        "instStreak": _streak([c["orgn"] for c in clean]),
+        "dualStreak": dual,
+        "recent5": [{"dt": c["dt"], "frgn": c["frgn"], "orgn": c["orgn"]} for c in recent],
+        "instDetail": None,
+    }
+
+
+def _dot_date(dt: str) -> str:
+    """'20261120' → '2026.11.20'."""
+    return f"{dt[:4]}.{dt[4:6]}.{dt[6:8]}" if len(dt) == 8 else dt
+
+
+def fetch_investor_trend(code: str):
+    """종목별 외국인·기관 순매수 수량(최근 거래일, 최신 우선). 실패 시 None."""
+    data = get_json(INVESTOR_TREND_URL.format(code=code), timeout=INVESTOR_TIMEOUT, tries=1)
+    return data if isinstance(data, list) and data else None
+
+
+def fetch_investor_news(code: str):
+    """종목 뉴스 제목·요약(최신 3건) — 실패 시 None."""
+    data = get_json(INVESTOR_NEWS_URL.format(code=code), timeout=INVESTOR_TIMEOUT, tries=1)
+    if data is None:
+        return None
+    raw = []
+    for group in data if isinstance(data, list) else []:
+        if not isinstance(group, dict):
+            continue
+        for it in group.get("items") or []:
+            if isinstance(it, dict):
+                raw.append(it)
+    if not raw:
+        return []
+    seen, arts = set(), []
+    for it in sorted(raw, key=lambda x: str(x.get("datetime") or ""), reverse=True):
+        key = str(it.get("id") or it.get("articleId") or it.get("title") or "")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        arts.append({
+            "title": _clean_text(it.get("titleFull") or it.get("title"), 140),
+            "body": _clean_text(it.get("body"), 90),
+            "url": str(it.get("mobileNewsUrl") or ""),
+            "office": _clean_text(it.get("officeName"), 20),
+            "dt": str(it.get("datetime") or ""),
+        })
+        if len(arts) >= NEWS_COUNT:
+            break
+    return arts
+
+
+def build_news_check(articles):
+    """기사 목록 → 악재 키워드 스캔 결과(종목 하나).
+
+    · 제목과 요약을 함께 스캔하고, 걸린 키워드를 기사마다 남긴다
+    · 키워드가 하나도 없으면 flagged=False — '특이 악재 뉴스 미확인'
+    """
+    items = []
+    words = []
+    for a in articles or []:
+        hits = scan_bad_keywords((a.get("title") or "") + " " + (a.get("body") or ""))
+        for w in hits:
+            if w not in words:
+                words.append(w)
+        items.append({"title": a.get("title") or "", "body": a.get("body") or "",
+                      "url": a.get("url") or "", "office": a.get("office") or "",
+                      "dt": a.get("dt") or "", "hit": hits})
+    return {"checked": len(items), "flagged": bool(words), "keywords": words, "items": items}
+
+
+def investor_target_codes(dominance, watchlist, scan_hits, cached):
+    """연속매수를 수집할 종목 — 화면에 노출되는 종목만(중복 제거, 최대 INVESTOR_MAX_CODES).
+
+    주도 섹터 카드(섹터 + 개별이슈) → 관찰 5선 → 조건식 포착 → 지난 실행에 있던 종목 순.
+    마지막 순서(캐시)는 잠금 키 없이 도는 실행에서도 배지가 사라지지 않게 한다.
+    """
+    out = []
+    def add(code):
+        code = str(code or "").strip()
+        if code and code not in out:
+            out.append(code)
+    blocks = list((dominance or {}).get("sectors") or [])
+    if (dominance or {}).get("individual"):
+        blocks.append(dominance["individual"])
+    for block in blocks:
+        for st in block.get("stocks") or []:
+            add(st.get("code"))
+    for w in watchlist or []:
+        add(w.get("ticker"))
+    for h in scan_hits or []:
+        add(h.get("code"))
+    for code in (cached or {}).get("order") or []:
+        add(code)
+    return out[:INVESTOR_MAX_CODES]
+
+
+def _cache_age_min(stamp, now):
+    """캐시 생성 시각(iso) → 지난 분. 읽을 수 없으면 None(오래된 것으로 본다)."""
+    try:
+        t = datetime.fromisoformat(str(stamp or ""))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=KST)
+        return (now - t).total_seconds() / 60
+    except (TypeError, ValueError):
+        return None
+
+
+def build_investor_blocks(codes, cached_streak, cached_news, now):
+    """(investorStreak, investorNews) — 캐시가 신선하면 그대로 쓰고 모자란 종목만 병렬 수집.
+
+    · 5분마다 40종목×2요청을 다시 받지 않도록 종목별 생성 시각(`at`)으로 캐시를 판단한다
+    · 수집에 실패한 종목은 이전 값을 그대로 유지한다(0이나 빈 배지를 만들지 않는다)
+    · 갱신 시간은 ThreadPoolExecutor 로 묶어 2~3초 안에 끝나게 한다
+    """
+    codes = [str(c) for c in (codes or []) if c][:INVESTOR_MAX_CODES]
+    if not codes:
+        return None, None
+    streak_src = ((cached_streak or {}).get("stocks") or {})
+    news_src = ((cached_news or {}).get("stocks") or {})
+
+    def fresh(src, code, ttl):
+        item = src.get(code)
+        if not isinstance(item, dict):
+            return False
+        age = _cache_age_min(item.get("at"), now)
+        return age is not None and 0 <= age <= ttl
+
+    need_streak = [c for c in codes if not fresh(streak_src, c, INVESTOR_TTL_MIN)]
+    need_news = [c for c in codes if not fresh(news_src, c, NEWS_TTL_MIN)]
+    streaks = {c: dict(streak_src[c]) for c in codes
+               if c in streak_src and c not in need_streak}
+    news = {c: dict(news_src[c]) for c in codes
+            if c in news_src and c not in need_news}
+    fetched = reused = 0
+    started = time.time()
+
+    if need_streak or need_news:
+        with ThreadPoolExecutor(max_workers=INVESTOR_WORKERS) as pool:
+            f_streak = {c: pool.submit(fetch_investor_trend, c) for c in need_streak}
+            f_news = {c: pool.submit(fetch_investor_news, c) for c in need_news}
+            for c, fut in f_streak.items():
+                try:
+                    rows = fut.result(timeout=INVESTOR_TIMEOUT + 3)
+                except Exception:           # noqa: BLE001 — 한 종목 실패는 배지만 빠진다
+                    rows = None
+                item = build_investor_streak(rows) if rows else None
+                if item:
+                    item["at"] = now.isoformat(timespec="seconds")
+                    streaks[c] = item
+                    fetched += 1
+                elif c in streak_src:
+                    streaks[c] = dict(streak_src[c])     # 이번엔 실패 — 이전 값 유지
+                    reused += 1
+            for c, fut in f_news.items():
+                try:
+                    arts = fut.result(timeout=INVESTOR_TIMEOUT + 3)
+                except Exception:           # noqa: BLE001
+                    arts = None
+                if arts:
+                    item = build_news_check(arts)
+                    item["at"] = now.isoformat(timespec="seconds")
+                    news[c] = item
+                    fetched += 1
+                elif arts == [] and c not in news_src:
+                    # 뉴스가 정말 없는 날 — '확인했고 없다'를 남긴다
+                    news[c] = {"checked": 0, "flagged": False, "keywords": [], "items": [],
+                               "at": now.isoformat(timespec="seconds")}
+                    fetched += 1
+                elif c in news_src:
+                    news[c] = dict(news_src[c])
+                    reused += 1
+
+    order = [c for c in codes if c in streaks]
+    if not order:
+        return None, None
+    as_dates = sorted({streaks[c].get("asOf") for c in order if streaks[c].get("asOf")})
+    as_of = as_dates[-1] if as_dates else ""
+    streak_block = {
+        "asOf": as_of,
+        "basis": (_dot_date(as_of) + " 기준 · 최근 " +
+                  str(max((streaks[c].get("days") or 0) for c in order)) + "거래일 수량"),
+        "rule": (f"최근 거래일부터 연속 순매수 일수(순매도 연속은 음수) · "
+                 f"{INVESTOR_MIN_STREAK}일↑만 배지 · 단위 주"),
+        "minStreak": INVESTOR_MIN_STREAK,
+        "order": order,
+        "stocks": {c: streaks[c] for c in order},
+    }
+    news_items = {c: news[c] for c in codes if c in news}
+    news_at = max((v.get("at") or "" for v in news_items.values()), default="")
+    news_block = {
+        # 생성 시각은 새로 받은 종목이 있을 때만 움직인다 — 캐시만 쓴 실행은 data.json 을 바꾸지 않도록
+        "asOf": (news_at[5:16].replace("T", " ") if news_at else ""),
+        "rule": f"종목 뉴스 최신 {NEWS_COUNT}건 제목·요약 악재 키워드 스캔",
+        "keywords": list(NEWS_BAD_WORDS),
+        "stocks": news_items,
+    }
+    log(f"    연속매수·뉴스 수집: 요청 {len(need_streak)}+{len(need_news)}건 · "
+        f"새로 받음 {fetched} · 이전 값 유지 {reused} · {time.time() - started:.1f}초")
+    return streak_block, news_block
 
 
 def fetch_chart(code: str, count: int = CHART_DAYS):
@@ -2807,6 +3122,7 @@ def main(argv):
         entry.pop("charts", None)
 
     # 6-2) 조건식 × 당일 수급 교집합 + 과거 차트 반응 (거래량은 메모리에서만)
+    scan = None
     if series:
         scan = build_condition_scan(series, all_stocks, set(target_codes + card_codes), now)
         if scan and apply_scan(entry, scan):
@@ -2816,6 +3132,27 @@ def main(argv):
     else:
         # 일봉을 새로 받지 않은 실행(20분 캐시) — 직전 스캔을 그대로 이어 쓴다
         carry_scan(entry, old_entry, prev_entry)
+
+    # 6-3) 기관·외국인 연속 순매수 배지 + 종목 뉴스 3건 악재 스캔
+    #      화면에 노출되는 종목(주도 섹터 카드·관찰 5선·조건식 포착)만 병렬 수집한다.
+    #      잠금 키 없이 도는 실행(5분 cron)은 이전 값을 이어 쓰고 모자란 종목만 새로 받는다.
+    invest_started = time.time()
+    invest_codes = investor_target_codes(entry.get("sectorDominance"), entry.get("watchlist"),
+                                        (scan or {}).get("hits"), (old_entry or {}).get("investorStreak"))
+    streak_block, news_block = build_investor_blocks(
+        invest_codes,
+        (old_entry or {}).get("investorStreak"),
+        (old_entry or {}).get("investorNews"),
+        now)
+    if streak_block:
+        name_of = {str(r[0]): r[1] for r in (all_stocks or []) if r and len(r) > 1 and r[1]}
+        for code, item in streak_block["stocks"].items():
+            if name_of.get(code) and not item.get("name"):
+                item["name"] = name_of[code]        # 종목명으로도 배지를 찾을 수 있게
+        entry["investorStreak"] = streak_block
+    if news_block:
+        entry["investorNews"] = news_block
+    invest_secs = time.time() - invest_started
 
     # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
     if old_entry and _without_dynamic(entry) == _without_dynamic(old_entry):
@@ -2829,6 +3166,8 @@ def main(argv):
         if d is not entry and d.get("date") != date_str:
             d.pop("allStocks", None)
             d.pop("charts", None)
+            d.pop("investorStreak", None)
+            d.pop("investorNews", None)
 
     # allStocks는 종목 수가 많아 한 줄 압축(다른 필드는 그대로 읽기 좋게 들여쓰기 유지)
     rows = entry.get("allStocks")
@@ -2855,6 +3194,18 @@ def main(argv):
     if industries:
         log("    상승 업종: " + ", ".join(f"{i['name']} {i['chg']:+.2f}%" for i in industries[:3]))
     log("    관찰 5선: " + ", ".join(f"{w['name']} {w['price']}" for w in entry.get("watchlist", [])))
+    if entry.get("investorStreak"):
+        isb = entry["investorStreak"]
+        def _badge_on(item):
+            item = item or {}
+            return ((item.get("dualStreak") or 0) >= INVESTOR_MIN_STREAK
+                    or (item.get("instStreak") or 0) >= INVESTOR_MIN_STREAK
+                    or (item.get("frgnStreak") or 0) >= INVESTOR_MIN_STREAK)
+        on = sum(1 for c in isb.get("order") or [] if _badge_on(isb["stocks"].get(c)))
+        flagged = sum(1 for v in ((entry.get("investorNews") or {}).get("stocks") or {}).values()
+                      if v.get("flagged"))
+        log(f"    연속매수 {len(isb.get('order') or [])}종목 수집({isb.get('asOf')} 기준, "
+            f"배지 {on}종목, {invest_secs:.1f}초 추가) · 악재 키워드 감지 {flagged}종목")
     if WARNINGS:
         log(f"    경고 {len(WARNINGS)}건(위 목록) — 해당 부분은 이전 값 또는 대체 값으로 채웠습니다.")
     return 0

@@ -263,6 +263,48 @@ def main(argv) -> int:
     size_kb = DATA_PATH.stat().st_size / 1024
     check(size_kb < 3000, f"data.json {size_kb:.0f}KB (3,000KB 미만)", f"data.json 비대 {size_kb:.0f}KB")
 
+    # ── 기관·외인 연속 순매수(investorStreak) + 종목 뉴스 3건 ──
+    inv = entry.get("investorStreak") or {}
+    inv_stocks = inv.get("stocks") or {}
+    check(bool(inv_stocks), f"investorStreak {len(inv_stocks)}종목", "investorStreak 없음")
+    if inv_stocks:
+        check(inv.get("order") == list(inv_stocks.keys()),
+              "order == stocks 키 목록", "order 와 stocks 불일치")
+        check(len(inv_stocks) <= 48, f"수집 상한 48종목 이하({len(inv_stocks)})",
+              f"수집 종목 초과 {len(inv_stocks)}")
+        check(bool(inv.get("asOf")) and len(str(inv.get("asOf"))) == 8,
+              f"기준일 {inv.get('asOf')}", f"기준일 형식 이상 {inv.get('asOf')}")
+        bad_rows = []
+        for code, item in inv_stocks.items():
+            rec = item.get("recent5") or []
+            dts = [r.get("dt") for r in rec]
+            streak_ok = all(isinstance(item.get(k), int)
+                            for k in ("frgnStreak", "instStreak", "dualStreak"))
+            if (not streak_ok or len(rec) > 5 or dts != sorted(dts)
+                    or item.get("dualStreak", 0) < 0
+                    or item.get("dualStreak", 0) > max(0, item.get("days", 0))
+                    or abs(item.get("frgnStreak", 0)) > item.get("days", 0)
+                    or abs(item.get("instStreak", 0)) > item.get("days", 0)
+                    or item.get("instDetail", 0) is not None
+                    or any((r.get("dt") or "") < (inv.get("asOf") or "") for r in rec[-1:])):
+                bad_rows.append(code)
+        check(not bad_rows, "연속일수·recent5(오래된→최신)·instDetail=None 규칙 맞음",
+              f"연속매수 기록 이상 {bad_rows[:5]}")
+    news = entry.get("investorNews") or {}
+    news_stocks = news.get("stocks") or {}
+    check(bool(news_stocks), f"investorNews {len(news_stocks)}종목", "investorNews 없음")
+    if news_stocks:
+        check(all(0 <= (v.get("checked") or 0) <= 3 for v in news_stocks.values()),
+              "종목당 뉴스 3건 이하", "뉴스 3건 초과")
+        check(all(v.get("flagged") == bool(v.get("keywords")) for v in news_stocks.values()),
+              "flagged == 키워드 유무", "flagged 와 keywords 불일치")
+        urls = [i.get("url") for v in news_stocks.values() for i in (v.get("items") or [])]
+        check(all(u.startswith("http") for u in urls), f"뉴스 링크 {len(urls)}건 http 형식",
+              "뉴스 링크 형식 이상")
+        check(set(inv_stocks) == set(news_stocks) or not inv_stocks,
+              "수급·뉴스 수집 종목 일치",
+              f"수급 {len(inv_stocks)} vs 뉴스 {len(news_stocks)} 종목 다름")
+
     if live:
         print("[live] 네이버 일봉으로 독립 재계산 대조…")
         with ThreadPoolExecutor(max_workers=8) as pool:
