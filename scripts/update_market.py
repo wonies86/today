@@ -84,7 +84,7 @@ CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·6
 CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
 CHARTS_MARK = "__CHARTS_JSON__"
 
-# 주도 섹터 점유율(sectorDominance) — 화면 막대·카드
+# 주도 섹터 점유율(sectorDominance) — 화면 막대·카드 (모수 = 당일 상승 종목 거래대금)
 DOM_TOP = 3              # 기본 주도 섹터 수
 DOM_TOP_MAX = 4          # 4번째 섹터 점유율이 DOM_FOURTH_SHARE 이상이면 4개까지
 DOM_FOURTH_SHARE = 10.0  # 4번째 섹터를 넣는 최소 점유율(%)
@@ -579,18 +579,29 @@ def _dom_block(name, stocks, cap=DOM_STOCKS):
     }
 
 
-def build_sector_dominance(all_stocks, now):
-    """주도 섹터 점유율 — 전 종목 인덱스의 당일 거래대금 비중을 섹터별로 계산한다.
+def _is_rising(row) -> bool:
+    """allStocks 한 줄이 당일 상승(등락률 > 0)인지 — 등락률이 없거나 0이면 상승이 아니다."""
+    try:
+        return float(row[4]) > 0
+    except (TypeError, ValueError, IndexError):
+        return False
 
-    · 분모: 전 종목 인덱스(allStocks) 중 업종이 붙고 거래대금이 있는 종목의 거래대금 합.
-      화면에 그 분모(종목 수·금액)를 그대로 적는다 — 시장 전체 거래대금이 아니다.
-    · 점유율 = 섹터 합산 거래대금 ÷ 분모 × 100 (한 자리 반올림)
-    · 상위 3개(4번째 섹터가 10% 이상이면 4개)를 주도 섹터로, 나머지 전 종목을
+
+def build_sector_dominance(all_stocks, now):
+    """주도 섹터 점유율 — **상승 종목**의 당일 거래대금 비중을 섹터별로 계산한다.
+
+    · 모수: 전 종목 인덱스(allStocks) 중 당일 등락률이 0보다 큰(상승) 종목이면서
+      업종이 붙고 거래대금이 있는 종목. 하락·보합 종목의 거래대금은 넣지 않는다.
+      화면에 그 모수(종목 수·금액)를 그대로 적는다 — 시장 전체 거래대금이 아니다.
+    · 점유율 = 섹터 합산 거래대금 ÷ 상승 종목 거래대금 × 100 (한 자리 반올림)
+    · 상위 3개(4번째 섹터가 10% 이상이면 4개)를 주도 섹터로, 나머지 상승 종목을
       `개별이슈`로 묶어 합계가 정확히 100.0%가 되게 한다
     · 등락률은 섹터 종목의 단순 평균(실측 등락률만), 추정·보간 없음
+    · 상승 종목이 하나도 없는 날은 None — 화면은 이 패널을 숨긴다
     """
     rows = [r for r in (all_stocks or [])
-            if isinstance(r, list) and len(r) >= 7 and r[6] and (r[5] or 0) > 0]
+            if isinstance(r, list) and len(r) >= 7 and r[6] and (r[5] or 0) > 0
+            and _is_rising(r)]
     total = sum(r[5] for r in rows)
     if not rows or total <= 0:
         return None
@@ -622,12 +633,13 @@ def build_sector_dominance(all_stocks, now):
 
     return {
         "asOf": now.strftime("%H:%M"),
-        "basis": f"감시 {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
+        "basis": f"상승 {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
+        "basisMode": "rise",
         "totalEok": int(total),
         "universe": len(rows),
         "sectors": sectors,
         "individual": individual,
-        "rule": "점유율 = 섹터 합산 거래대금 ÷ 감시 종목 거래대금",
+        "rule": "점유율 = 섹터 합산 거래대금 ÷ 상승 종목 거래대금",
     }
 
 
