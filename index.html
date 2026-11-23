@@ -6970,7 +6970,7 @@ const REPORT_DATA = [
     }
 
     const basis = $("#domBasis");
-    if (basis) basis.textContent = (dom.basis || "") + (dom.rule ? " · " + dom.rule : "");
+    if (basis) basis.textContent = dom.basis || "";
     const cards = $("#domCards");
     if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
       domCard(item, i, tone, report, dim)).join("");
