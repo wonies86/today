@@ -6960,8 +6960,8 @@ const REPORT_DATA = [
       bar.innerHTML = items.map(({ item, tone, dim }) => {
         const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
         const share = domShareText(item.share);
-        const label = w >= 15 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
-          : w >= 5 ? "<b>" + share + "</b>" : "";
+        const label = w >= 20 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
+          : w >= 8 ? "<b>" + share + "</b>" : "";
         return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
           "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
       }).join("");

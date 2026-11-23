@@ -18,7 +18,7 @@
     try {
       var w = f.contentWindow;
       var el = w.document.getElementById('domBox');
-      if (el) w.scrollTo(0, el.getBoundingClientRect().top + w.scrollY - 58);
+      if (el) w.scrollTo(0, el.getBoundingClientRect().top + w.scrollY - 74);
     } catch (e) {}
   }
   f.addEventListener('load', function () { setTimeout(jump, 1200); setTimeout(jump, 3000); });
