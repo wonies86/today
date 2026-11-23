@@ -2359,6 +2359,47 @@
 .ta-scan-sec .scan-sample{margin:6px 0 0;font-size:10px;line-height:1.5;color:#5a657a}
 .ta-scan-sec .scan-sample b{color:#101828;font-weight:800}
 
+/* ============================================================
+   주도 섹터 점유율 — 가로 스택 막대 + 섹터별 실시간 카드
+   · data.json `sectorDominance` (update_market.py가 매 시세 갱신마다 재계산)
+   · 구간 색과 카드 배지 색이 같다 (같은 섹터 = 같은 색)
+   ============================================================ */
+.dom{margin:2px 0 12px}
+.dom-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 2px 7px}
+.dom-title{margin:0;font-size:12.5px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.dom-meta{font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.dom-meta .dot{opacity:.5;margin:0 3px}
+.dom-bar{display:flex;height:31px;border-radius:9px;overflow:hidden;background:var(--line-2);box-shadow:inset 0 0 0 1px rgba(16,24,40,.05)}
+.dom-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;transition:width .4s ease}
+.dom-seg + .dom-seg{box-shadow:inset 2px 0 0 rgba(255,255,255,.8)}
+.dom-seg em{font-style:normal;font-weight:750;opacity:.92;margin-right:4px;overflow:hidden;text-overflow:ellipsis}
+.dom-seg b{font-weight:820;font-variant-numeric:tabular-nums}
+.dom-seg.dim{color:#2b3644}
+.dom-basis{margin:5px 2px 0;font-size:9.5px;color:var(--mute);line-height:1.45}
+.dom-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:7px}
+@media (min-width:660px){.dom-cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}}
+@media (max-width:339px){.dom-cards{grid-template-columns:1fr}}
+.dsec{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:7px 8px 6px;min-width:0;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+.dsec-h{display:flex;align-items:center;gap:5px;min-width:0}
+.dsec-r{flex:0 0 15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:#fff;line-height:1}
+.dsec-n{font-size:11.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dsec-c{margin-left:auto;font-size:10.5px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsec-m{margin:2px 0 5px;font-size:9px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.dsec-m b{color:var(--ink-2);font-weight:750}
+.dsec-l{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "p v" "b b";gap:0 4px;padding:2px 2px 3px;border-radius:6px;cursor:pointer}
+.drow:hover{background:#faf7ff}
+.drow:focus-visible{outline:2px solid #8b5cf6;outline-offset:1px}
+.dn{grid-area:n;font-size:10.5px;font-weight:750;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.dc{grid-area:c;font-size:10px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dp{grid-area:p;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dv{grid-area:v;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.dbar{grid-area:b;position:relative;display:block;height:5px;margin-top:2px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.dbar i{position:absolute;top:0;bottom:0;border-radius:2px;opacity:.85}
+.dbar s{position:absolute;top:-1px;bottom:-1px;width:1.5px;background:#475569;opacity:.55}
+.dom-foot{margin:7px 2px 0;font-size:9px;line-height:1.5;color:var(--mute)}
+#viewSimple .dom{margin-top:9px}
+
 </style>
 </head>
 <body>
@@ -2403,6 +2444,9 @@
 
   <!-- ======================= 시장 상태 ======================= -->
   <div class="statusbar" id="statusbar"></div>
+
+  <!-- 주도 섹터 점유율 자리 (상세 뷰 상단) — JS가 보이는 뷰로 옮긴다 -->
+  <div id="domHostDetail"></div>
 
   <!-- ======================= 세션 스위처 ======================= -->
   <section class="session" aria-label="세션 타임라인">
@@ -2479,6 +2523,20 @@
   <main id="viewSimple" aria-label="오늘 증시 요약">
     <div class="s-wrap">
       <section class="card strip" id="sStrip" aria-label="지수·수급 요약"></section>
+
+      <!-- 주도 섹터 점유율 (심플·상세 공통) — JS가 보이는 뷰의 자리로 옮긴다 -->
+      <div id="domHostSimple">
+      <section class="dom" id="domBox" aria-labelledby="domTitle" hidden>
+        <div class="dom-head">
+          <h2 class="dom-title" id="domTitle">주도 섹터 점유율</h2>
+          <span class="dom-meta" id="domMeta"><span id="domLive"></span><span class="dot">·</span><span id="domAge"></span></span>
+        </div>
+        <div class="dom-bar" id="domBar" role="img" aria-label="주도 섹터 점유율"></div>
+        <p class="dom-basis" id="domBasis"></p>
+        <div class="dom-cards" id="domCards"></div>
+        <p class="dom-foot" id="domFoot"></p>
+      </section>
+      </div>
 
       <div id="qaHostSimple">
   <!-- ======================= QA 패널 (심플·상세 공통) ======================= -->
@@ -6790,6 +6848,196 @@ const REPORT_DATA = [
     $("#sSectorHint").textContent = summary ? "확인된 정보만" : "수급 집중 · 상위 3종목";
   }
 
+  /* ---------------- 주도 섹터 점유율 (data.json sectorDominance) ----------------
+     · 숫자는 update_market.py가 매 시세 갱신마다 allStocks 실시간 거래대금으로 다시 계산한 값
+       (점유율 = 섹터 합산 거래대금 ÷ 감시 종목 거래대금)
+     · 막대 구간 색 = 카드 배지 색 — 같은 섹터는 같은 색
+     · 카드 종목 막대는 data.json charts(일봉)의 당일 고·저 중 현재가 위치. 오늘 봉이 없으면
+       보유 일봉(최대 120일) 전체 고·저 기준으로 바꿔 표기한다(없는 값을 만들지 않는다)
+     ------------------------------------------------------------------------- */
+  const DOM_TONES = ["#3f5a6d", "#0e9488", "#5b53c8", "#b0722a"];
+  const DOM_GRAY = "#c3ccd6";
+  const DOM_POLL_MS = 60000;
+
+  function domEok(v) {
+    const n = Math.round(Number(v) || 0);
+    if (Math.abs(n) >= 10000) {
+      const jo = n / 10000;
+      return (Math.abs(jo) >= 100 ? Math.round(jo).toLocaleString("ko-KR") : jo.toFixed(1)) + "조";
+    }
+    return n.toLocaleString("ko-KR") + "억";
+  }
+
+  function domShareText(v) {
+    return (sNull(v) ? 0 : Math.round(Number(v) * 10) / 10).toFixed(1) + "%";
+  }
+
+  /* 당일(없으면 보유 일봉 전체) 고·저 범위에서 현재가 위치 — charts 실측 일봉만 */
+  function domRange(report, code, price) {
+    const ch = report && report.charts && report.charts.stocks && report.charts.stocks[code];
+    if (!ch || !ch.length || sNull(price)) return null;
+    const last = ch[ch.length - 1];
+    const dates = (report.charts && report.charts.dates) || [];
+    const today = String(report.date || "").replace(/-/g, "");
+    const isToday = dates.length > 0 && String(dates[dates.length - 1]) === today;
+    let lo, hi, prev, span;
+    if (isToday) {
+      lo = last[2];
+      hi = last[1];
+      prev = ch.length > 1 ? ch[ch.length - 2][3] : null;
+      span = "당일";
+    } else {
+      lo = Infinity;
+      hi = -Infinity;
+      ch.forEach((r) => { if (r[2] < lo) lo = r[2]; if (r[1] > hi) hi = r[1]; });
+      prev = last[3];
+      span = ch.length + "일";
+    }
+    if (!(hi > lo)) return null;
+    const at = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+    return { p: at(price), prev: sNull(prev) ? null : at(prev), span: span };
+  }
+
+  function domStockRow(report, st, tone) {
+    const range = domRange(report, st.code, st.price);
+    let bar = '<span class="dbar" aria-hidden="true"></span>';
+    if (range) {
+      const from = range.prev == null ? 0 : Math.min(range.p, range.prev);
+      const to = range.prev == null ? range.p : Math.max(range.p, range.prev);
+      const fill = st.chg > 0 ? "var(--up)" : st.chg < 0 ? "var(--down)" : tone;
+      bar = '<span class="dbar" aria-hidden="true">' +
+        '<i style="left:' + from.toFixed(1) + "%;width:" + Math.max(1.5, to - from).toFixed(1) +
+          "%;background:" + fill + '"></i>' +
+        (range.prev == null ? "" : '<s style="left:' + range.prev.toFixed(1) + '%"></s>') +
+      "</span>";
+    }
+    return '<li class="drow" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
+      'aria-label="' + esc(st.name) + " " + sPct(st.chg) + " · 차트 분석 보기" +
+      (range ? " · " + range.span + " 범위 내 " + Math.round(range.p) + "% 지점" : "") + '">' +
+      '<span class="dn">' + esc(st.name) + "</span>" +
+      '<span class="dc ' + sDir(st.chg) + '">' + sPct(st.chg) + "</span>" +
+      '<span class="dp">' + (sNull(st.price) ? "—" : Number(st.price).toLocaleString("ko-KR")) + "</span>" +
+      '<span class="dv">' + (sNull(st.valueEok) ? "—" : domEok(st.valueEok)) + "</span>" +
+      bar +
+    "</li>";
+  }
+
+  function domCard(item, idx, tone, report, dim) {
+    const meta = [domEok(item.valueEok), item.count + "종목"]
+      .concat(item.rise == null ? [] : ["▲" + item.rise + " ▼" + item.fall]).join(" · ");
+    return '<article class="dsec">' +
+      '<div class="dsec-h">' +
+        (dim ? "" : '<span class="dsec-r" style="background:' + tone + '" aria-hidden="true">' +
+          (idx + 1) + "</span>") +
+        '<span class="dsec-n"' + (dim ? ' style="flex:1"' : "") + ">" + esc(item.name) + "</span>" +
+        '<span class="dsec-c ' + sDir(item.chg) + '">' + sPct(item.chg) + "</span>" +
+      "</div>" +
+      '<p class="dsec-m"><b>' + esc(domShareText(item.share)) + "</b> · " + esc(meta) + "</p>" +
+      '<ul class="dsec-l">' +
+        (item.stocks || []).map((st) => domStockRow(report, st, tone)).join("") +
+      "</ul>" +
+    "</article>";
+  }
+
+  function renderDominance(report) {
+    const box = $("#domBox");
+    if (!box) return;
+    domPlace();
+    const dom = report && report.sectorDominance;
+    const items = [];
+    if (dom && dom.sectors && dom.sectors.length) {
+      dom.sectors.forEach((s) => items.push({
+        item: s, tone: DOM_TONES[Math.min(items.length, DOM_TONES.length - 1)], dim: false,
+      }));
+      if (dom.individual) items.push({ item: dom.individual, tone: DOM_GRAY, dim: true });
+    }
+    if (!items.length) { box.hidden = true; return; }
+    box.hidden = false;
+
+    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+    const bar = $("#domBar");
+    if (bar) {
+      bar.innerHTML = items.map(({ item, tone, dim }) => {
+        const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
+        const share = domShareText(item.share);
+        const label = w >= 15 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
+          : w >= 7 ? "<b>" + share + "</b>" : "";
+        return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
+          "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
+      }).join("");
+      bar.setAttribute("aria-label", "주도 섹터 점유율 — " +
+        items.map(({ item }) => item.name + " " + domShareText(item.share)).join(", "));
+    }
+
+    const basis = $("#domBasis");
+    if (basis) basis.textContent = (dom.basis || "") + (dom.rule ? " · " + dom.rule : "");
+    const cards = $("#domCards");
+    if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
+      domCard(item, i, tone, report, dim)).join("");
+    const foot = $("#domFoot");
+    if (foot) foot.textContent = "막대 = 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
+      " · 종목을 누르면 차트 분석";
+    domLiveTick(report);
+  }
+
+  /* 패널을 지금 보이는 뷰(심플·상세)의 자리로 옮긴다 — QA·조건식 패널과 같은 방식 */
+  function domPlace() {
+    const box = $("#domBox");
+    if (!box) return;
+    const simple = $("#viewSimple");
+    const wantSimple = !!(simple && !simple.hidden);
+    const host = wantSimple ? $("#domHostSimple") : $("#domHostDetail");
+    if (host && box.parentNode !== host) host.appendChild(box);
+  }
+
+  function isMarketHours() {
+    const n = new Date();
+    const d = n.getDay();
+    if (d === 0 || d === 6) return false;
+    const m = n.getHours() * 60 + n.getMinutes();
+    return m >= 9 * 60 && m < 20 * 60;
+  }
+
+  /* 마지막 갱신 시각·경과 시간·자동 갱신 상태 (60초 주기로도 호출) */
+  function domLiveTick(report) {
+    const live = $("#domLive");
+    const age = $("#domAge");
+    const r = report || findReport(activeDate);
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(r && latest && r.date === latest.date);
+    if (live) {
+      live.textContent = !isLatest ? "지난 기록" : isMarketHours() ? "장중 60초 자동" : "장 마감 · 수동";
+    }
+    if (!age) return;
+    const t = r && r.updatedAt ? new Date(r.updatedAt) : null;
+    if (!t || isNaN(t.getTime())) {
+      age.textContent = r && r.sectorDominance ? r.sectorDominance.asOf + " 기준" : "";
+      return;
+    }
+    const hh = String(t.getHours()).padStart(2, "0");
+    const mm = String(t.getMinutes()).padStart(2, "0");
+    const mins = Math.max(0, Math.floor((Date.now() - t.getTime()) / 60000));
+    age.textContent = hh + ":" + mm + " 기준" + (mins < 1 ? " · 방금" : " · " + mins + "분 전");
+  }
+
+  /* 장중(09:00~20:00)에만 60초마다 data.json(캐시 무시)을 다시 받아 화면을 갈아끼운다 */
+  function startLivePoll() {
+    if (!location.protocol.startsWith("http")) return;
+    let busy = false;
+    const tick = async () => {
+      domLiveTick(findReport(activeDate));
+      if (busy || document.hidden || !isMarketHours()) return;
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;  /* 입력 중엔 건드리지 않음 */
+      if (document.querySelector("dialog[open]")) return;                      /* 모달 열려 있으면 대기 */
+      busy = true;
+      try { await liveRefresh({ quiet: true }); } catch (e) { /* 실패는 다음 주기에 다시 */ }
+      busy = false;
+    };
+    setInterval(tick, DOM_POLL_MS);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+  }
+
   /* ---------------- 오늘 핵심 · 수급 시나리오 ---------------- */
   function sChip(s) {
     if (!s || !s.name) return "";
@@ -7015,6 +7263,7 @@ const REPORT_DATA = [
     });
     qaPlace();
     scanPlace();
+    domPlace();
     render();
   }
 
@@ -8239,6 +8488,7 @@ const REPORT_DATA = [
     renderChrome(report);
     renderSwitcher(report);
     renderIssue(report);
+    renderDominance(report);
     renderSessionBody(report);
     renderContext(report);
     renderWatchlist(report);
@@ -8292,6 +8542,7 @@ const REPORT_DATA = [
     scanRestore();                     /* 이 탭 세션에서 이미 풀어 둔 잠금 복원 */
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
+    startLivePoll();                    /* 장중엔 60초마다 data.json 재조회 */
     if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
   }
 

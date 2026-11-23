@@ -84,6 +84,13 @@ CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·6
 CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
 CHARTS_MARK = "__CHARTS_JSON__"
 
+# 주도 섹터 점유율(sectorDominance) — 화면 막대·카드
+DOM_TOP = 3              # 기본 주도 섹터 수
+DOM_TOP_MAX = 4          # 4번째 섹터 점유율이 DOM_FOURTH_SHARE 이상이면 4개까지
+DOM_FOURTH_SHARE = 10.0  # 4번째 섹터를 넣는 최소 점유율(%)
+DOM_STOCKS = 5           # 섹터 카드에 담는 종목 수(거래대금 순)
+DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
+
 # 조건식 × 당일 수급 교집합 — 키움 조건식 A·B·C·D·E + 거래대금 100억 이상
 SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
 SCAN_RULE = "A and (B or C) and D and E"
@@ -543,6 +550,85 @@ def build_all_stocks(mv_by_market, movers, sector_map):
         picked.sort(key=lambda r: -r[5])
         rows.extend(picked)
     return rows
+
+
+# ---------------------------------------------------------------- 주도 섹터 점유율
+def _large_eok(v) -> str:
+    """억 단위 금액을 읽기 좋게 — 30,954 → '3조954억', 897 → '897억'."""
+    v = int(round(v or 0))
+    if v >= 10000:
+        jo, eok = divmod(v, 10000)
+        return f"{jo:,}조{eok:,}억" if eok else f"{jo:,}조"
+    return f"{v:,}억"
+
+
+def _dom_block(name, stocks, cap=DOM_STOCKS):
+    """섹터 하나(또는 개별이슈 묶음)의 카드 데이터 — allStocks 실측값만."""
+    values = [s[5] for s in stocks]
+    chgs = [s[4] for s in stocks if s[4] is not None]
+    picked = sorted(stocks, key=lambda s: -s[5])[:cap]
+    return {
+        "name": name,
+        "valueEok": int(sum(values)),
+        "count": len(stocks),
+        "rise": sum(1 for c in chgs if c > 0),
+        "fall": sum(1 for c in chgs if c < 0),
+        "chg": round(sum(chgs) / len(chgs), 2) if chgs else None,
+        "stocks": [{"code": s[0], "name": s[1], "market": s[2], "price": s[3],
+                    "chg": s[4], "valueEok": s[5]} for s in picked],
+    }
+
+
+def build_sector_dominance(all_stocks, now):
+    """주도 섹터 점유율 — 전 종목 인덱스의 당일 거래대금 비중을 섹터별로 계산한다.
+
+    · 분모: 전 종목 인덱스(allStocks) 중 업종이 붙고 거래대금이 있는 종목의 거래대금 합.
+      화면에 그 분모(종목 수·금액)를 그대로 적는다 — 시장 전체 거래대금이 아니다.
+    · 점유율 = 섹터 합산 거래대금 ÷ 분모 × 100 (한 자리 반올림)
+    · 상위 3개(4번째 섹터가 10% 이상이면 4개)를 주도 섹터로, 나머지 전 종목을
+      `개별이슈`로 묶어 합계가 정확히 100.0%가 되게 한다
+    · 등락률은 섹터 종목의 단순 평균(실측 등락률만), 추정·보간 없음
+    """
+    rows = [r for r in (all_stocks or [])
+            if isinstance(r, list) and len(r) >= 7 and r[6] and (r[5] or 0) > 0]
+    total = sum(r[5] for r in rows)
+    if not rows or total <= 0:
+        return None
+
+    groups: dict[str, list] = {}
+    for r in rows:
+        groups.setdefault(str(r[6]), []).append(r)
+
+    ranked = sorted(groups.items(), key=lambda kv: -sum(r[5] for r in kv[1]))
+    top = DOM_TOP
+    if len(ranked) > DOM_TOP:
+        fourth = sum(r[5] for r in ranked[DOM_TOP][1]) / total * 100
+        if fourth >= DOM_FOURTH_SHARE:
+            top = DOM_TOP_MAX
+
+    sectors = [_dom_block(name, stocks) for name, stocks in ranked[:top]]
+    used = 0.0
+    for item in sectors:
+        item["share"] = round(item["valueEok"] / total * 100, 1)
+        used += item["share"]
+
+    rest = [r for _name, stocks in ranked[top:] for r in stocks]
+    individual = _dom_block("개별이슈", rest, DOM_IND_STOCKS) if rest else None
+    if individual:
+        individual["share"] = round(100.0 - used, 1)
+    elif sectors:
+        # 남는 종목이 없으면 마지막 섹터에서 반올림 잔차를 흡수해 100.0%로 맞춘다
+        sectors[-1]["share"] = round(sectors[-1]["share"] + (100.0 - used), 1)
+
+    return {
+        "asOf": now.strftime("%H:%M"),
+        "basis": f"감시 {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
+        "totalEok": int(total),
+        "universe": len(rows),
+        "sectors": sectors,
+        "individual": individual,
+        "rule": "점유율 = 섹터 합산 거래대금 ÷ 감시 종목 거래대금",
+    }
 
 
 def fetch_chart(code: str, count: int = CHART_DAYS):
@@ -2541,6 +2627,9 @@ def main(argv):
     all_stocks = build_all_stocks(mv_by_market, up_all, sector_map)
     if all_stocks:
         new_entry["allStocks"] = all_stocks
+    dominance = build_sector_dominance(all_stocks, now)
+    if dominance:
+        new_entry["sectorDominance"] = dominance
     entry = merge_entry(new_entry, old_entry)
     entry.pop("_prices", None)
     entry.pop("_industry_metric", None)
@@ -2595,6 +2684,12 @@ def main(argv):
     log(f"  · data.json 갱신 완료 ({len(data)}개 날짜, {len(text.encode()) / 1024:.1f}KB, {elapsed:.1f}초)")
     if rows:
         log(f"    전 종목 시세 인덱스 {len(rows)}종목 · 업종 매핑 {len(sector_map)}건")
+    dom = entry.get("sectorDominance") or {}
+    if dom.get("sectors"):
+        segs = [f"{s['name']} {s['share']}%" for s in dom["sectors"]]
+        if dom.get("individual"):
+            segs.append(f"개별이슈 {dom['individual']['share']}%")
+        log(f"    주도 섹터 점유율({dom.get('asOf')}): " + " | ".join(segs))
     log(f"    코스피 {(kospi or {}).get('value')} ({pct_text((kospi or {}).get('chg'))}) · "
         f"코스닥 {(kosdaq or {}).get('value')} ({pct_text((kosdaq or {}).get('chg'))})")
     if industries:
