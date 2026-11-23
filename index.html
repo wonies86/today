@@ -2531,6 +2531,98 @@
   border:1px solid #f1edff;border-radius:6px;padding:3px 5px;overflow:hidden;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
+  /* ============================================================
+     한화면 캡처 — 스레드 공유용 1스크린 카드
+     ------------------------------------------------------------
+     · 390px 모바일 한 화면에 관찰 5선 + 핵심 지표를 잘림 없이 담는다
+     · 닫기(✕)는 카드 밖 위쪽에 작게 — 카드 영역만 찍어도 깔끔
+     ============================================================ */
+  .shot-btn{
+    display:inline-flex;align-items:center;gap:3px;
+    appearance:none;-webkit-appearance:none;cursor:pointer;
+    font-family:inherit;font-size:10px;font-weight:780;letter-spacing:-.02em;
+    color:#5b21b6;background:#f6f2ff;border:1px solid #e4d9fc;
+    border-radius:999px;padding:3px 8px;line-height:1.35;white-space:nowrap;
+  }
+  .shot-btn:hover{background:#efe8ff;border-color:#d9c9fa}
+  .shot-btn:active{transform:translateY(1px)}
+  .shot-btn:focus-visible{outline:2px solid #a78bfa;outline-offset:1px}
+  .sechead .shot-btn{margin-left:auto;align-self:center;font-size:11px;padding:4px 10px}
+  #viewSimple .panel-head .shot-btn{margin-left:6px;font-size:9.5px;padding:2px 7px}
+
+  body.shot-lock{overflow:hidden}
+  .shot-dialog{
+    width:100vw;max-width:100vw;height:100vh;max-height:100vh;
+    height:100dvh;max-height:100dvh;
+    margin:0;padding:0;border:0;overflow:hidden;
+    color:var(--ink);
+    background:
+      radial-gradient(620px 340px at 50% -8%, rgba(109,40,217,.10), transparent 70%),
+      #f3f4f9;
+  }
+  .shot-dialog:not([open]){display:none}
+  .shot-dialog::backdrop{background:#f3f4f9}
+  .shot-shell{display:flex;flex-direction:column;height:100%;padding:6px 10px 10px}
+  .shot-bar{flex:0 0 auto;display:flex;justify-content:flex-end;align-items:center;height:26px}
+  .shot-x{
+    width:26px;height:26px;display:grid;place-items:center;
+    appearance:none;-webkit-appearance:none;border:1px solid var(--line);border-radius:99px;
+    background:rgba(255,255,255,.86);color:#98a2b3;font-size:11px;line-height:1;cursor:pointer;
+    box-shadow:0 1px 2px rgba(16,24,40,.05);
+  }
+  .shot-x:hover{color:var(--ink-2);border-color:#cfd6e4}
+  .shot-body{position:relative;flex:1 1 auto;min-height:0}
+
+  .sh-card{
+    position:absolute;left:50%;top:50%;
+    width:370px;
+    transform:translate(-50%,-50%);
+    transform-origin:center center;
+    display:flex;flex-direction:column;
+    background:#fff;border:1px solid var(--line);border-radius:22px;
+    box-shadow:0 26px 54px -30px rgba(16,24,40,.5), 0 2px 6px rgba(16,24,40,.05);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* 머리 — 날짜·구간 + 한 줄 결론 */
+  .sh-head{flex:0 0 auto;padding:17px 16px 13px;background:linear-gradient(158deg,#faf7ff 0%,#fff 62%);border-bottom:1px solid var(--line-2)}
+  .sh-top{display:flex;align-items:center;gap:6px;min-width:0}
+  .sh-eyebrow{flex:0 0 auto;font-size:9.5px;font-weight:850;letter-spacing:.02em;color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-radius:999px;padding:2.5px 8px}
+  .sh-date{flex:0 0 auto;font-size:11px;font-weight:820;color:var(--ink-2);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .sh-sess{flex:0 0 auto;margin-left:auto;font-size:9.5px;font-weight:850;letter-spacing:-.02em;border-radius:999px;padding:2.5px 7px;white-space:nowrap}
+  .sh-card[data-sess="pre"] .sh-sess{color:#b45309;background:#fff6e8;border:1px solid #f7e3c4}
+  .sh-card[data-sess="krx"] .sh-sess{color:#0f766e;background:#e9f7f4;border:1px solid #cfebe5}
+  .sh-card[data-sess="aft"] .sh-sess{color:#6d28d9;background:#f4efff;border:1px solid #e3d7fb}
+  .sh-lead{margin:9px 0 0;font-size:18px;line-height:1.34;font-weight:850;letter-spacing:-.04em;color:var(--ink)}
+
+  /* 시장 지표 칩 3개 */
+  .sh-chips{flex:0 0 auto;display:grid;gap:6px;padding:12px 16px 0}
+  .sh-chip{min-width:0;background:#f7f9fd;border:1px solid #e8edf6;border-radius:12px;padding:8px 9px}
+  .sh-chip .k{display:block;font-size:9px;font-weight:800;color:var(--mute);letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sh-chip .v{display:block;margin-top:1px;font-size:15px;font-weight:860;letter-spacing:-.045em;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sh-chip .d{display:block;margin-top:1px;font-size:10.5px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sh-chip .d.sh-share{color:#6d28d9}
+
+  /* 관찰 5선 — 남는 높이를 5등분해 한 화면을 꽉 채운다 */
+  .sh-list{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;list-style:none;margin:0;padding:6px 16px}
+  .sh-row{flex:0 0 auto;display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;column-gap:8px;align-items:center;border-top:1px solid #eef1f7;padding:10px 0}
+  .sh-row:first-child{border-top:0}
+  .sh-rank{width:20px;height:20px;display:grid;place-items:center;border-radius:7px;background:#f4efff;color:#6d28d9;font-size:11px;font-weight:850;font-variant-numeric:tabular-nums}
+  .sh-name{min-width:0;font-size:17px;font-weight:830;letter-spacing:-.04em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sh-sec{margin-left:5px;font-size:9.5px;font-weight:750;letter-spacing:-.02em;color:var(--mute)}
+  .sh-price{font-size:14.5px;font-weight:760;letter-spacing:-.03em;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sh-chg{min-width:56px;text-align:right;font-size:15px;font-weight:860;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sh-why{grid-column:2 / -1;margin:4px 0 0;font-size:12px;line-height:1.5;letter-spacing:-.025em;color:#63718b;word-break:keep-all;overflow-wrap:break-word}
+
+  /* 하단 — 수급 순환 · 체크포인트 */
+  .sh-foot{flex:0 0 auto;padding:12px 16px 13px;border-top:1px solid var(--line);background:linear-gradient(180deg,#fbfcff,#fff)}
+  .sh-note{display:flex;gap:7px;margin:0;font-size:10.5px;line-height:1.5;letter-spacing:-.025em;color:var(--ink-2)}
+  .sh-note + .sh-note{margin-top:4px}
+  .sh-note b{flex:0 0 auto;font-weight:850;color:#6d28d9;white-space:nowrap}
+  .sh-note span{min-width:0}
+  .sh-disc{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 0;padding-top:9px;border-top:1px dashed #e6eaf2;font-size:9px;font-weight:700;letter-spacing:-.02em;color:#9aa5ba}
+
 </style>
 </head>
 <body>
@@ -2628,7 +2720,8 @@
     <div class="sechead">
       <span class="no">03</span>
       <h2 id="h-watch">관찰 5선</h2>
-      <p>수급 집중 테마 × 거래대금 상위 · 카드를 누르면 차트 기술적 분석</p>
+      <button type="button" class="shot-btn" data-shot aria-haspopup="dialog">📸 한화면 캡처</button>
+      <p style="flex:1 1 100%">수급 집중 테마 × 거래대금 상위 · 카드를 누르면 차트 기술적 분석</p>
     </div>
     <div class="picks" id="watchList"></div>
   </section>
@@ -2698,7 +2791,8 @@
         </nav>
 
         <div class="panel" id="sPanel-watch" role="tabpanel">
-          <div class="panel-head"><span>오늘 볼 종목</span><span class="r">탭하면 차트 분석</span></div>
+          <div class="panel-head"><span>오늘 볼 종목</span><span class="r">탭하면 차트 분석</span>
+            <button type="button" class="shot-btn" data-shot aria-haspopup="dialog">📸 한화면 캡처</button></div>
           <ul class="watch card" id="sWatchList"></ul>
         </div>
 
@@ -2828,6 +2922,16 @@
   <div class="ta-scroll" id="taScroll"></div>
   <div class="ta-foot" id="taFoot">
     ※ 기술적 지표와 가격 구간은 당일 기준 객관적 참고용이며 매수·매도 추천이 아닙니다.
+  </div>
+</dialog>
+
+<!-- ======================= 한화면 캡처 (스레드용 1스크린 카드) ======================= -->
+<dialog class="shot-dialog" id="shotDialog" aria-label="관찰 5선 한화면 캡처">
+  <div class="shot-shell">
+    <div class="shot-bar">
+      <button type="button" class="shot-x" id="shotClose" aria-label="캡처 화면 닫기">✕</button>
+    </div>
+    <div class="shot-body" id="shotBody"></div>
   </div>
 </dialog>
 
@@ -5939,6 +6043,206 @@ const REPORT_DATA = [
       });
       box.appendChild(card);
     });
+  }
+
+  /* ============================================================
+     한화면 캡처 — 관찰 5선 + 핵심 지표를 모바일 1스크린 카드로
+     ------------------------------------------------------------
+     · 값은 data.json 에 있는 것만 쓴다(새 추정 없음)
+     · 카드는 370px 폭으로 설계하고, 화면이 작으면 통째로 비율 축소해
+       스크롤·잘림 없이 한 장에 담는다(스레드 업로드용)
+     · 지금 고른 날짜·구간(장전/정규장/애프터)의 값으로 채운다
+     ============================================================ */
+  const SHOT_W = 370;
+  const SHOT_SESS = { pre: "장전", krx: "정규장", aft: "애프터장" };
+  const SHOT = { k: 1, opener: null };
+
+  const shotText = (v) => String(v == null ? "" : v).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+  /* 태그를 지우고 한 줄로 — 넘치면 문장·절 경계에서 끊는다(말줄임 없음) */
+  function shotBrief(v, max) {
+    const t = shotText(v);
+    const lim = max || 48;
+    if (t.length <= lim) return t;
+    const m = t.match(/^(.{8,}?[.!?])\s/);
+    if (m && m[1].length <= lim) return m[1];
+    const cut = t.slice(0, lim);
+    const at = cut.lastIndexOf(" ");
+    return (at > 10 ? cut.slice(0, at) : cut).replace(/[,·—\-]$/, "").trim();
+  }
+
+  /* 발행 시각이 지금 구간의 것이면 앞에 붙인다 — 예: "07:00 장전" */
+  function shotSessionLabel(report, sess) {
+    const key = (sess && sess.key) || activeSession;
+    const name = SHOT_SESS[key] || (sess && sess.name) || "";
+    const stamp = String((report && report.stamp) || "");
+    const t = stamp.match(/(\d{1,2}:\d{2})/);
+    const same = t && ((key === "pre" && /장전|프리/.test(stamp)) ||
+                       (key === "krx" && /정규|장초반|마감/.test(stamp)) ||
+                       (key === "aft" && /애프터|NXT/.test(stamp)));
+    return (same ? t[1] + " " : "") + name;
+  }
+
+  /* 시장 지표 칩 — 장전은 야간선물·야간환율·전일 종가, 정규장·애프터는 지수·주도 섹터 */
+  function shotChips(report, sess) {
+    const key = (sess && sess.key) || activeSession;
+    const idx = (n) => (report.indices || []).find((i) => i.name === n);
+    const out = [];
+    const add = (o) => { if (o) out.push(o); };
+    if (key === "pre") {
+      const nf = idx("야간선물");
+      if (nf) add({ k: "코스피200 야간선물", v: nf.value, d: sPct(nf.chg), dir: sDir(nf.chg) });
+      const fx = idx("원/달러");
+      if (fx) add({ k: "원/달러 야간", v: fx.value + "원", d: sPct(fx.chg), dir: sDir(fx.chg) });
+    }
+    [["코스피", key === "pre" ? "코스피 전일종가" : "코스피"],
+     ["코스닥", key === "pre" ? "코스닥 전일종가" : "코스닥"]].forEach((pair) => {
+      const i = idx(pair[0]);
+      if (i) add({ k: pair[1], v: i.value, d: sPct(i.chg), dir: sDir(i.chg) });
+    });
+    if (key !== "pre") {
+      const dom = (report.sectorDominance && report.sectorDominance.sectors) || [];
+      if (dom.length) add({ k: "주도 섹터 1위", v: dom[0].name, d: domShareText(dom[0].share), dir: "share" });
+    }
+    return out.slice(0, 3);
+  }
+
+  /* 머리의 한 줄 결론 — 세션 카드의 손으로 쓴 1줄 요약 → 이슈 배너 → 구간 안내 순 */
+  function shotLead(report, sess) {
+    const cards = (sess && sess.cards) || [];
+    for (let i = 0; i < cards.length; i++) {
+      const s = shotText(cards[i] && cards[i].issueSummary);
+      if (s) return s;
+    }
+    const it = issueOf(report, sess);
+    if (it) { const s = shotBrief(it.title, 52); if (s) return s; }
+    if (sess && sess.noteSummary) return shotText(sess.noteSummary);
+    if (report.marketState) return report.marketState;
+    return sess ? shotText(sess.strip) : "";
+  }
+
+  /* 하단 체크포인트 — 관찰 5선 종목이 걸린 항목을 우선, 없으면 첫 항목 */
+  function shotCheck(report) {
+    const items = ((report.context || {}).next || {}).items || [];
+    const names = (report.watchlist || []).map((w) => w.name).filter(Boolean);
+    const hit = items.slice(0, 4).filter((s) =>
+      names.some((n) => String(s).indexOf(n) >= 0))[0];
+    return shotText(hit || items[0] || "");
+  }
+
+  function shotHTML(report, sess) {
+    const key = (sess && sess.key) || activeSession;
+    const date = shotText(String(report.date || "").replace(/-/g, "."));
+    const dow = dowOfDate(report.date);
+    const chips = shotChips(report, sess);
+    const lead = shotLead(report, sess);
+    const rot = shotText((((report.context || {}).rotation) || {}).tagline);
+    const chk = shotCheck(report);
+    const rows = (report.watchlist || []).slice(0, 5).map((w, i) => {
+      const why = shotText(sumOf(w, "why") || autoSum(w.why, 40));
+      return '<li class="sh-row">' +
+        '<span class="sh-rank">' + esc(String(w.rank || i + 1)) + "</span>" +
+        '<span class="sh-name">' + esc(w.name || "") +
+          (w.sector ? '<span class="sh-sec">' + esc(w.sector) + "</span>" : "") + "</span>" +
+        '<span class="sh-price">' + (w.price ? esc(w.price) + "원" : "—") + "</span>" +
+        '<span class="sh-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span>" +
+        (why ? '<span class="sh-why">' + esc(why) + "</span>" : "") +
+      "</li>";
+    }).join("");
+
+    return '<article class="sh-card" id="shotCard" data-sess="' + esc(key) + '">' +
+      '<div class="sh-head">' +
+        '<div class="sh-top">' +
+          '<span class="sh-eyebrow">관찰 5선</span>' +
+          '<span class="sh-date">' + esc(date) + (dow ? " (" + esc(dow) + ")" : "") + "</span>" +
+          '<span class="sh-sess">' + esc(shotSessionLabel(report, sess)) + "</span>" +
+        "</div>" +
+        (lead ? '<p class="sh-lead">' + esc(lead) + "</p>" : "") +
+      "</div>" +
+      (chips.length ? '<div class="sh-chips" style="grid-template-columns:repeat(' + chips.length +
+        ',minmax(0,1fr))">' + chips.map((c) =>
+          '<div class="sh-chip"><span class="k">' + esc(c.k) + "</span>" +
+            '<span class="v">' + esc(c.v) + "</span>" +
+            '<span class="d ' + (c.dir === "share" ? "sh-share" : c.dir) + '">' + esc(c.d) + "</span></div>"
+        ).join("") + "</div>" : "") +
+      '<ol class="sh-list">' + rows + "</ol>" +
+      '<div class="sh-foot">' +
+        (rot ? '<p class="sh-note"><b>수급 순환</b><span>' + esc(rot) + "</span></p>" : "") +
+        (chk ? '<p class="sh-note"><b>체크</b><span>' + esc(chk) + "</span></p>" : "") +
+        '<p class="sh-disc"><span>정보 정리용 · 매수 추천 아님</span>' +
+          "<span>wonies86.github.io/today</span></p>" +
+      "</div>" +
+    "</article>";
+  }
+
+  /* 한 화면에 맞춘다 — 남는 높이는 5종목 행이 나눠 채우고, 모자라면 통째로 축소 */
+  function fitShot() {
+    const card = $("#shotCard"), body = $("#shotBody");
+    if (!card || !body) return;
+    const bw = body.clientWidth, bh = body.clientHeight;
+    if (!bw || !bh) return;
+    card.style.width = Math.min(SHOT_W, bw) + "px";
+    card.style.height = "auto";
+    card.style.transform = "translate(-50%,-50%)";
+    const natural = card.offsetHeight;
+    let k = 1;
+    if (natural > bh) {
+      /* 세로가 모자라면 통째로 축소 — 5종목이 잘리거나 스크롤되는 것보다 낫다 */
+      k = Math.min(bh / natural, bw / SHOT_W);
+      card.style.height = natural + "px";
+    } else {
+      card.style.height = Math.min(bh, 820) + "px";
+    }
+    card.style.transform = "translate(-50%,-50%) scale(" + k.toFixed(4) + ")";
+    SHOT.k = k;
+  }
+
+  function openShot(opener) {
+    const dlg = $("#shotDialog"), body = $("#shotBody");
+    if (!dlg || !body) return;
+    const rep = findReport(activeDate);
+    if (!rep) return;
+    body.innerHTML = shotHTML(rep, sessionOf(rep));
+    SHOT.opener = opener || null;
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
+    else dlg.setAttribute("open", "");
+    document.body.classList.add("shot-lock");
+    fitShot();
+    requestAnimationFrame(fitShot);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitShot);
+  }
+
+  function closeShot() {
+    const dlg = $("#shotDialog");
+    if (!dlg) return;
+    if (typeof dlg.close === "function" && dlg.open) dlg.close();
+    else dlg.removeAttribute("open");
+    document.body.classList.remove("shot-lock");
+  }
+
+  function wireShot() {
+    const dlg = $("#shotDialog");
+    if (!dlg) return;
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-shot]");
+      if (!b) return;
+      e.preventDefault();
+      openShot(b);
+    });
+    const x = $("#shotClose");
+    if (x) x.addEventListener("click", closeShot);
+    /* 카드 바깥(배경)을 누르면 닫기 — 카드 영역은 그대로 */
+    dlg.addEventListener("click", (e) => {
+      if (!(e.target.closest && e.target.closest(".sh-card"))) closeShot();
+    });
+    dlg.addEventListener("close", () => {
+      document.body.classList.remove("shot-lock");
+      if (SHOT.opener && typeof SHOT.opener.focus === "function") SHOT.opener.focus();
+      SHOT.opener = null;
+    });
+    const refit = () => { if (dlg.open) fitShot(); };
+    window.addEventListener("resize", refit);
+    window.addEventListener("orientationchange", refit);
   }
 
   /* ======================================================================
@@ -9307,6 +9611,7 @@ const REPORT_DATA = [
   }
 
   wireTechnicalDialog();
+  wireShot();
   wireStockClicks();
   wireRefresh();
 
