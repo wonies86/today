@@ -2390,7 +2390,9 @@ def merge_entry(new, old):
             if metric and not _is_turnover_card(card):
                 card["cmain"] = f"{metric['chg']:+.2f}%"
                 card["metric_chg"] = metric["chg"]
-                if re.match(r"^\d+\s*종목", str(card.get("csub") or "")):
+                # 스크립트가 만든 업종 카드 문구('N종목 상승')만 갱신한다 —
+                # 마감 리포트가 쓴 '17종목 5,709억 · 점유율 28.8%' 같은 서사는 건드리지 않는다.
+                if re.match(r"^\d+\s*종목\s*상승$", str(card.get("csub") or "")):
                     card["csub"] = f"{metric['rise']}종목 상승"
             if card.get("stocks"):
                 # 애프터장은 20:00 마감 뒤 네이버가 'NXT 애프터 집계'가 아닌 다른 기준
