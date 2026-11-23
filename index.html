@@ -6585,9 +6585,13 @@ const REPORT_DATA = [
   }
 
   function taRangeSum(st) {
+    const tail = (st.ret5 != null ? " · 5일 " + taSignedPct(st.ret5) : "");
+    /* 시·고·저·종이 모두 같은 날(상한가·하한가 등)은 한 번만 적어 1줄에 들어오게 한다 */
+    if (st.last[0] === st.last[1] && st.last[1] === st.last[2] && st.last[2] === st.last[3]) {
+      return "시·고·저·종 " + taWon(st.last[3]) + tail;
+    }
     return "시 " + taWon(st.last[0]) + " · 고 " + taWon(st.last[1]) +
-      " · 저 " + taWon(st.last[2]) + " · 종 " + taWon(st.last[3]) +
-      (st.ret5 != null ? " · 5일 " + taSignedPct(st.ret5) : "");
+      " · 저 " + taWon(st.last[2]) + " · 종 " + taWon(st.last[3]) + tail;
   }
 
   function taCheckSum(st) {
