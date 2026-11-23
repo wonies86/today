@@ -11,9 +11,10 @@
 </style>
 </head>
 <body>
-<iframe id="f" src="./index.html"></iframe>
+<iframe id="f"></iframe>
 <script>
   var f = document.getElementById('f');
+  f.src = './index.html?v=' + Date.now();
   function jump() {
     try {
       var w = f.contentWindow;
@@ -21,7 +22,7 @@
       if (el) w.scrollTo(0, el.getBoundingClientRect().top + w.scrollY - 74);
     } catch (e) {}
   }
-  f.addEventListener('load', function () { setTimeout(jump, 1200); setTimeout(jump, 3000); });
+  f.addEventListener('load', function () { setTimeout(jump, 2000); setTimeout(jump, 4500); setTimeout(jump, 7000); });
 </script>
 </body>
 </html>

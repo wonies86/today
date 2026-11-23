@@ -6961,7 +6961,7 @@ const REPORT_DATA = [
         const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
         const share = domShareText(item.share);
         const label = w >= 20 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
-          : w >= 8 ? "<b>" + share + "</b>" : "";
+          : w >= 9 ? "<b>" + share + "</b>" : "";
         return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
           "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
       }).join("");
