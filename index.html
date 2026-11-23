@@ -1440,6 +1440,8 @@
 #viewSimple .sectors{
   display:grid;gap:9px
 }
+/* display 를 가진 컨테이너는 hidden 만으로는 안 숨어서(속성보다 CSS 우선) 명시한다 */
+#viewSimple .sectors[hidden],#viewSimple .label[hidden]{display:none}
 #viewSimple .sector{
   padding:12px 13px 10px
 }
@@ -2401,6 +2403,67 @@
 .dom-foot{margin:7px 2px 0;font-size:9px;line-height:1.5;color:var(--mute)}
 #viewSimple .dom{margin-top:9px}
 
+/* ============================================================
+   3구간(장전 · 정규장 · 애프터) 역할 안내 + 구간 브리핑
+   · 심플·상세 두 뷰가 같은 컴포넌트를 쓴다 (색은 :root 토큰 그대로)
+   · 값은 data.json 의 세션·전일 기록에서만 읽는다 (없는 숫자는 만들지 않음)
+   ============================================================ */
+.srole{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--violet);border-radius:12px;
+  padding:9px 11px;margin:10px 0 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.srole.pre{border-left-color:#d97706;background:linear-gradient(180deg,#fffdf7,#fff)}
+.srole.krx{border-left-color:var(--up);background:linear-gradient(180deg,#fff8f9,#fff)}
+.srole.aft{border-left-color:#4f46e5;background:linear-gradient(180deg,#f8f8ff,#fff)}
+.srole-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.srole-ico{font-size:13px;line-height:1}
+.srole-t{font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.srole-win{font-size:10px;color:var(--mute);font-variant-numeric:tabular-nums}
+.srole-now{margin-left:auto;font-size:9.5px;font-weight:800;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.srole-now.on{background:var(--violet-soft);color:var(--violet)}
+.srole-now.go{border:1px solid var(--line-3);background:#fff;color:var(--ink-2);cursor:pointer;font-family:inherit}
+.srole-now.go:hover{background:var(--bg-soft)}
+.srole-lead{margin:4px 0 6px;font-size:10.5px;line-height:1.45;color:var(--ink-2)}
+.srole-chips{display:flex;flex-wrap:wrap;gap:4px}
+.srole-chip{font-size:9.5px;font-weight:700;color:var(--ink-2);background:var(--bg-soft);border:1px solid var(--line-2);
+  border-radius:999px;padding:2px 7px;white-space:nowrap}
+
+.sb{margin-top:9px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px 10px;
+  box-shadow:var(--shadow)}
+.sb-head{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.sb-h{margin:0;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.sb-sub{margin-left:auto;font-size:9.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.sb-fv{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sb-list{list-style:none;margin:9px 0 0;padding:0;display:grid;gap:4px}
+.sb-row{display:flex;align-items:baseline;gap:6px;font-size:10.5px;color:var(--ink-2);line-height:1.45;min-width:0}
+.sb-row b{color:var(--ink);font-weight:750;white-space:nowrap}
+.sb-row .sb-s{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute)
+}
+.sb-badge{flex:0 0 auto;font-size:9px;font-weight:800;color:#fff;background:#64748b;border-radius:5px;padding:1px 5px;line-height:1.4}
+.sb-badge.a{background:#3f5a6d}
+.sb-badge.b{background:#0e9488}
+.sb-badge.c{background:#b0722a}
+.sb-badge.pat{background:var(--violet)}
+.sb-kick{margin:10px 0 0;font-size:9.5px;font-weight:800;color:var(--ink-2);letter-spacing:.01em}
+.sb-lead{margin:8px 0 0;font-size:10.5px;line-height:1.5;color:var(--ink-2)}
+.sb-lead b{font-weight:800;color:var(--ink)}
+.sb-lead b.up{color:var(--up)}
+.sb-lead b.down{color:var(--down)}
+.sb-nxt{margin-top:9px;padding:7px 9px;border:1px dashed var(--line-3);border-radius:10px;background:var(--bg-soft);
+  font-size:10px;line-height:1.5;color:var(--ink-2)}
+.sb-nxt b{color:var(--ink);font-weight:800}
+.sb-foot{margin:8px 0 0;font-size:9px;line-height:1.5;color:var(--mute)}
+#roleDetail .srole{margin-top:0}
+/* 구간 안내·구간 브리핑이 심플 뷰 상단으로 올라왔다 */
+#viewSimple .s-wrap > .sess-nav{margin-top:0}
+#viewSimple .mk-tag{font-size:8.5px;font-weight:800;color:var(--mute);border:1px solid var(--line-2);
+  border-radius:5px;padding:0 4px;line-height:1.5;margin-left:1px}
+#viewSimple .seg button .seg-ico{margin-right:3px;font-size:11px}
+#viewSimple .seg button .seg-now{display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--up);margin-left:4px;vertical-align:middle}
+/* 점유율 카드의 섹터 재료 1줄 (세션 카드 issueSummary 통합) */
+.dsec-x{margin:0 0 5px;font-size:9px;line-height:1.4;color:var(--ink-2);background:#faf9ff;
+  border:1px solid #f1edff;border-radius:6px;padding:3px 5px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
 </style>
 </head>
 <body>
@@ -2446,6 +2509,9 @@
   <!-- ======================= 시장 상태 ======================= -->
   <div class="statusbar" id="statusbar"></div>
 
+  <!-- 3구간 역할 안내 (상세) — 심플 뷰와 같은 컴포넌트 -->
+  <div id="roleDetail"></div>
+
   <!-- 주도 섹터 점유율 자리 (상세 뷰 상단) — JS가 보이는 뷰로 옮긴다 -->
   <div id="domHostDetail"></div>
 
@@ -2465,6 +2531,9 @@
     </div>
     <div class="strip" id="strip"></div>
   </section>
+
+  <!-- 구간별 핵심 (상세) — 장전: 전일 수급·해외·야간 / 애프터: 마감 결산·패턴·NXT -->
+  <div id="sessBriefDetail"></div>
 
   <!-- ======================= 세션 본문 ======================= -->
   <div id="qaHostDetail"></div>
@@ -2523,7 +2592,18 @@
   <!-- ======================= 심플 뷰 (기본) ======================= -->
   <main id="viewSimple" aria-label="오늘 증시 요약">
     <div class="s-wrap">
+      <div class="sess-nav">
+        <nav class="seg" id="sSessions" role="tablist" aria-label="세션 선택"></nav>
+        <p class="sess-meta" id="sSessMeta"></p>
+      </div>
+
+      <!-- 3구간 역할 안내 — 지금 시각 구간을 기본으로, 다른 구간은 위 전환으로 -->
+      <section class="srole" id="sRole" aria-label="지금 구간의 역할"></section>
+
       <section class="card strip" id="sStrip" aria-label="지수·수급 요약"></section>
+
+      <!-- 구간별 핵심 — 장전: 전일 수급·해외·야간 / 정규장: 신선도 / 애프터: 마감 결산·패턴·NXT -->
+      <div id="sessBriefSimple"></div>
 
       <!-- 주도 섹터 점유율 (심플·상세 공통) — JS가 보이는 뷰의 자리로 옮긴다 -->
       <div id="domHostSimple">
@@ -2539,40 +2619,8 @@
       </section>
       </div>
 
-      <div id="qaHostSimple">
-  <!-- ======================= QA 패널 (심플·상세 공통) ======================= -->
-  <section class="qa" id="qaPanel" aria-labelledby="qaTitle">
-    <div class="qa-head">
-      <h2 class="qa-title" id="qaTitle">🔍 종목·섹터 왜 오르내리나요?</h2>
-      <span class="qa-badge" id="qaBadge">data.json 검증</span>
-    </div>
-    <form class="qa-form" id="qaForm" autocomplete="off">
-      <div class="qa-row">
-        <input class="qa-input" id="qaInput" type="search" autocomplete="off" enterkeyhint="search"
-               placeholder="종목명 또는 섹터 입력 (예: 하이브, 반도체)" aria-label="종목명 또는 섹터 입력">
-        <button class="qa-go" type="submit">확인</button>
-      </div>
-      <div class="qa-int" id="qaIntent" role="group" aria-label="질문 종류">
-        <button class="qa-ichip" type="button" data-intent="up" aria-pressed="true">왜 오르나요?</button>
-        <button class="qa-ichip" type="button" data-intent="down" aria-pressed="false">왜 떨어지나요?</button>
-        <button class="qa-ichip" type="button" data-intent="flow" aria-pressed="false">수급·재료 확인</button>
-      </div>
-      <div class="qa-quick" id="qaQuick"></div>
-    </form>
-    <div class="qa-res" id="qaResult" aria-live="polite"></div>
-    <div class="qa-toast" id="qaToast" role="status" aria-live="polite"></div>
-  </section>
-      </div>
-
-      <div class="sess-nav">
-        <nav class="seg" id="sSessions" role="tablist" aria-label="세션 선택"></nav>
-        <p class="sess-meta" id="sSessMeta"></p>
-      </div>
-
-      <div class="label"><h2 id="sSectorTitle">주도 섹터 TOP 2</h2><span id="sSectorHint">수급 집중</span></div>
+      <div class="label" id="sSectorLabel"><h2 id="sSectorTitle">주도 섹터 TOP 2</h2><span id="sSectorHint">수급 집중</span></div>
       <section class="sectors" id="sSectors" aria-label="주도 섹터"></section>
-
-      <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
 
       <section class="bottom" aria-label="관찰 종목·순위·기사">
         <nav class="seg" id="sBottomTabs" role="tablist" aria-label="하단 보기 선택">
@@ -2600,6 +2648,33 @@
           <ul class="news card" id="sNewsList"></ul>
         </div>
       </section>
+
+      <div id="qaHostSimple">
+  <!-- ======================= QA 패널 (심플·상세 공통) ======================= -->
+  <section class="qa" id="qaPanel" aria-labelledby="qaTitle">
+    <div class="qa-head">
+      <h2 class="qa-title" id="qaTitle">🔍 종목·섹터 왜 오르내리나요?</h2>
+      <span class="qa-badge" id="qaBadge">data.json 검증</span>
+    </div>
+    <form class="qa-form" id="qaForm" autocomplete="off">
+      <div class="qa-row">
+        <input class="qa-input" id="qaInput" type="search" autocomplete="off" enterkeyhint="search"
+               placeholder="종목명 또는 섹터 입력 (예: 하이브, 반도체)" aria-label="종목명 또는 섹터 입력">
+        <button class="qa-go" type="submit">확인</button>
+      </div>
+      <div class="qa-int" id="qaIntent" role="group" aria-label="질문 종류">
+        <button class="qa-ichip" type="button" data-intent="up" aria-pressed="true">왜 오르나요?</button>
+        <button class="qa-ichip" type="button" data-intent="down" aria-pressed="false">왜 떨어지나요?</button>
+        <button class="qa-ichip" type="button" data-intent="flow" aria-pressed="false">수급·재료 확인</button>
+      </div>
+      <div class="qa-quick" id="qaQuick"></div>
+    </form>
+    <div class="qa-res" id="qaResult" aria-live="polite"></div>
+    <div class="qa-toast" id="qaToast" role="status" aria-live="polite"></div>
+  </section>
+      </div>
+
+      <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
 
       <div id="scanHostSimple">
   <!-- ======================= 조건식 × 수급 교집합 (심플·상세 공통) ======================= -->
@@ -4846,6 +4921,7 @@ const REPORT_DATA = [
 
   let activeDate = REPORT_DATA.length ? REPORT_DATA[0].date : null;
   let activeSession = (REPORT_DATA.length && REPORT_DATA[0].defaultSession) || "aft";
+  let sessionTouched = false;   /* 사용자가 구간을 직접 골랐으면 시각에 따른 자동 선택을 멈춘다 */
   let expanded = { up: false, value: false };
   let taOpener = null;
 
@@ -4938,8 +5014,12 @@ const REPORT_DATA = [
   function selectDate(date) {
     const rep = REPORT_DATA.find((r) => r.date === date);
     if (!rep) return;
+    const dateChanged = activeDate !== date;
     activeDate = date;
-    activeSession = rep.defaultSession || activeSession;
+    if (dateChanged || !sessionTouched) {
+      activeSession = autoSessionOf(rep);
+      sessionTouched = false;
+    }
     expanded = { up: false, value: false };
     closeCal();
     render();
@@ -5116,6 +5196,7 @@ const REPORT_DATA = [
 
   function setSession(key, resetDate) {
     activeSession = key;
+    sessionTouched = true;
     expanded = { up: false, value: false };
     /* 날짜·세션이 바뀌면 두 뷰(심플·상세)와 날짜 단위 섹션을 모두 다시 그린다 */
     render();
@@ -6549,7 +6630,9 @@ const REPORT_DATA = [
     for (const path of LIVE_PATHS) {
       const d = await fetchLiveJSON(path);
       if (!d || !d.length) continue;
-      if (!data || liveStamp(d) > liveStamp(data)) data = d;
+      /* 첫 성공본을 쓴다 — 없는 대체 경로까지 요청하면 404 콘솔 에러만 남는다 */
+      data = d;
+      break;
     }
     if (!data) return false;
 
@@ -6567,9 +6650,10 @@ const REPORT_DATA = [
     valid.forEach((r) => REPORT_DATA.push(r));
 
     const keep = REPORT_DATA.some((r) => r.date === activeDate);
+    const dateChanged = activeDate !== REPORT_DATA[0].date;
     if (onNewest || !keep) {
       activeDate = REPORT_DATA[0].date;
-      activeSession = REPORT_DATA[0].defaultSession || activeSession;
+      if (dateChanged || !sessionTouched) activeSession = autoSessionOf(REPORT_DATA[0]);
     }
     return true;
   }
@@ -6742,12 +6826,23 @@ const REPORT_DATA = [
     return s.name || s.tab || s.key;
   }
 
-  /* ---------------- 지수 스트립 ---------------- */
+  /* ---------------- 지수 스트립 ----------------
+     · 정규장: 지금 시세 + 외국인/기관/개인 수급 (장중 60초 갱신)
+     · 장전: 전일 정규장 종가·수급 (출발점) — 간밤·야간선물·환율은 아래 장전 브리핑
+     · 애프터: 정규장 종가·마감 수급 (장중에는 장중 값)
+     ---------------------------------------------------------- */
   function renderSimpleStrip(report) {
     const box = $("#sStrip");
     if (!box) return;
-    const idx = (name) => (report.indices || []).find((i) => i.name === name);
-    const flow = (name) => (report.flows || []).find((f) => f.market === name);
+    const s = sessionOf(report);
+    const key = s ? s.key : "krx";
+    const prev = key === "pre" ? prevReportOf(report) : null;
+    const src = prev || report;
+    const isLatest = !!(REPORT_DATA[0] && report.date === REPORT_DATA[0].date);
+    const tag = prev ? "전일 종가"
+      : key === "aft" && (!isMarketHours() || !isLatest) ? "종가" : "";
+    const idx = (name) => (src.indices || []).find((i) => i.name === name);
+    const flow = (name) => (src.flows || []).find((f) => f.market === name);
     const shortName = { "외국인": "외", "기관": "기", "개인": "개" };
     const cell = (ix) => {
       if (!ix) return '<div class="mk"></div>';
@@ -6764,18 +6859,19 @@ const REPORT_DATA = [
       }
       return '<div class="mk">' +
         '<div class="mk-head"><span class="mk-name">' + esc(ix.name) + "</span>" +
+          (tag ? '<span class="mk-tag">' + esc(tag) + "</span>" : "") +
           '<span class="mk-chg ' + sDir(ix.chg) + '">' + sPct(ix.chg) + "</span></div>" +
         '<div class="mk-val">' + esc(ix.value || "—") + "</div>" +
         '<div class="mk-flow">' + rows + "</div>" +
       "</div>";
     };
-    const krx = (report.sessions || []).find((s) => s.key === "krx");
-    const aft = (report.sessions || []).find((s) => s.key === "aft");
+    const krx = (report.sessions || []).find((x) => x.key === "krx");
+    const aft = (report.sessions || []).find((x) => x.key === "aft");
     box.innerHTML = cell(idx("코스피")) + cell(idx("코스닥")) +
-      '<div class="strip-foot"><span>' + esc(report.stamp || "") + "</span>" +
+      '<div class="strip-foot"><span>' + esc(prev ? (prev.shortLabel || prev.date) + " 정규장 종가" : report.stamp || "") + "</span>" +
         '<span>· 수급 단위 억 원</span>' +
-        (krx ? "<span>· 정규장 " + esc(krx.window || "") + "</span>" : "") +
-        (aft ? "<span>· 애프터 " + esc(aft.window || "") + "</span>" : "") +
+        (prev ? "" : krx ? "<span>· 정규장 " + esc(krx.window || "") + "</span>" : "") +
+        (prev ? "" : aft ? "<span>· 애프터 " + esc(aft.window || "") + "</span>" : "") +
       "</div>";
   }
 
@@ -6783,20 +6879,29 @@ const REPORT_DATA = [
   function renderSimpleSessions(report) {
     const nav = $("#sSessions");
     if (!nav) return;
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(latest && report.date === latest.date);
+    const nowKey = isLatest ? clockSession() : null;
     nav.innerHTML = "";
     (report.sessions || []).forEach((s) => {
       const b = el("button");
       b.type = "button";
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", String(s.key === activeSession));
-      b.textContent = sSessionLabel(s);
+      const isNow = nowKey === s.key;
+      b.innerHTML = (ROLE[s.key] ? '<span class="seg-ico" aria-hidden="true">' + ROLE[s.key].icon + "</span>" : "") +
+        esc(sSessionLabel(s)) + (isNow ? '<i class="seg-now" aria-hidden="true"></i>' : "");
+      b.setAttribute("aria-label", sSessionLabel(s) + (isNow ? " · 지금 구간" : "") +
+        (s.window ? " " + s.window : ""));
       b.addEventListener("click", () => { if (s.key !== activeSession) setSession(s.key); });
       nav.appendChild(b);
     });
     const cur = sessionOf(report);
     const meta = $("#sSessMeta");
     if (meta) {
-      meta.textContent = cur ? (cur.window || "") : "";
+      const role = cur && ROLE[cur.key];
+      meta.textContent = [cur ? (cur.window || "") : "", role ? role.tag : "",
+        freshText(report, { static: !!(cur && cur.key === "pre") })].filter(Boolean).join(" · ");
       meta.title = cur ? (cur.strip || cur.window || "") : "";
     }
   }
@@ -6840,13 +6945,27 @@ const REPORT_DATA = [
 
   function renderSimpleSectors(report) {
     const box = $("#sSectors");
+    const label = $("#sSectorLabel");
     if (!box) return;
     const cur = sessionOf(report);
+    const key = cur ? cur.key : "krx";
     const cards = (cur && cur.cards) || [];
-    box.innerHTML = cards.slice(0, 2).map(sSectorCard).join("");
+    /* 정규장에 점유율이 있으면 역할이 겹친다 — 카드의 재료는 점유율 카드에 1줄로 합치고 여기선 접는다 */
+    const hasDom = !!(report.sectorDominance && (report.sectorDominance.sectors || []).length);
+    const show = cards.length > 0 && !(key === "krx" && hasDom);
+    if (label) label.hidden = !show;
+    box.hidden = !show;
+    if (!show) { box.innerHTML = ""; return; }
+
+    const max = key === "krx" ? 2 : 3;
+    box.innerHTML = cards.slice(0, max).map(sSectorCard).join("");
     const summary = !!(cur && cur.mode === "summary");
-    $("#sSectorTitle").textContent = summary ? "세션 요약" : "주도 섹터 TOP 2";
-    $("#sSectorHint").textContent = summary ? "확인된 정보만" : "수급 집중 · 상위 3종목";
+    $("#sSectorTitle").textContent = key === "pre" ? "장전 점검 · 전일·해외·공시"
+      : key === "aft" ? "애프터장 흐름"
+      : summary ? "세션 요약" : "주도 섹터 TOP 2";
+    $("#sSectorHint").textContent = key === "pre" ? "야간선물·환율·시장조치"
+      : key === "aft" ? "NXT 마감 흐름"
+      : summary ? "확인된 정보만" : "수급 집중 · 상위 3종목";
   }
 
   /* ---------------- 주도 섹터 점유율 (data.json sectorDominance) ----------------
@@ -6923,7 +7042,7 @@ const REPORT_DATA = [
     "</li>";
   }
 
-  function domCard(item, idx, tone, report, dim) {
+  function domCard(item, idx, tone, report, dim, note) {
     /* 모수는 상승 종목뿐이라 하락(▼)은 표기하지 않는다 — 0을 붙이면 없는 혼동만 만든다 */
     const counts = item.rise == null ? []
       : item.fall ? ["▲" + item.rise + " ▼" + item.fall] : ["▲" + item.rise];
@@ -6939,17 +7058,41 @@ const REPORT_DATA = [
         "</span>" +
       "</div>" +
       '<p class="dsec-m">' + esc(meta) + "</p>" +
+      (note ? '<p class="dsec-x">' + esc(note) + "</p>" : "") +
       '<ul class="dsec-l">' +
         (item.stocks || []).map((st) => domStockRow(report, st, tone)).join("") +
       "</ul>" +
     "</article>";
   }
 
+  /* 세션 카드의 섹터 재료 1줄 — 종목이 겹치는 카드의 issueSummary 를 그대로 가져온다 */
+  function domNoteFor(report, sector) {
+    const s = sessionOf(report);
+    const names = {};
+    (sector.stocks || []).forEach((x) => { names[x.name] = 1; });
+    let best = null;
+    let bestHit = 0;
+    ((s && s.cards) || []).forEach((c) => {
+      const hit = (c.stocks || []).filter((x) => names[x.name]).length;
+      if (hit > bestHit) { bestHit = hit; best = c; }
+    });
+    if (!best) return "";
+    return sumOf(best, "issue") || "";
+  }
+
   function renderDominance(report) {
     const box = $("#domBox");
     if (!box) return;
     domPlace();
+    const sess = sessionOf(report);
+    const key = sess ? sess.key : "krx";
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(latest && report.date === latest.date);
     const dom = report && report.sectorDominance;
+
+    /* 장전에는 장중 점유율이 아니라 전일·해외 지표를 본다 — 이 블록은 정규장·애프터에만 */
+    if (key === "pre") { box.hidden = true; return; }
+
     const items = [];
     if (dom && dom.sectors && dom.sectors.length) {
       dom.sectors.forEach((s) => items.push({
@@ -6959,6 +7102,11 @@ const REPORT_DATA = [
     }
     if (!items.length) { box.hidden = true; return; }
     box.hidden = false;
+
+    /* 제목은 구간에 맞춰 — 애프터 + 마감 후에는 '최종' */
+    const closed = !isLatest || !isMarketHours();
+    const title = $("#domTitle");
+    if (title) title.textContent = key === "aft" && closed ? "최종 주도 섹터 점유율" : "주도 섹터 점유율";
 
     const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
     const bar = $("#domBar");
@@ -6979,7 +7127,7 @@ const REPORT_DATA = [
     if (basis) basis.textContent = dom.basis || "";
     const cards = $("#domCards");
     if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
-      domCard(item, i, tone, report, dim)).join("");
+      domCard(item, i, tone, report, dim, dim ? "" : domNoteFor(report, item))).join("");
     const foot = $("#domFoot");
     if (foot) foot.textContent = "막대 = 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
       " · 종목을 누르면 차트 분석";
@@ -7012,7 +7160,10 @@ const REPORT_DATA = [
     const latest = REPORT_DATA[0];
     const isLatest = !!(r && latest && r.date === latest.date);
     if (live) {
-      live.textContent = !isLatest ? "지난 기록" : isMarketHours() ? "장중 60초 자동" : "장 마감 · 수동";
+      const sess = sessionOf(r);
+      live.textContent = !isLatest ? "지난 기록"
+        : sess && sess.key === "aft" && !isMarketHours() ? "마감 확정"
+        : isMarketHours() ? "장중 60초 자동" : "장 마감 · 수동";
     }
     if (!age) return;
     const t = r && r.updatedAt ? new Date(r.updatedAt) : null;
@@ -7026,11 +7177,240 @@ const REPORT_DATA = [
     age.textContent = hh + ":" + mm + " 기준" + (mins < 1 ? " · 방금" : " · " + mins + "분 전");
   }
 
+  /* ======================================================================
+     3구간(장전 · 정규장 · 애프터) 역할 안내
+     ----------------------------------------------------------------------
+     · data.json 세션 키(pre·krx·aft)에 맞춰 "이 구간에서 무엇을 보는지"를 한 블록으로 안내
+     · 오늘 기록이면 지금 시각의 구간을 기본으로 연다(autoSessionOf)
+     · 다른 구간을 보고 있으면 '지금 구간으로' 버튼 — 전환은 위 세션 전환 컨트롤 그대로
+     ====================================================================== */
+  const ROLE = {
+    pre: {
+      icon: "🌅",
+      title: "장전 · 개장 전 준비",
+      tag: "전일·해외 → 오늘 대응",
+      lead: "전일 국내 수급 결과와 간밤 해외 이슈·야간선물·환율로 오늘 출발을 가늠하는 구간입니다.",
+      chips: ["전일 수급 결과", "해외 이슈·미국 증시", "야간선물·환율", "오늘 대응 시나리오"]
+    },
+    krx: {
+      icon: "🔥",
+      title: "정규장 · 실시간",
+      tag: "실시간 수급 → 주도 섹터",
+      lead: "지수·외국인/기관 수급과 주도 섹터 점유율, 관찰 5선을 장중 60초 갱신으로 보는 구간입니다.",
+      chips: ["실시간 지수·수급", "주도 섹터 점유율", "관찰 5선", "종목 바로묻기"]
+    },
+    aft: {
+      icon: "🌙",
+      title: "애프터 · 장마감 이후",
+      tag: "당일 결산 → 애프터 흐름",
+      lead: "정규장 마감 수급 결산과 최종 주도 섹터, 종가배팅 패턴, NXT 애프터장 흐름을 정리한 구간입니다.",
+      chips: ["당일 수급 결산", "최종 섹터 점유율", "종가배팅 패턴 ①~④", "NXT 애프터장"]
+    }
+  };
+
+  /* 지금 시각이 어느 구간인지 — 장전(09:00 전) / 정규장(~15:34) / 애프터(15:35~) */
+  function clockSession(now) {
+    const n = now || new Date();
+    const day = n.getDay();
+    if (day === 0 || day === 6) return null;
+    const m = n.getHours() * 60 + n.getMinutes();
+    if (m < 9 * 60) return "pre";
+    if (m < 15 * 60 + 35) return "krx";
+    return "aft";
+  }
+
+  const hasSession = (report, key) =>
+    !!(report && (report.sessions || []).some((s) => s.key === key));
+
+  /* 오늘 기록이면 지금 시각의 구간, 아니면 data.json 의 defaultSession */
+  function autoSessionOf(report) {
+    if (!report) return activeSession;
+    if (report.date === todayKey()) {
+      const cs = clockSession();
+      if (cs && hasSession(report, cs)) return cs;
+    }
+    return report.defaultSession || activeSession;
+  }
+
+  const hhmm = (t) => String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+
+  /* 마지막 갱신 시각 기준 신선도 — 장중 60초 자동 / 마감 후 수동 / 지난 기록
+     opts.static: 장전처럼 장중 갱신이 의미 없는 구간은 '데이터 갱신'으로만 적는다 */
+  function freshText(report, opts) {
+    const r = report || findReport(activeDate);
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(r && latest && r.date === latest.date);
+    const t = r && r.updatedAt ? new Date(r.updatedAt) : null;
+    let age = "";
+    if (t && !isNaN(t.getTime())) {
+      const mins = Math.max(0, Math.floor((Date.now() - t.getTime()) / 60000));
+      age = hhmm(t) + " 기준 · " + (mins < 1 ? "방금" : mins + "분 전");
+    }
+    if (!isLatest) return ["지난 기록", age].filter(Boolean).join(" · ");
+    if (opts && opts.static) return ["기록 갱신", age].filter(Boolean).join(" · ");
+    if (isMarketHours()) return ["장중 60초 자동", age].filter(Boolean).join(" · ");
+    return ["장 마감 · 수동 새로고침", age].filter(Boolean).join(" · ");
+  }
+
+  function roleHTML(report) {
+    const s = sessionOf(report);
+    const key = s && ROLE[s.key] ? s.key : "krx";
+    const role = ROLE[key];
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(report && latest && report.date === latest.date);
+    const nowKey = clockSession();
+    const nowSess = isLatest && nowKey ? (report.sessions || []).find((x) => x.key === nowKey) : null;
+
+    let h = '<div class="srole-top"><span class="srole-ico" aria-hidden="true">' + role.icon + "</span>" +
+      '<span class="srole-t">' + esc(role.title) + "</span>" +
+      (s && s.window ? '<span class="srole-win">' + esc(s.window) + "</span>" : "");
+    if (nowSess && nowKey === key) {
+      h += '<span class="srole-now on">지금 구간 · ' + hhmm(new Date()) + "</span>";
+    } else if (nowSess) {
+      h += '<button type="button" class="srole-now go" data-goto-session="' + nowKey + '">지금은 ' +
+        esc(sSessionLabel(nowSess)) + " →</button>";
+    }
+    h += "</div>";
+    h += '<p class="srole-lead">' + esc(role.lead) + "</p>";
+    h += '<div class="srole-chips">' + role.chips
+      .map((c) => '<span class="srole-chip">' + esc(c) + "</span>").join("") + "</div>";
+    return h;
+  }
+
+  function renderRole(report) {
+    const s = sessionOf(report);
+    const key = s && ROLE[s.key] ? s.key : "krx";
+    const h = roleHTML(report);
+    ["#sRole", "#roleDetail"].forEach((sel) => {
+      const n = $(sel);
+      if (!n) return;
+      n.className = "srole " + key;
+      n.innerHTML = h;
+    });
+  }
+
+  /* ======================================================================
+     구간 브리핑 — 장전 / 애프터에서 먼저 읽어야 할 것
+     · 장전: 전일 국내 수급 결과 + 간밤 해외·야간선물·환율 (전일 기록 · pre 카드 stats)
+     · 애프터: 정규장 마감 결산 + 최종 점유율 + 종가배팅 패턴 + NXT 흐름
+     · 정규장: 숫자는 위 지수·점유율이 실시간이라 따로 블록을 두지 않는다
+     ====================================================================== */
+  const sbP = (v) => (sNull(v) ? "—" : (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(Number(v)).toFixed(2) + "%");
+  const sbCls = (v) => (sNull(v) ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat");
+  const prevReportOf = (report) => {
+    const i = REPORT_DATA.findIndex((r) => r.date === report.date);
+    return i >= 0 ? (REPORT_DATA[i + 1] || null) : null;
+  };
+
+  /* 장전 카드 stats 중 해외·야간 지표만 (야간선물·NDF·환율·미국 증시) */
+  const PRE_KEYS = /야간|선물|환율|NDF|달러|엔|유로|미국|나스닥|다우|반도체지수|VIX/i;
+
+  function preBriefHTML(report) {
+    const prev = prevReportOf(report);
+    const s = (report.sessions || []).find((x) => x.key === "pre");
+    /* 전일 지수·수급은 바로 위 지수 스트립이 전일 종가로 보여준다 — 여기섬 반복하지 않는다 */
+    const stats = [];
+    ((s && s.cards) || []).forEach((c) => (c.stats || []).forEach((st) => {
+      if (st && st.k && PRE_KEYS.test(String(st.k))) stats.push(st);
+    }));
+    const statRows = stats.length
+      ? '<ul class="sb-list">' + stats.slice(0, 5).map((st) =>
+        '<li class="sb-row"><b>' + esc(st.k) + '</b><span class="sb-s ' + esc(st.cls || "") + '">' +
+        esc(st.v) + "</span></li>").join("") + "</ul>"
+      : "";
+
+    /* 오늘 대응 시나리오 — data.json context.rotation 의 A · B · C 축 이름만 (전문은 아래 오늘 핵심) */
+    const r = report.context && report.context.rotation;
+    let scn = "";
+    if (r && (r.a || (r.candidates || []).length)) {
+      const row = (b, tone) => b ? '<li class="sb-row"><span class="sb-badge ' + tone + '">' +
+        esc(b.label || tone.toUpperCase()) + "</span><b>" + esc(b.sector || "") + "</b></li>" : "";
+      const list = row(r.a, "a") + (r.candidates || []).slice(0, 2)
+        .map((c, i) => row(c, i ? "c" : "b")).join("");
+      if (list) scn = '<p class="sb-kick">오늘 대응 시나리오</p><ul class="sb-list">' + list + "</ul>";
+    }
+    if (!statRows && !scn) return "";
+
+    return '<section class="sb" aria-label="장전 브리핑">' +
+      '<div class="sb-head"><h3 class="sb-h">🌅 장전 브리핑</h3>' +
+        '<span class="sb-sub">' + esc(prev ? (prev.shortLabel || prev.date) + " 종가 이후 · 야간선물/환율" : "야간선물/환율") + "</span></div>" +
+      statRows + scn +
+      '<p class="sb-foot">야간선물·환율은 장전 세션 카드에 기록된 값입니다. 수급 순환 전문은 아래 ‘오늘 핵심 · 수급 시나리오’.</p>' +
+    "</section>";
+  }
+
+  function aftBriefHTML(report) {
+    const s = (report.sessions || []).find((x) => x.key === "aft");
+    const latest = REPORT_DATA[0];
+    const isLatest = !!(latest && report.date === latest.date);
+    const closed = !isMarketHours() || !isLatest;
+
+    /* 결산 한 줄 — 위 지수·점유율과 같은 숫자를 반복하지 않고, 결산의 결과만 요약 */
+    const dom = report.sectorDominance;
+    const topSec = dom && (dom.sectors || [])[0];
+    const pats = (report.watchlist || []).map((w) => ({ w: w, p: patOf(w) })).filter((x) => x.p);
+    const bits = [];
+    if (topSec) bits.push("점유율 1위 <b>" + esc(topSec.name) + " " + domShareText(topSec.share) + "</b>");
+    if (pats.length) bits.push("종가배팅 패턴 <b>" + pats.length + "종목</b>");
+    const lead = closed && bits.length
+      ? '<p class="sb-lead">정규장 마감 · ' + bits.join(" · ") + "</p>"
+      : "";
+
+    const patMark = ["①", "②", "③", "④"];
+    const patRows = pats.length
+      ? '<p class="sb-kick">종가배팅 패턴 · 실측 분봉 확인 종목</p><ul class="sb-list">' + pats.map(({ w, p }) =>
+        '<li class="sb-row"><span class="sb-badge pat">' +
+        esc(patMark[Number(p.code) - 1] || p.code || "패턴") + "</span><b>" + esc(w.name) + "</b>" +
+        '<span class="sb-fv ' + sbCls(w.chg) + '">' + sbP(w.chg) + "</span>" +
+        '<span class="sb-s">' + esc(p.label.replace(/^[①②③④]\s*/, "")) + "</span></li>").join("") + "</ul>"
+      : "";
+
+    const nxtStrip = s && s.strip ? String(s.strip) : "";
+    const nxtNames = ((s && s.cards) || []).map((c) => c.name).filter(Boolean);
+    const nxt = (nxtStrip || nxtNames.length)
+      ? '<div class="sb-nxt"><b>NXT 애프터장</b> ' + esc(nxtStrip) +
+        (nxtNames.length ? "<br>" + esc(nxtNames.join(" · ")) : "") + "</div>"
+      : "";
+    if (!lead && !patRows && !nxt) return "";
+
+    return '<section class="sb" aria-label="애프터 결산">' +
+      '<div class="sb-head"><h3 class="sb-h">🌙 장마감 결산</h3>' +
+        '<span class="sb-sub">' + esc(closed ? "정규장 마감 · 당일 수급 결과" : "장중 기준 · 마감 후 갱신") + "</span></div>" +
+      lead + patRows + nxt +
+      '<p class="sb-foot">점유율·수급은 정규장 마감 집계, 애프터장 수급은 20:05 리포트에서 채워집니다.</p>' +
+    "</section>";
+  }
+
+  function sessBriefHTML(report) {
+    const s = sessionOf(report);
+    const key = s ? s.key : "krx";
+    if (key === "pre") return preBriefHTML(report);
+    if (key === "aft") return aftBriefHTML(report);
+    return "";
+  }
+
+  function renderSessBrief(report) {
+    const h = sessBriefHTML(report);
+    ["#sessBriefSimple", "#sessBriefDetail"].forEach((sel) => {
+      const n = $(sel);
+      if (n) n.innerHTML = h;
+    });
+  }
+
   /* 장중(09:00~20:00)에만 60초마다 data.json(캐시 무시)을 다시 받아 화면을 갈아끼운다 */
   function startLivePoll() {
     if (!location.protocol.startsWith("http")) return;
     let busy = false;
     const tick = async () => {
+      /* 시각이 다음 구간으로 넘어가면(직접 고른 적이 없을 때만) 화면도 그 구간으로 */
+      if (!sessionTouched) {
+        const r0 = findReport(activeDate);
+        const cs = clockSession();
+        if (r0 && r0.date === todayKey() && cs && cs !== activeSession && hasSession(r0, cs)) {
+          activeSession = cs;
+          render();
+        }
+      }
       domLiveTick(findReport(activeDate));
       if (busy || document.hidden || !isMarketHours()) return;
       const ae = document.activeElement;
@@ -7300,8 +7680,7 @@ const REPORT_DATA = [
     });
   }
 
-  function wireSimpleUI() {
-    const tabs = $("#sBottomTabs");
+  function wireSimpleUI() {    const tabs = $("#sBottomTabs");
     if (tabs) tabs.addEventListener("click", (e) => {
       const b = e.target.closest("[data-panel]");
       if (!b) return;
@@ -7323,6 +7702,19 @@ const REPORT_DATA = [
       const report = findReport(activeDate);
       const w = (report.watchlist || [])[Number(btn.getAttribute("data-idx"))];
       if (w) openAnalysis(w, btn, report);
+    });
+  }
+
+  /* 구간 안내의 '지금 구간으로' — 세션 전환은 다른 컨트롤과 같은 setSession 을 쓴다 */
+  function wireSessionJumps() {
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-goto-session]");
+      if (!b) return;
+      const key = b.getAttribute("data-goto-session");
+      if (!key || key === activeSession) return;
+      e.preventDefault();
+      setSession(key);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
 
@@ -8494,6 +8886,8 @@ const REPORT_DATA = [
     renderChrome(report);
     renderSwitcher(report);
     renderIssue(report);
+    renderRole(report);
+    renderSessBrief(report);
     renderDominance(report);
     renderSessionBody(report);
     renderContext(report);
@@ -8513,8 +8907,7 @@ const REPORT_DATA = [
     }
   }
 
-  /* 어느 뷰에서든 [data-stock] 을 누르면 같은 종목 분석 모달 */
-  function wireStockClicks() {
+  /* 어느 뷰에서든 [data-stock] 을 누르면 같은 종목 분석 모달 */  function wireStockClicks() {
     document.addEventListener("click", (e) => {
       const node = e.target.closest("[data-stock]");
       if (!node) return;
@@ -8539,6 +8932,7 @@ const REPORT_DATA = [
   function start() {
     wireModeToggle();
     wireSimpleUI();
+    wireSessionJumps();
     wireDateNav();
     qaInit();
     wireScan();
@@ -8546,6 +8940,9 @@ const REPORT_DATA = [
     wireScannerRaw();
     wireScannerLock();
     scanRestore();                     /* 이 탭 세션에서 이미 풀어 둔 잠금 복원 */
+    /* 오늘 기록이면 지금 시각의 구간(장전/정규장/애프터)을 기본으로 연다 */
+    const first = findReport(activeDate);
+    if (first) activeSession = autoSessionOf(first);
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     startLivePoll();                    /* 장중엔 60초마다 data.json 재조회 */
