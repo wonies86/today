@@ -150,6 +150,7 @@ def theme_of(name, sector) -> str:
 
 # 조건식 × 당일 수급 교집합 — 키움 조건식 A·B·C·D·E + 거래대금 100억 이상
 SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
+TREND_MIN_VALUE = 300     # 추세지속주 교집합 최소 거래대금(억 원) — 대형·중대형주만
 SCAN_RULE = "A and (B or C) and D and E"
 SCAN_FETCH = 130          # 스캔용 일봉 조회 개수(보관 120봉에 여유를 둔다)
 SCAN_KEYS = ("scanners", "conditionHits", "conditionScan", "chartReactions")
@@ -873,6 +874,49 @@ def condition_scan(rows):
     }
 
 
+def trend_scan(rows):
+    """추세지속주 — 추세가 살아 있는 대형·중대형주(연속 상승 + 정배열 + 고점 근접).
+
+    A [일] 0봉전 종가 > 20이평 > 60이평 (정배열)
+    B [일] 최근 5거래일 중 3일 이상 상승
+    C [일] 5거래일 누적 수익률 > 0%
+    D [일] 0봉전 종가 ≥ 직전 20일 고점 × 0.97 (고점 근접·돌파)
+    조건식: A and (B or C) and D — 당일 거래대금 300억↑ 교집합(SCANNER_DEFS.minValue)
+    """
+    if not rows or len(rows) < 61:            # 60이평 + 직전 20일 고점
+        return None
+    closes = [r["c"] for r in rows]
+    highs = [r["h"] for r in rows]
+    n = len(closes)
+    ma20 = _mean(closes[n - 20:])
+    ma60 = _mean(closes[n - 60:])
+    if not ma20 or not ma60:
+        return None
+    up5 = sum(1 for i in range(n - 5, n) if closes[i] > closes[i - 1])
+    ret5 = (closes[-1] / closes[-6] - 1) * 100 if closes[-6] else None
+    hi20 = max(highs[n - 21:n - 1])            # 직전 20일 고점(당일 봉 제외)
+    hi_gap = (closes[-1] / hi20 - 1) * 100 if hi20 else None
+    gap = (ma20 - ma60) / ma60 * 100 if ma60 else None
+    cond = {
+        "A": closes[-1] > ma20 > ma60,
+        "B": up5 >= 3,
+        "C": ret5 is not None and ret5 > 0,
+        "D": hi_gap is not None and hi_gap >= -3.0,
+    }
+    return {
+        "ma20": round(ma20), "ma60": round(ma60),
+        "gap": round(gap, 2) if gap is not None else None,
+        "up5": up5,
+        "ret5": round(ret5, 2) if ret5 is not None else None,
+        "hi_gap": round(hi_gap, 2) if hi_gap is not None else None,
+        "conditions": cond,
+        "pass": cond["A"] and (cond["B"] or cond["C"]) and cond["D"],
+        "line2": f"20·60 정배열 {gap:+.2f}% · 5일 중 {up5}일 상승"
+                 + (f" · 누적 {ret5:+.2f}%" if ret5 is not None else "")
+                 + (f" · 20일 고점 {hi_gap:+.1f}%" if hi_gap is not None else ""),
+    }
+
+
 # ---------------------------------------------------------------- 조건식 정의
 #  등록된 조건식 — 여기에 항목 하나만 더하면 data.json·대시보드에 자동으로 늘어난다.
 #   · evaluate(rows): 일봉 리스트 → 조건 판정 dict (계산 불가면 None)
@@ -908,6 +952,36 @@ SCANNER_DEFS = [
         "rawFormula": "A and (B or C) and D and E",
         "rawIntersection": "당일 거래대금 100억+ 교집합",
         "evaluate": condition_scan,
+        "pick": lambda scan: bool(scan["pass"]),
+    },
+    {
+        "id": "trend-follow",
+        "name": "추세지속주",
+        "summary": "종가 > 20이평 > 60이평 정배열 + 최근 5일 중 3일 이상 상승(또는 5일 누적 +) "
+                   "+ 직전 20일 고점 3% 이내 — 당일 거래대금 300억↑ 대형·추세 지속주",
+        "formula": "A and (B or C) and D",
+        "minValue": TREND_MIN_VALUE,
+        "rules": [
+            {"key": "A", "label": "종가 > 20 > 60이평", "detail": "0봉전 종가 > 20이평 > 60이평(정배열)"},
+            {"key": "B", "label": "5일 중 3일↑ 상승", "detail": "최근 5거래일 중 3일 이상 종가 상승"},
+            {"key": "C", "label": "5일 누적 +", "detail": "5거래일 누적 수익률 > 0%"},
+            {"key": "D", "label": "20일 고점 3% 이내", "detail": "0봉전 종가가 직전 20일 고점의 97% 이상"},
+        ],
+        "intersection": f"당일 거래대금 {TREND_MIN_VALUE}억+",
+        # ── 시루 자체 조건식(영웅문 원문 아님) — 화면 `원본 조건식` 팝업에 그대로 보여줄 문구 ──
+        "rawSource": "시루 자체 조건식 (일봉 실측)",
+        "rawTarget": "120거래일 일봉 보유 종목 전체(감시 599종목)",
+        "rawRules": [
+            {"key": "A", "text": "가격-이동평균 비교:[일]0봉전 종가 > 20이평 > 60이평 (정배열)"},
+            {"key": "B", "text": "최근 5거래일 중 3일 이상 상승(종가 기준)"},
+            {"key": "C", "text": "[일]5봉 누적 수익률 0% 초과"},
+            {"key": "D", "text": "[일]0봉전 종가 ≥ 직전 20일 고점 × 0.97 (고점 근접·돌파)"},
+        ],
+        "rawFormula": "A and (B or C) and D",
+        "rawIntersection": f"당일 거래대금 {TREND_MIN_VALUE}억+ 교집합",
+        "rawNote": "A·D를 모두 만족하고 B·C 중 하나 이상을 통과한 종목 중 당일 거래대금 "
+                   f"{TREND_MIN_VALUE}억 이상만 포착으로 남깁니다.",
+        "evaluate": trend_scan,
         "pick": lambda scan: bool(scan["pass"]),
     },
 ]
@@ -1051,7 +1125,7 @@ def scanner_meta(definition: dict) -> dict:
         "rules": definition.get("rules", []),
         "intersection": definition.get("intersection", ""),
     }
-    for key in ("rawSource", "rawTarget", "rawRules", "rawFormula", "rawIntersection"):
+    for key in ("rawSource", "rawTarget", "rawRules", "rawFormula", "rawIntersection", "rawNote"):
         if definition.get(key):
             meta[key] = definition[key]
     return meta
@@ -1109,6 +1183,8 @@ def build_scanner_scan(definition, series, info, extra_codes, now):
                 summary += f" · 과거 {back['m']}/{back['n']}회 5일 내 상승"
             item["summary"] = summary
             hits.append(item)
+        if scan.get("line2"):
+            item["line2"] = scan["line2"]
         if is_extra and not passed:
             reactions[code] = item
         elif is_extra and (value_eok or 0) < min_value:

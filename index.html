@@ -7111,11 +7111,14 @@ const REPORT_DATA = [
     const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
     const bar = $("#domBar");
     if (bar) {
+      /* 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 테마 4개(17%·7.7%)도 이름이 읽히게 */
+      const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 360;
       bar.innerHTML = items.map(({ item, tone, dim }) => {
         const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
         const share = domShareText(item.share);
-        const label = w >= 20 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
-          : w >= 9 ? "<b>" + share + "</b>" : "";
+        const px = w / 100 * barPx;
+        const label = px >= 50 ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
+          : px >= 24 ? "<b>" + share + "</b>" : "";
         return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
           "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
       }).join("");
@@ -8704,7 +8707,8 @@ const REPORT_DATA = [
         target: cur.rawTarget || SCANNER_RAW.target,
         rules: cur.rawRules,
         formula: cur.rawFormula || cur.formula || SCANNER_RAW.formula,
-        intersection: cur.rawIntersection || cur.intersection || SCANNER_RAW.intersection
+        intersection: cur.rawIntersection || cur.intersection || SCANNER_RAW.intersection,
+        note: cur.rawNote || ""
       };
     }
     return {
@@ -8712,7 +8716,8 @@ const REPORT_DATA = [
       target: SCANNER_RAW.target,
       rules: SCANNER_RAW.rules,
       formula: SCANNER_RAW.formula,
-      intersection: (cur && cur.intersection) || SCANNER_RAW.intersection
+      intersection: (cur && cur.intersection) || SCANNER_RAW.intersection,
+      note: (cur && cur.rawNote) || ""
     };
   }
 
@@ -8751,9 +8756,10 @@ const REPORT_DATA = [
       '<code class="raw-code">' + rawCodeHTML(raw.formula) + "</code></div>");
     rows.push('<div class="raw-item"><span class="raw-k ix">교집합</span>' +
       '<code class="raw-code">' + rawCodeHTML(raw.intersection) + "</code></div>");
+    /* 설명 문구는 조건식마다 다르다 — data.json rawNote 가 있으면 그걸 그대로 쓴다 */
     body.innerHTML = rows.join("") +
-      '<p class="raw-note">A·D·E를 모두 만족하고 B·C 중 하나 이상을 통과한 종목 중 ' +
-      esc(raw.intersection) + "만 포착으로 남깁니다.</p>";
+      '<p class="raw-note">' + esc(raw.note || ("A·D·E를 모두 만족하고 B·C 중 하나 이상을 통과한 종목 중 " +
+        raw.intersection + "만 포착으로 남깁니다.")) + "</p>";
   }
 
   function wireScannerRaw() {
@@ -8784,7 +8790,9 @@ const REPORT_DATA = [
   function scannerRowHTML(h, i) {
     const bt = h.backtest || {};
     const gap = h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%";
-    const line2 = "20·60 이격 " + gap +
+    /* 조건식마다 보여줄 요약이 다르다 — data.json 이 준 line2(추세지속주 등)를 우선 쓰고,
+       없으면 세력꿈틀이의 20·60 이격으로 채운다 */
+    const line2 = (h.line2 || ("20·60 이격 " + gap)) +
       (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음");
     const mk = h.market === "KOSDAQ" ? "KQ" : (h.market === "KOSPI" ? "KP" : "");
     return '<div class="sc-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
