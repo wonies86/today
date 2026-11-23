@@ -6840,7 +6840,7 @@ const REPORT_DATA = [
     const src = prev || report;
     const isLatest = !!(REPORT_DATA[0] && report.date === REPORT_DATA[0].date);
     const tag = prev ? "전일 종가"
-      : key === "aft" && (!isMarketHours() || !isLatest) ? "종가" : "";
+      : key === "aft" && (!isLatest || regularClosed()) ? "종가" : "";
     const idx = (name) => (src.indices || []).find((i) => i.name === name);
     const flow = (name) => (src.flows || []).find((f) => f.market === name);
     const shortName = { "외국인": "외", "기관": "기", "개인": "개" };
@@ -7103,8 +7103,8 @@ const REPORT_DATA = [
     if (!items.length) { box.hidden = true; return; }
     box.hidden = false;
 
-    /* 제목은 구간에 맞춰 — 애프터 + 마감 후에는 '최종' */
-    const closed = !isLatest || !isMarketHours();
+    /* 제목은 구간에 맞춰 — 애프터 + 정규장 마감 후에는 '최종' */
+    const closed = !isLatest || regularClosed();
     const title = $("#domTitle");
     if (title) title.textContent = key === "aft" && closed ? "최종 주도 섹터 점유율" : "주도 섹터 점유율";
 
@@ -7162,7 +7162,7 @@ const REPORT_DATA = [
     if (live) {
       const sess = sessionOf(r);
       live.textContent = !isLatest ? "지난 기록"
-        : sess && sess.key === "aft" && !isMarketHours() ? "마감 확정"
+        : sess && sess.key === "aft" && regularClosed() ? "마감 확정"
         : isMarketHours() ? "장중 60초 자동" : "장 마감 · 수동";
     }
     if (!age) return;
@@ -7221,6 +7221,14 @@ const REPORT_DATA = [
 
   const hasSession = (report, key) =>
     !!(report && (report.sessions || []).some((s) => s.key === key));
+
+  /* 정규장(09:00~15:30)이 끝났는지 — 애프터 구간은 15:35부터 '마감 결산' 기준으로 본다 */
+  function regularClosed(now) {
+    const n = now || new Date();
+    const day = n.getDay();
+    if (day === 0 || day === 6) return true;
+    return n.getHours() * 60 + n.getMinutes() >= 15 * 60 + 35;
+  }
 
   /* 오늘 기록이면 지금 시각의 구간, 아니면 data.json 의 defaultSession */
   function autoSessionOf(report) {
@@ -7343,7 +7351,7 @@ const REPORT_DATA = [
     const s = (report.sessions || []).find((x) => x.key === "aft");
     const latest = REPORT_DATA[0];
     const isLatest = !!(latest && report.date === latest.date);
-    const closed = !isMarketHours() || !isLatest;
+    const closed = !isLatest || regularClosed();
 
     /* 결산 한 줄 — 위 지수·점유율과 같은 숫자를 반복하지 않고, 결산의 결과만 요약 */
     const dom = report.sectorDominance;
