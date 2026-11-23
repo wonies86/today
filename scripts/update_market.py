@@ -87,9 +87,66 @@ CHARTS_MARK = "__CHARTS_JSON__"
 # 주도 섹터 점유율(sectorDominance) — 화면 막대·카드 (모수 = 당일 상승 종목 거래대금)
 DOM_TOP = 3              # 기본 주도 섹터 수
 DOM_TOP_MAX = 4          # 4번째 섹터 점유율이 DOM_FOURTH_SHARE 이상이면 4개까지
-DOM_FOURTH_SHARE = 10.0  # 4번째 섹터를 넣는 최소 점유율(%)
+DOM_FOURTH_SHARE = 5.0   # 4번째 섹터를 넣는 최소 점유율(%) — 테마 통합 후 8~9% 테마가 10% 문턱에
+                         #   걸려 개별이슈로 사라지던 문제로 10.0 → 5.0 (2026-11-23 사용자 지적)
 DOM_STOCKS = 5           # 섹터 카드에 담는 종목 수(거래대금 순)
 DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
+
+# ── 실전 테마 매핑 ─────────────────────────────────────────────────────────────
+# 네이버 업종명(`기계`·`화장품`·`소프트웨어` …)은 같은 테마를 여러 업종으로 찢어 놓는다.
+# 그래서 수급이 로봇·보안·중국(소비)에 몰려도 `기계`·`소프트웨어`·`화장품`이 작은 조각으로
+# 흩어져 `개별이슈`에 묻혔다. **등락률 기준(>0%)과 모수는 그대로 두고 분류 이름만** 실전
+# 테마로 바꾼다 — 테마에 없는 종목은 네이버 업종명을 그대로 쓴다.
+#   · 로봇      : 기계 업종의 로봇주 + 다른 업종으로 빠진 로봇주 (이름에 로봇/로보틱스 포함 자동)
+#   · 보안      : 사이버·정보보안주 (네이버 업종이 소프트웨어·IT서비스 등으로 흩어져 있다)
+#   · 중국·소비 : 화장품 업종 전체 + 엔터·미디어 / 여행·카지노·면세
+ROBOT = "로봇"
+SECURITY = "보안"
+CHINA_CONSUMER = "중국·소비"
+THEME_NAMES = (ROBOT, SECURITY, CHINA_CONSUMER)
+
+
+def _norm_name(name) -> str:
+    """종목명 비교용 — 공백 제거·대문자 (GKL·JYP Ent. 같은 표기 차이 흡수)."""
+    return re.sub(r"\s+", "", str(name or "")).upper()
+
+
+# 로봇 — 이름에 로봇/로보틱스가 없어 자동 매칭이 안 되는 로봇주(부품·감속기·로봇비전 포함)
+ROBOT_NAMES = {
+    "에이엘로봇", "로보티즈", "레인보우로보틱스", "휴림로봇", "코스모로보틱스", "두산로보틱스",
+    "유일로보틱스", "티로보틱스", "에스피지", "현대무벡스", "제닉스로보틱스", "고영",
+    "빅웨이브로보틱스", "삼현", "클로봇", "씨메스", "케이엔알시스템", "엔젤로보틱스",
+    "뉴로메카", "로보스타", "에스비비테크", "로킷헬스케어", "피앤에스로보틱스", "아이로보틱스",
+}
+# 보안 — 사이버·정보보안(네이버 업종: 소프트웨어·IT서비스·통신장비 등으로 분산)
+SECURITY_NAMES = {
+    "안랩", "지니언스", "지슨", "한싹", "라온시큐어", "샌즈랩", "파수", "파수AI", "시큐브",
+    "윈스", "모니터랩", "시큐레터", "아톤", "이글루", "이글루코퍼레이션", "케이사인",
+    "드림시큐리티", "한국정보인증", "카티스", "인스웨이브",
+}
+# 중국·소비 — 엔터·미디어 / 여행·카지노·면세 (화장품은 업종 전체를 아래에서 묶는다)
+CHINA_CONSUMER_NAMES = {
+    "스튜디오드래곤", "CJ ENM", "CJ CGV", "하이브", "에스엠", "JYP Ent.", "와이지엔터테인먼트",
+    "디어유", "노랑풍선", "모두투어", "참좋은여행", "파라다이스", "GKL", "롯데관광개발",
+    "호텔신라", "실리콘투", "마녀공장", "아모레퍼시픽",
+    "아모레G", "한국화장품", "한국콜마", "코스맥스", "코스메카코리아", "에이피알", "달바글로벌",
+}
+ROBOT_SET = {_norm_name(n) for n in ROBOT_NAMES}
+SECURITY_SET = {_norm_name(n) for n in SECURITY_NAMES}
+CHINA_CONSUMER_SET = {_norm_name(n) for n in CHINA_CONSUMER_NAMES}
+CHINA_CONSUMER_SECTORS = {"화장품"}   # 네이버 업종 `화장품`은 통째로 중국·소비
+
+
+def theme_of(name, sector) -> str:
+    """종목 하나의 표시 분류 — 실전 테마가 있으면 테마명, 없으면 네이버 업종명."""
+    key = _norm_name(name)
+    if key in ROBOT_SET or "로봇" in key or "로보틱스" in key:
+        return ROBOT
+    if key in SECURITY_SET:
+        return SECURITY
+    if key in CHINA_CONSUMER_SET or str(sector or "") in CHINA_CONSUMER_SECTORS:
+        return CHINA_CONSUMER
+    return str(sector or "")
 
 # 조건식 × 당일 수급 교집합 — 키움 조건식 A·B·C·D·E + 거래대금 100억 이상
 SCAN_MIN_VALUE = 100      # 교집합 최소 거래대금(억 원)
@@ -593,6 +650,8 @@ def build_sector_dominance(all_stocks, now):
     · 모수: 전 종목 인덱스(allStocks) 중 당일 등락률이 0보다 큰(상승) 종목이면서
       업종이 붙고 거래대금이 있는 종목. 하락·보합 종목의 거래대금은 넣지 않는다.
       화면에 그 모수(종목 수·금액)를 그대로 적는다 — 시장 전체 거래대금이 아니다.
+    · 분류: `theme_of()`가 실전 테마(로봇·보안·중국·소비)를 먼저 붙이고, 테마에 없는
+      종목만 네이버 업종명을 쓴다(네이버 업종이 테마를 여러 업종으로 찢어 놓기 때문).
     · 점유율 = 섹터 합산 거래대금 ÷ 상승 종목 거래대금 × 100 (한 자리 반올림)
     · 상위 3개(4번째 섹터가 10% 이상이면 4개)를 주도 섹터로, 나머지 상승 종목을
       `개별이슈`로 묶어 합계가 정확히 100.0%가 되게 한다
@@ -608,7 +667,7 @@ def build_sector_dominance(all_stocks, now):
 
     groups: dict[str, list] = {}
     for r in rows:
-        groups.setdefault(str(r[6]), []).append(r)
+        groups.setdefault(theme_of(r[1], r[6]), []).append(r)
 
     ranked = sorted(groups.items(), key=lambda kv: -sum(r[5] for r in kv[1]))
     top = DOM_TOP
