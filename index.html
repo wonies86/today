@@ -2363,7 +2363,7 @@
 
 /* ============================================================
    주도 섹터 점유율 — 가로 스택 막대 + 섹터별 실시간 카드
-   · data.json `sectorDominance` (update_market.py가 매 시세 갱신마다 재계산, 모수 = 당일 상승 종목 거래대금)
+   · data.json `sectorDominance` (update_market.py가 매 시세 갱신마다 재계산, 모수 = 당일 +2% 이상 상승 종목 거래대금)
    · 구간 색과 카드 배지 색이 같다 (같은 섹터 = 같은 색)
    ============================================================ */
 .dom{margin:2px 0 12px}
@@ -6970,7 +6970,7 @@ const REPORT_DATA = [
 
   /* ---------------- 주도 섹터 점유율 (data.json sectorDominance) ----------------
      · 숫자는 update_market.py가 매 시세 갱신마다 allStocks 실시간 거래대금으로 다시 계산한 값
-       (점유율 = 섹터 합산 거래대금 ÷ 당일 상승 종목 거래대금 — 하락·보합 종목은 모수에서 제외)
+       (점유율 = 섹터 합산 거래대금 ÷ 당일 +2% 이상 상승 종목 거래대금 — 하락·보합·+2% 미만은 모수에서 제외)
      · 막대 구간 색 = 카드 배지 색 — 같은 섹터는 같은 색
      · 카드 종목 막대는 data.json charts(일봉)의 당일 고·저 중 현재가 위치. 오늘 봉이 없으면
        보유 일봉(최대 120일) 전체 고·저 기준으로 바꿔 표기한다(없는 값을 만들지 않는다)
@@ -7043,7 +7043,7 @@ const REPORT_DATA = [
   }
 
   function domCard(item, idx, tone, report, dim, note) {
-    /* 모수는 상승 종목뿐이라 하락(▼)은 표기하지 않는다 — 0을 붙이면 없는 혼동만 만든다 */
+    /* 모수는 +2% 이상 상승 종목뿐이라 하락(▼)은 표기하지 않는다 — 0을 붙이면 없는 혼동만 만든다 */
     const counts = item.rise == null ? []
       : item.fall ? ["▲" + item.rise + " ▼" + item.fall] : ["▲" + item.rise];
     const meta = [domShareText(item.share), item.count + "종목"].concat(counts).join(" · ");
@@ -7132,7 +7132,7 @@ const REPORT_DATA = [
     if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
       domCard(item, i, tone, report, dim, dim ? "" : domNoteFor(report, item))).join("");
     const foot = $("#domFoot");
-    if (foot) foot.textContent = "막대 = 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
+    if (foot) foot.textContent = "막대 = +2%↑ 종목 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
       " · 종목을 누르면 차트 분석";
     domLiveTick(report);
   }
