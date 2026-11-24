@@ -2096,7 +2096,7 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
     ordered = sorted(((deep_series or {}).keys()),
                      key=lambda c: -((info.get(c) or [None] * 6)[5] or 0))
     pm_codes = set(str(c) for c in (extra_codes or ())) | set(ordered[:PM_MAX_FETCH])
-    flow.warm(ordered[:PM_MAX_FETCH], info)
+    flow.warm(ordered[:PM_MAX_FETCH])
     ctx_base = {"pm_flow": flow, "pm_codes": pm_codes,
                 "index_chg": index_chg or {}, "investor": investor or {}}
     scanners = [build_scanner_scan(defn, series, info, extra_codes, now,
