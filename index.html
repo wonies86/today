@@ -1245,10 +1245,11 @@
   .ta-lev.sup .v{color:#1d4ed8}
   .ta-lev.piv{border-left-color:#f59e0b}
   .ta-lev.piv .v{color:#b45309}
-  .ta-legend .lg-tl{background:#be123c}
+  .ta-legend .lg-tl{background:rgba(190,18,60,.55)}
   .ta-legend .lg-vol{background:#e11d48;opacity:.5}
+  .ta-legend .lg-ext{background:#475569}
   .ta-legend .lg-rs{background:#7c3aed}
-  .ta-legend .lg-lev{background:repeating-linear-gradient(90deg,#94a3b8 0 2px,transparent 2px 4px)}
+  .ta-legend .lg-lev{background:repeating-linear-gradient(90deg,rgba(148,163,184,.8) 0 2px,transparent 2px 4px)}
   .ta-rsd{color:var(--mute);font-weight:750}
 
   /* 전체화면 확대 보기 — 모달 위에 띄우는 두 번째 다이얼로그 */
@@ -7198,6 +7199,41 @@ const REPORT_DATA = [
     };
   }
 
+  /* 화면에 보이는 구간의 최고가·최저가 마커 — 딱 2개만 남겨 캔들을 가리지 않는다.
+     글자는 봉 수와 폭에 따라 차트 밖으로 잘리지 않을 때만 붙인다(가격 → 라벨만 → 화살표).
+     iFrom/iTo = 최고·최저를 찾을 봉 범위, vFrom/vTo = 실제 보이는 논리 범위(글자 자리 계산용) */
+  function tvExtremeMarkers(candles, bars, iFrom, iTo, w, vFrom, vTo) {
+    if (!bars.length || !candles.length) return [];
+    const from = Math.max(0, Math.floor(iFrom || 0));
+    const to = Math.min(bars.length - 1, Math.floor(iTo == null ? bars.length - 1 : iTo));
+    if (to < from) return [];
+    let hiI = from, loI = from;
+    for (let i = from; i <= to; i++) {
+      if (bars[i][1] > bars[hiI][1]) hiI = i;
+      if (bars[i][2] < bars[loI][2]) loI = i;
+    }
+    const width = Math.max(120, w || 300);
+    const vf = vFrom == null ? from : vFrom, vt = vTo == null ? to : vTo;
+    const xOf = (i) => (i - vf) / Math.max(1, vt - vf) * width;
+    const label = (name, v, i) => {
+      const num = tvNum(v);
+      const x = xOf(i);
+      const wide = name.length * 10 + num.length * 5.6;      /* 한글 10px · 숫자·쉼표 5.6px 어림 */
+      if (x - wide / 2 >= 2 && x + wide / 2 <= width - 2) return name + " " + num;
+      const small = name.length * 10;
+      if (x - small / 2 >= 2 && x + small / 2 <= width - 2) return name;
+      return "";
+    };
+    const mk = [
+      { time: candles[hiI].time, position: "aboveBar", color: "#475569", shape: "arrowDown",
+        text: label("최고", bars[hiI][1], hiI) },
+      { time: candles[loI].time, position: "belowBar", color: "#475569", shape: "arrowUp",
+        text: label("최저", bars[loI][2], loI) }
+    ];
+    mk.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+    return mk;
+  }
+
   /* 일봉/주봉 화면 데이터 — 지수는 같은 날짜의 값으로 정확히 맞춘다 */
   function taViewOf(data, tf) {
     if (tf !== "w") return { tf: "d", bars: data.bars, dates: data.dates, vols: data.vols, idx: data.idxCloses, unit: "일" };
@@ -7477,32 +7513,60 @@ const REPORT_DATA = [
       ).join("") + "</div>";
   }
 
-  /* 일봉/주봉 전환 + 크게 보기 + 범위 버튼 */
+  /* 차트 위에 실제로 그리는 수평선 — 가장 가까운 저항 1줄 + 1차 지지 1줄뿐.
+     분기점·다음 지지·다음 저항은 아래 가격 칩으로만 보여 차트를 가리지 않는다. */
+  function taPriceLinesOf(A) {
+    const out = [];
+    const res = A.levels.filter((l) => l.role === "res" && l.k === "저항")[0];
+    const sup = A.levels.filter((l) => l.role === "sup" && l.k === "1차 지지")[0];
+    if (res) out.push(res);
+    if (sup) out.push(sup);
+    return out;
+  }
+
+  /* 추세선을 실제로 그릴 수 있는지(끝점이 차트 범위를 벗어나지 않는지) — 범례와 렌더러가 같은 기준 */
+  function taTrendOn(A) {
+    const tl = A.trendline;
+    if (!tl || !A.bars.length) return false;
+    let maxP = -Infinity, minP = Infinity;
+    A.bars.forEach((b) => { if (b[1] > maxP) maxP = b[1]; if (b[2] < minP) minP = b[2]; });
+    return tl.endV > minP * 0.5 && tl.endV < maxP * 2;
+  }
+
+  /* 일봉/주봉 전환 + 크게 보기 + 범위 버튼(일봉 60일 기본 → 캔들이 굵게) */
   function tvToolbarHTML(A, key) {
     const link = tvLinkOf(TV.w || TVF.w);
     const full = key === "full";
     const id = (v) => (full ? "" : ' id="' + v + '"');
+    const u = A.unit;
+    const range = (A.tf === "d")
+      ? '<button type="button" class="tv-btn" data-act="d60"' + id("tvD60") + ' aria-pressed="true" title="최근 60' + u + ' 보기">60' + u + "</button>" +
+        '<button type="button" class="tv-btn" data-act="d120"' + id("tvD120") + ' aria-pressed="false" title="전체 ' + A.n + u + ' 보기">120' + u + "</button>" +
+        (A.n > 32 ? '<button type="button" class="tv-btn" data-act="d30"' + id("tvD30") + ' aria-pressed="false" title="최근 30' + u + ' 보기">30' + u + "</button>" : "")
+      : '<button type="button" class="tv-btn" data-act="d120"' + id("tvD120") + ' aria-pressed="true" title="전체 ' + A.n + u + ' 보기">전체 ' + A.n + u + "</button>";
     return '<div class="tv-tools">' +
       '<div class="tv-seg" role="group" aria-label="봉 단위">' +
         '<button type="button" data-tf="d"' + id("tvTfD") + ' aria-pressed="' + (A.tf === "d") + '">일봉</button>' +
         '<button type="button" data-tf="w"' + id("tvTfW") + ' aria-pressed="' + (A.tf === "w") + '">주봉</button>' +
       "</div>" +
-      '<button type="button" class="tv-btn" data-act="all"' + id("tvAll") + ' aria-pressed="true" title="전체 ' + A.n + A.unit + ' 보기">전체</button>' +
-      (A.n > 32 ? '<button type="button" class="tv-btn" data-act="d30"' + id("tv30") + ' aria-pressed="false" title="최근 30' + A.unit + ' 보기">30' + A.unit + "</button>" : "") +
+      range +
       (full ? "" : '<button type="button" class="tv-btn tv-big" data-act="big" id="tvBig">🔍 크게 보기</button>') +
       (link ? '<a class="tv-btn tv-link"' + id("tvLink") + ' href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">트레이딩뷰 ↗</a>' : "") +
       "</div>";
   }
 
-  function taLegendHTML(A) {
+  /* 범례 — 실제로 그려진 항목만 */
+  function taLegendHTML(A, view) {
+    const volOn = !!(view && view.vols && view.vols.length === A.n);
     return '<div class="ta-legend">' +
       '<span><i class="lg-up"></i>상승</span><span><i class="lg-down"></i>하락</span>' +
-      "<span><i class=\"lg-ma5\"></i>5" + A.unit + "선</span>" +
-      (A.ma20 ? "<span><i class=\"lg-ma20\"></i>20" + A.unit + "선</span>" : "") +
-      (A.ma60 ? "<span><i class=\"lg-ma60\"></i>60" + A.unit + "선</span>" : "") +
-      (A.trendline ? '<span><i class="lg-tl"></i>' + A.trendline.label + "</span>" : "") +
-      '<span><i class="lg-lev"></i>지지·저항</span>' +
-      '<span><i class="lg-vol"></i>거래량(천주)</span>' +
+      (A.ma5 != null ? "<span><i class=\"lg-ma5\"></i>5" + A.unit + "선</span>" : "") +
+      (A.ma20 != null ? "<span><i class=\"lg-ma20\"></i>20" + A.unit + "선</span>" : "") +
+      (A.ma60 != null ? "<span><i class=\"lg-ma60\"></i>60" + A.unit + "선</span>" : "") +
+      (taTrendOn(A) ? '<span><i class="lg-tl"></i>' + A.trendline.label + "</span>" : "") +
+      (taPriceLinesOf(A).length ? '<span><i class="lg-lev"></i>지지·저항</span>' : "") +
+      '<span><i class="lg-ext"></i>최고·최저</span>' +
+      (volOn ? '<span><i class="lg-vol"></i>거래량(천주)</span>' : "") +
       (A.rs ? '<span><i class="lg-rs"></i>RS(' + esc(A.rs.name) + ")</span>" : "") +
       "</div>";
   }
@@ -7562,7 +7626,7 @@ const REPORT_DATA = [
         '<div class="tv-plot"' + (key === "full" ? "" : ' id="tvPlot"') +
           ' role="img" aria-label="' + esc(w.name) + " " + A.unit + "봉 캔들·이평선·추세선·지지저항 차트\"></div>" +
       "</div>" +
-      taLegendHTML(A) +
+      taLegendHTML(A, got.view) +
       taChipsHTML(A) +
       (key === "full"
         ? '<p class="taf-foot">' + esc(A.trendWhy) + (A.pattern ? " · " + esc(A.pattern.why) : "") +
@@ -7621,7 +7685,7 @@ const REPORT_DATA = [
         panes: { separatorColor: "#dfe5f0", separatorHoverColor: "#cbd5e1", enableResize: true }
       },
       grid: { vertLines: { color: "#f2f4f9" }, horzLines: { color: "#f2f4f9" } },
-      rightPriceScale: { borderColor: "#e3e7f0", scaleMargins: { top: 0.09, bottom: 0.06 }, minimumWidth: 52 },
+      rightPriceScale: { borderColor: "#e3e7f0", scaleMargins: { top: 0.13, bottom: 0.09 }, minimumWidth: 52 },
       timeScale: {
         borderColor: "#e3e7f0", timeVisible: false, secondsVisible: false,
         rightOffset: 4, barSpacing: st.tf === "w" ? 9 : 6, minBarSpacing: 1,
@@ -7657,65 +7721,67 @@ const REPORT_DATA = [
 
     const candleOpts = {
       upColor: "#e11d48", downColor: "#2563eb", borderVisible: false,
-      wickUpColor: "#e11d48", wickDownColor: "#2563eb", priceFormat: priceFmt
+      wickUpColor: "#e11d48", wickDownColor: "#2563eb", priceFormat: priceFmt,
+      /* 현재가 수평선은 긋지 않는다 — 수평선은 저항·1차 지지 2줄만(우측 축의 현재가 라벨은 남긴다) */
+      priceLineVisible: false, lastValueVisible: true
     };
     const candleSeries = isV5 ? chart.addSeries(lib.CandlestickSeries, candleOpts) : chart.addCandlestickSeries(candleOpts);
     candleSeries.setData(candles);
 
-    /* 이평선 5·20·60 */
+    /* 이평선 5·20·60 — 캔들 몸통이 가장 잘 보이게 얇게 */
     const maDefs = [{ k: 5, color: "#f59e0b" }, { k: 20, color: "#6d28d9" }, { k: 60, color: "#0f766e" }];
     maDefs.forEach((d) => {
       if (n < d.k) return;
-      const opts = { color: d.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: priceFmt };
+      const opts = { color: d.color, lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: priceFmt };
       const series = add(lib.LineSeries, opts, 0) || chart.addLineSeries(opts);
       series.setData(tvMA(A.closes, d.k).map((p) => ({ time: candles[p.i].time, value: Math.round(p.v) })));
     });
 
-    /* 자동 추세선 — 스윙 두 점을 마지막 봉까지 연장 */
-    if (A.trendline) {
+    /* 자동 추세선 — 스윙 두 점을 마지막 봉까지 연장(은은한 1.5px 점선) */
+    if (taTrendOn(A)) {
       const tl = A.trendline;
-      const maxP = Math.max.apply(null, bars.map((b) => b[1]));
-      const minP = Math.min.apply(null, bars.map((b) => b[2]));
-      if (tl.endV > minP * 0.5 && tl.endV < maxP * 2) {
-        const pts = [{ time: candles[tl.p1.i].time, value: Math.round(tl.p1.v) }];
-        if (tl.p2.i !== tl.p1.i) pts.push({ time: candles[tl.p2.i].time, value: Math.round(tl.p2.v) });
-        if (tl.endI > tl.p2.i) pts.push({ time: candles[tl.endI].time, value: Math.round(tl.endV) });
-        const opts = {
-          color: tl.role === "res" ? "#be123c" : "#1d4ed8", lineWidth: 2, lineStyle: lib.LineStyle.Dashed,
-          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: priceFmt
-        };
-        const series = add(lib.LineSeries, opts, 0) || chart.addLineSeries(opts);
-        series.setData(pts);
-      }
+      const pts = [{ time: candles[tl.p1.i].time, value: Math.round(tl.p1.v) }];
+      if (tl.p2.i !== tl.p1.i) pts.push({ time: candles[tl.p2.i].time, value: Math.round(tl.p2.v) });
+      if (tl.endI > tl.p2.i) pts.push({ time: candles[tl.endI].time, value: Math.round(tl.endV) });
+      const opts = {
+        color: tl.role === "res" ? "rgba(190,18,60,.55)" : "rgba(29,78,216,.55)", lineWidth: 1.5, lineStyle: lib.LineStyle.Dashed,
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: priceFmt
+      };
+      const series = add(lib.LineSeries, opts, 0) || chart.addLineSeries(opts);
+      series.setData(pts);
     }
 
-    /* 지지·저항 수평 점선 — 라벨은 아래 가격 칩이 맡는다(차트 위 겹침 방지) */
-    A.levels.forEach((lv) => {
-      const sub = lv.k.indexOf("다음") === 0;      /* 다음 저항·다음 지지는 옅게 */
+    /* 수평 지지·저항은 2줄만 — 가장 가까운 저항 + 1차 지지. 나머지 가격은 아래 칩이 맡는다 */
+    taPriceLinesOf(A).forEach((lv) => {
       candleSeries.createPriceLine({
         price: lv.mid,
-        color: lv.role === "res" ? (sub ? "rgba(225,29,72,.38)" : "#e11d48")
-          : lv.role === "sup" ? (sub ? "rgba(37,99,235,.38)" : "#2563eb") : "#f59e0b",
-        lineWidth: 1, lineStyle: lib.LineStyle.Dashed, axisLabelVisible: false, title: lv.tag
+        color: lv.role === "res" ? "rgba(225,29,72,.55)" : "rgba(37,99,235,.55)",
+        lineWidth: 1, lineStyle: lib.LineStyle.Dashed, axisLabelVisible: false,
+        title: lv.role === "res" ? "저항" : "지지"
       });
     });
 
-    /* 피벗 고점·저점 마커 — 스윙 지점 표시 */
+    /* 최고가·최저가 마커는 딱 2개 — 화면에 보이는 구간 기준으로 다시 찍는다 */
+    let markApi = null, markWin = "";
+    const paintMarks = () => {
+      if (!markApi) return;
+      const r = chart.timeScale().getVisibleLogicalRange();
+      if (!r) return;
+      const from = Math.max(0, Math.floor(r.from));
+      const to = Math.min(n - 1, Math.ceil(r.to));
+      if (to < from) return;
+      const win = from + ":" + to;
+      if (win === markWin) return;
+      markWin = win;
+      markApi.setMarkers(tvExtremeMarkers(candles, bars, from, to, plot.clientWidth, r.from, r.to));
+    };
     if (typeof lib.createSeriesMarkers === "function") {
-      const mk = [];
-      A.pivots.highs.slice(-8).forEach((p) => mk.push({ time: candles[p.i].time, position: "aboveBar", color: "#be123c", shape: "circle" }));
-      A.pivots.lows.slice(-8).forEach((p) => mk.push({ time: candles[p.i].time, position: "belowBar", color: "#1d4ed8", shape: "circle" }));
-      /* 확대 뷰에서는 이 구간 최고가·최저가를 글자로 집어 준다 */
-      if (key === "full") {
-        let hiI = 0, loI = 0;
-        bars.forEach((b, i) => { if (b[1] > bars[hiI][1]) hiI = i; if (b[2] < bars[loI][2]) loI = i; });
-        mk.push({ time: candles[hiI].time, position: "aboveBar", color: "#0f172a", shape: "arrowDown",
-          text: "최고 " + tvNum(bars[hiI][1]) });
-        mk.push({ time: candles[loI].time, position: "belowBar", color: "#0f172a", shape: "arrowUp",
-          text: "최저 " + tvNum(bars[loI][2]) });
-      }
-      mk.sort((a, b) => (a.time < b.time ? -1 : 1));
-      try { lib.createSeriesMarkers(candleSeries, mk); } catch (e) { /* 마커는 없어도 차트는 그린다 */ }
+      try {
+        const from0 = st.tf === "w" ? 0 : Math.max(0, n - 60), to0 = n - 1;
+        markApi = lib.createSeriesMarkers(candleSeries,
+          tvExtremeMarkers(candles, bars, from0, to0, plot.clientWidth, from0 - 2, to0 + 3));
+        chart.timeScale().subscribeVisibleLogicalRangeChange(() => paintMarks());
+      } catch (e) { markApi = null; /* 마커는 없어도 차트는 그린다 */ }
     }
 
     /* 거래량 페인 */
@@ -7761,7 +7827,21 @@ const REPORT_DATA = [
       if (panes[2]) panes[2].setStretchFactor(1.3);
     }
 
-    chart.timeScale().setVisibleLogicalRange({ from: -2, to: n + 4 });
+    /* 보이는 구간 — 일봉은 최근 60거래일이 기본(캔들이 굵게), 120·30으로 바꿔 볼 수 있다 */
+    const applyRange = (act) => {
+      const cnt = Math.min(n, act === "d30" ? 30 : act === "d120" ? n : st.tf === "w" ? n : 60);
+      /* 왼쪽에 2봉 여유를 두어 구간 첫 봉의 최고·최저 마커가 잘리지 않게 한다 */
+      const from = cnt >= n ? -0.5 : Math.max(0, n - cnt) - 2;
+      chart.timeScale().setVisibleLogicalRange({ from: from, to: n + 2 });
+      box.querySelectorAll("[data-act]").forEach((b) => {
+        const a = b.getAttribute("data-act");
+        if (a === "big") return;
+        b.setAttribute("aria-pressed", String(a === act));
+      });
+      markWin = "";
+      paintMarks();
+    };
+    applyRange(st.tf === "w" ? "d120" : "d60");
 
     /* 십자선 — 그 봉의 시·고·저·종(+거래량)을 위에 */
     const ohlc = box.querySelector(".tv-ohlc");
@@ -7774,16 +7854,11 @@ const REPORT_DATA = [
         st.view.vols && st.view.vols[i] != null ? st.view.vols[i] * (st.data.volUnit || 1) : null);
     });
 
-    /* 범위 버튼 */
+    /* 범위 버튼 — 일봉 60일 · 120일 · 30일 */
     const wire = (sel, fn) => { const el = box.querySelector(sel); if (el) el.addEventListener("click", fn); };
-    wire('[data-act="all"]', () => {
-      chart.timeScale().setVisibleLogicalRange({ from: -2, to: n + 4 });
-      box.querySelectorAll("[data-act]").forEach((b) => b.setAttribute("aria-pressed", String(b.getAttribute("data-act") === "all")));
-    });
-    wire('[data-act="d30"]', () => {
-      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 30) - 0.5, to: n + 2 });
-      box.querySelectorAll("[data-act]").forEach((b) => b.setAttribute("aria-pressed", String(b.getAttribute("data-act") === "d30")));
-    });
+    wire('[data-act="d60"]', () => applyRange("d60"));
+    wire('[data-act="d120"]', () => applyRange("d120"));
+    wire('[data-act="d30"]', () => applyRange("d30"));
     /* 일봉 ↔ 주봉 — 같은 실측 일봉을 다시 집계해 그린다 */
     box.querySelectorAll("[data-tf]").forEach((b) => b.addEventListener("click", () => {
       const tf = b.getAttribute("data-tf");
@@ -7799,6 +7874,8 @@ const REPORT_DATA = [
         if (!st.chart || !st.plot) return;
         const wpx = st.plot.clientWidth, hpx = st.plot.clientHeight;
         if (wpx > 0 && hpx > 0) st.chart.resize(wpx, hpx);
+        markWin = "";
+        paintMarks();
       });
       st.ro.observe(plot);
     }
