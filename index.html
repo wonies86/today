@@ -1010,6 +1010,12 @@
   .ta-price b{font-size:23px;font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
   .ta-price .chg{font-size:14px;font-weight:850;font-variant-numeric:tabular-nums}
   .ta-basis{font-size:10.5px;color:var(--mute);font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+  /* 차트 탭 — 가격·기준을 한 줄로 압축해 차트에 높이를 내준다 */
+  .ta-price.is-chart{align-items:center;gap:6px;margin:0 0 2px}
+  .ta-price.is-chart b{font-size:18px}
+  .ta-price.is-chart .chg{font-size:12px}
+  .ta-basis-inline{margin-left:auto;font-size:9.5px;font-weight:650;color:var(--mute);font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52%}
   .ta-chips{display:flex;flex-wrap:wrap;gap:4px;margin:9px 0 11px}
   .ta-chip{
     font-size:10px;font-weight:700;color:var(--ink-2);
@@ -1149,6 +1155,7 @@
   /* 차트 화면 */
   .ta-chartwrap{margin:2px 0 8px;background:#fff;border:1px solid var(--line-2);border-radius:11px;padding:7px 6px 5px;overflow:hidden}
   .tv-top{display:flex;align-items:center;gap:6px;padding:0 3px 5px;flex-wrap:wrap}
+  .tv-top .tv-big{margin-left:auto}
   .tv-ohlc{font-size:9.5px;font-weight:700;color:var(--ink-2);line-height:1.4;font-variant-numeric:tabular-nums}
   .tv-ohlc b{color:var(--ink);font-weight:850}
   .tv-chg{font-weight:850}
@@ -1159,11 +1166,11 @@
   .tv-plot canvas{display:block}
   .tv-loading,.tv-fail{position:absolute;inset:0;display:grid;place-items:center;padding:0 18px;text-align:center;
     font-size:11px;font-weight:700;line-height:1.6;color:var(--mute)}
-  .tv-tools{display:flex;align-items:center;justify-content:flex-start;gap:5px;padding:6px 2px 1px;flex-wrap:wrap}
+  .tv-tools{display:flex;align-items:center;justify-content:flex-start;gap:4px;padding:6px 2px 1px;flex-wrap:wrap}
   .tv-btn{
     appearance:none;font-family:inherit;font-size:10px;font-weight:800;letter-spacing:-.01em;
     color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:7px;
-    padding:4px 8px;cursor:pointer;text-decoration:none;line-height:1.4;
+    padding:4px 6px;cursor:pointer;text-decoration:none;line-height:1.4;
   }
   .tv-btn:hover{border-color:var(--line-3);background:var(--bg-soft);color:var(--ink)}
   .tv-btn[aria-pressed="true"]{color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-color:transparent;box-shadow:0 3px 8px -5px rgba(109,40,217,.9)}
@@ -1219,12 +1226,12 @@
   .tv-seg{display:inline-flex;flex:0 0 auto;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}
   .tv-seg button{
     appearance:none;font-family:inherit;font-size:10px;font-weight:800;color:var(--ink-2);
-    background:#fff;border:0;border-right:1px solid var(--line);padding:4px 9px;cursor:pointer;line-height:1.4
+    background:#fff;border:0;border-right:1px solid var(--line);padding:4px 8px;cursor:pointer;line-height:1.4
   }
   .tv-seg button:last-child{border-right:0}
   .tv-seg button[aria-pressed="true"]{color:#fff;background:linear-gradient(135deg,#6d28d9,#8b5cf6)}
   .tv-btn.tv-big{color:#6d28d9;border-color:#ddd0fb;background:var(--violet-soft);font-weight:850}
-  .ta-chartwrap .tv-plot{height:340px}
+  .ta-chartwrap .tv-plot{height:320px}
   .ta-levs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 0 9px}
   .ta-lev{
     display:flex;flex-direction:column;gap:1px;min-width:0;
@@ -7480,8 +7487,8 @@ const REPORT_DATA = [
         '<button type="button" data-tf="d"' + id("tvTfD") + ' aria-pressed="' + (A.tf === "d") + '">일봉</button>' +
         '<button type="button" data-tf="w"' + id("tvTfW") + ' aria-pressed="' + (A.tf === "w") + '">주봉</button>' +
       "</div>" +
-      '<button type="button" class="tv-btn" data-act="all"' + id("tvAll") + ' aria-pressed="true">전체 ' + A.n + A.unit + "</button>" +
-      (A.n > 32 ? '<button type="button" class="tv-btn" data-act="d30"' + id("tv30") + ' aria-pressed="false">최근 30' + A.unit + "</button>" : "") +
+      '<button type="button" class="tv-btn" data-act="all"' + id("tvAll") + ' aria-pressed="true" title="전체 ' + A.n + A.unit + ' 보기">전체</button>' +
+      (A.n > 32 ? '<button type="button" class="tv-btn" data-act="d30"' + id("tv30") + ' aria-pressed="false" title="최근 30' + A.unit + ' 보기">30' + A.unit + "</button>" : "") +
       (full ? "" : '<button type="button" class="tv-btn tv-big" data-act="big" id="tvBig">🔍 크게 보기</button>') +
       (link ? '<a class="tv-btn tv-link"' + id("tvLink") + ' href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">트레이딩뷰 ↗</a>' : "") +
       "</div>";
@@ -7536,9 +7543,9 @@ const REPORT_DATA = [
 
   function taChartHTML(w, report, pack, key) {
     const price = w.price ? (String(w.price).slice(-1) === "원" ? String(w.price) : String(w.price) + "원") : "—";
-    let h = key === "full" ? "" : '<div class="ta-price"><b>' + esc(price) + "</b>" +
-        (w.chg == null || isNaN(w.chg) ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") + "</div>" +
-      '<div class="ta-basis">' + esc(report.priceBasis || "") + "</div>";
+    let h = key === "full" ? "" : '<div class="ta-price is-chart"><b>' + esc(price) + "</b>" +
+        (w.chg == null || isNaN(w.chg) ? "" : '<span class="chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>") +
+        '<span class="ta-basis-inline">' + esc(report.priceBasis || "") + "</span></div>";
 
     if (!pack) return h + '<div class="ta-empty" style="margin-top:10px">' + taNoChartNote(report) + "</div>";
     const got = taSetup(w, report, key);
