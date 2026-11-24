@@ -7923,19 +7923,37 @@ const REPORT_DATA = [
     }
     return src;
   }
+  /* 공백 단위로 먼저 끊고, 한 덩어리가 줄보다 길 때만 글자 단위로 자른다
+     (숫자·퍼센트가 "249,00 / 0" 처럼 중간에서 끊기지 않게) */
   function txWrap(s, size, maxW, maxLines) {
     const src = String(s == null ? "" : s).trim();
-    const lines = [];
+    const out = [];
     let cur = "";
-    for (const ch of src) {
-      if (txTw(cur + ch, size) > maxW) {
-        if (lines.length >= maxLines - 1) { lines.push(txClip(cur + ch, size, maxW)); return lines; }
-        lines.push(cur.trim());
-        cur = ch === " " ? "" : ch;
-      } else cur += ch;
+    const flush = () => { if (cur.trim()) out.push(cur.trim()); cur = ""; };
+    src.split(" ").forEach((u) => {
+      if (out.length >= maxLines) return;
+      if (!u) return;
+      const cand = cur ? cur + " " + u : u;
+      if (txTw(cand, size) <= maxW) { cur = cand; return; }
+      flush();
+      if (out.length >= maxLines) return;
+      if (txTw(u, size) <= maxW) { cur = u; return; }
+      let part = "";
+      for (const ch of u) {
+        if (txTw(part + ch, size) > maxW) {
+          out.push(part);
+          part = ch;
+          if (out.length >= maxLines) return;
+        } else part += ch;
+      }
+      cur = part;
+    });
+    flush();
+    const lines = out.slice(0, maxLines);
+    if (out.length > maxLines && lines.length) {
+      lines[lines.length - 1] = txClip(lines[lines.length - 1] + " …", size, maxW);
     }
-    if (cur.trim()) lines.push(cur.trim());
-    return lines.slice(0, maxLines);
+    return lines;
   }
   function txT(x, y, s, o) {
     o = o || {};
@@ -8282,14 +8300,20 @@ const REPORT_DATA = [
     /* ---- 추세·패턴 요약 박스 자리 (콜아웃보다 먼저 — 서로 겹치지 않게) ---- */
     const taken = [];
     const sumLines = [];
-    if (A.pattern) sumLines.push("패턴 " + A.pattern.label + " — " + A.pattern.why);
-    sumLines.push(A.trendWhy);
+    /* 근거 1 — 이평 배열 */
+    if (A.align !== "판정 보류") sumLines.push(A.align + (A.alignWhy && A.align !== "혼조" ? " · " + A.alignWhy : ""));
+    /* 근거 2 — 피벗 고점·저점 흐름 */
+    const hseq = A.pivots.highs.slice(-3).map((p) => txWon(p.v)).join("→");
+    const lseq = A.pivots.lows.slice(-3).map((p) => txWon(p.v)).join("→");
+    if (hseq || lseq) sumLines.push([hseq ? "고점 " + hseq : "", lseq ? "저점 " + lseq : ""].filter(Boolean).join(" · "));
+    /* 근거 3 — 추세 구조 폴백이 아닌 실제 패턴일 때만 한 줄 더 */
+    if (A.pattern && !/추세\(|횡보\(/.test(A.pattern.label)) sumLines.push(A.pattern.why);
     const sumW = mo ? L.W - 16 : 470;
     const sumH = L.sumH;
     const evSize = F.ev;
     const evAll = [];
     sumLines.forEach((t) => { txWrap(t, evSize, sumW - (mo ? 20 : 26), mo ? 3 : 4).forEach((x) => evAll.push(x)); });
-    const needH = sumH + Math.max(0, (evAll.length - 2) * (mo ? 9 : 13));
+    const needH = sumH + Math.max(0, (evAll.length - 2) * (mo ? 9 : 13)) + (mo ? 2 : 5);
     let sx = 8, sy = L.sumY;
     if (!mo) {
       const r0 = txPickFree(sumW, needH, L, rects, taken, { x: L.padL + 12, y: L.T + 12 });
