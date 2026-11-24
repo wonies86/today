@@ -1292,6 +1292,75 @@
   }
 
   /* ============================================================
+     🎯 전문가 분석 차트 — 기본 차트는 그대로 두고 리포트만 따로 연다
+     ============================================================ */
+  .tx-open{
+    display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;margin:0 0 9px;
+    appearance:none;font-family:inherit;text-align:left;cursor:pointer;
+    padding:9px 12px;border:1px solid #0b3325;border-radius:10px;
+    background:linear-gradient(135deg,#0f3d2e,#1a5a41);color:#fff;
+    box-shadow:0 8px 16px -12px rgba(15,61,46,.95)
+  }
+  .tx-open:hover{filter:brightness(1.07)}
+  .tx-open-t{font-size:12.5px;font-weight:850;letter-spacing:-.02em}
+  .tx-open-s{font-size:9px;font-weight:700;color:#bcd8c9;letter-spacing:-.01em}
+  body.tx-lock{overflow:hidden}
+
+  .tx-dialog{
+    width:100vw;max-width:100vw;height:100vh;max-height:100vh;margin:0;padding:0;border:0;border-radius:0;
+    background:#0b1f18;color:#fff;display:flex;flex-direction:column;overflow:hidden
+  }
+  .tx-dialog:not([open]){display:none}
+  .tx-dialog::backdrop{background:rgba(5,18,12,.9)}
+  .tx-head{
+    flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:calc(7px + env(safe-area-inset-top)) 10px 7px;
+    background:#0b1f18;border-bottom:1px solid rgba(255,255,255,.10)
+  }
+  .tx-head-main{flex:1 1 auto;min-width:0}
+  .tx-title{margin:0;font-size:13.5px;font-weight:850;letter-spacing:-.02em;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tx-sub{margin-top:1px;font-size:9px;font-weight:700;color:#8fb4a4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tx-tools{flex:0 0 auto;display:flex;align-items:center;gap:4px}
+  .tx-seg{display:inline-flex;border:1px solid rgba(255,255,255,.22);border-radius:7px;overflow:hidden}
+  .tx-seg button{
+    appearance:none;font-family:inherit;font-size:10px;font-weight:800;color:#cfe3d8;background:transparent;
+    border:0;border-right:1px solid rgba(255,255,255,.16);padding:5px 8px;cursor:pointer;line-height:1.2
+  }
+  .tx-seg button:last-child{border-right:0}
+  .tx-seg button[aria-pressed="true"]{background:#e8d9a8;color:#12352a}
+  .tx-btn{
+    appearance:none;font-family:inherit;font-size:10px;font-weight:800;color:#cfe3d8;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:7px;
+    padding:5px 7px;cursor:pointer;line-height:1.2
+  }
+  .tx-btn[aria-pressed="true"]{background:#e8d9a8;color:#12352a;border-color:transparent}
+  .tx-z{min-width:26px;padding:5px 0}
+  .tx-zoom{font-size:9px;font-weight:800;color:#8fb4a4;min-width:32px;text-align:center;font-variant-numeric:tabular-nums}
+  .tx-x{
+    width:30px;height:28px;border-radius:7px;border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.06);color:#fff;font-size:12px;font-weight:800;cursor:pointer;line-height:1
+  }
+  .tx-x:hover{background:rgba(255,255,255,.14)}
+  .tx-body{
+    flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    padding:8px 6px calc(10px + env(safe-area-inset-bottom));display:flex;flex-direction:column
+  }
+  .tx-inner{margin:auto;width:100%}
+  .tx-card{margin:0 auto}
+  .tx-card svg{display:block;width:100%;height:auto;border-radius:9px;box-shadow:0 20px 44px -26px rgba(0,0,0,.95)}
+  .tx-hint{margin:7px 2px 0;text-align:center;font-size:9px;font-weight:700;color:#7ea492;line-height:1.5}
+  .tx-empty{margin:12px 4px;padding:14px;border:1px dashed rgba(255,255,255,.25);border-radius:10px;
+    font-size:11px;line-height:1.6;color:#cfe3d8}
+  @media (max-width:430px){
+    .tx-head{padding:calc(6px + env(safe-area-inset-top)) 8px 6px;gap:6px}
+    .tx-title{font-size:12px}
+    .tx-zoom{display:none}
+    .tx-seg button{padding:5px 6px}
+  }
+
+  /* ============================================================
      시장 이슈 배너 — 헤더·세션 탭 바로 아래 (심플·상세 공통)
      data.json 의 session.issue / day.issue 가 있을 때만 그려진다
      ============================================================ */
@@ -3036,6 +3105,33 @@
     <button type="button" class="taf-x" id="tafClose" aria-label="확대 보기 닫기 (Esc)">✕</button>
   </div>
   <div class="taf-body" id="tafBody"></div>
+</dialog>
+
+<!-- ======================= 🎯 전문가 분석 차트 (시그널리포트형 카드) ======================= -->
+<dialog class="tx-dialog" id="taExpert" aria-labelledby="txTitle">
+  <div class="tx-head">
+    <div class="tx-head-main">
+      <h3 class="tx-title" id="txTitle">—</h3>
+      <div class="tx-sub" id="txSub"></div>
+    </div>
+    <div class="tx-tools">
+      <div class="tx-seg" role="group" aria-label="봉 단위">
+        <button type="button" data-xtf="d" aria-pressed="true">일봉</button>
+        <button type="button" data-xtf="w" aria-pressed="false">주봉</button>
+      </div>
+      <button type="button" class="tx-btn" id="txFit" aria-pressed="true" title="한 장으로 맞춤">맞춤</button>
+      <button type="button" class="tx-btn tx-z" id="txZoomOut" aria-label="축소">−</button>
+      <span class="tx-zoom" id="txZoomVal">100%</span>
+      <button type="button" class="tx-btn tx-z" id="txZoomIn" aria-label="확대">+</button>
+      <button type="button" class="tx-x" id="txClose" aria-label="전문가 분석 차트 닫기 (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="tx-body" id="txBody">
+    <div class="tx-inner">
+      <div class="tx-card" id="txCard"></div>
+      <p class="tx-hint">두 손가락으로 확대 · <b>맞춤</b>을 누르면 리포트 한 장이 화면에 들어옵니다</p>
+    </div>
+  </div>
 </dialog>
 
 <!-- ======================= 한화면 캡처 (스레드용 1스크린 카드) ======================= -->
@@ -7199,41 +7295,6 @@ const REPORT_DATA = [
     };
   }
 
-  /* 화면에 보이는 구간의 최고가·최저가 마커 — 딱 2개만 남겨 캔들을 가리지 않는다.
-     글자는 봉 수와 폭에 따라 차트 밖으로 잘리지 않을 때만 붙인다(가격 → 라벨만 → 화살표).
-     iFrom/iTo = 최고·최저를 찾을 봉 범위, vFrom/vTo = 실제 보이는 논리 범위(글자 자리 계산용) */
-  function tvExtremeMarkers(candles, bars, iFrom, iTo, w, vFrom, vTo) {
-    if (!bars.length || !candles.length) return [];
-    const from = Math.max(0, Math.floor(iFrom || 0));
-    const to = Math.min(bars.length - 1, Math.floor(iTo == null ? bars.length - 1 : iTo));
-    if (to < from) return [];
-    let hiI = from, loI = from;
-    for (let i = from; i <= to; i++) {
-      if (bars[i][1] > bars[hiI][1]) hiI = i;
-      if (bars[i][2] < bars[loI][2]) loI = i;
-    }
-    const width = Math.max(120, w || 300);
-    const vf = vFrom == null ? from : vFrom, vt = vTo == null ? to : vTo;
-    const xOf = (i) => (i - vf) / Math.max(1, vt - vf) * width;
-    const label = (name, v, i) => {
-      const num = tvNum(v);
-      const x = xOf(i);
-      const wide = name.length * 10 + num.length * 5.6;      /* 한글 10px · 숫자·쉼표 5.6px 어림 */
-      if (x - wide / 2 >= 2 && x + wide / 2 <= width - 2) return name + " " + num;
-      const small = name.length * 10;
-      if (x - small / 2 >= 2 && x + small / 2 <= width - 2) return name;
-      return "";
-    };
-    const mk = [
-      { time: candles[hiI].time, position: "aboveBar", color: "#475569", shape: "arrowDown",
-        text: label("최고", bars[hiI][1], hiI) },
-      { time: candles[loI].time, position: "belowBar", color: "#475569", shape: "arrowUp",
-        text: label("최저", bars[loI][2], loI) }
-    ];
-    mk.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-    return mk;
-  }
-
   /* 일봉/주봉 화면 데이터 — 지수는 같은 날짜의 값으로 정확히 맞춘다 */
   function taViewOf(data, tf) {
     if (tf !== "w") return { tf: "d", bars: data.bars, dates: data.dates, vols: data.vols, idx: data.idxCloses, unit: "일" };
@@ -7376,9 +7437,11 @@ const REPORT_DATA = [
     }
     /* 뚜렷한 패턴이 없을 때는 추세 구조 자체를 패턴으로 적는다(근거 숫자 그대로) */
     if (h3.length >= 2 && hDir < 0 && lDir <= 0) {
-      pats.push({ rank: 5, label: "하락 추세(고점 하락)", tone: "down", why: "고점 " + seq(h3) + " 연속 하락" });
+      pats.push({ rank: 5, label: "하락 추세(고점 하락)", tone: "down",
+        why: "고점 " + seq(h3) + " · 직전 고점 대비 " + taPctS((h3[h3.length - 1].v / h3[h3.length - 2].v - 1) * 100) });
     } else if (h3.length >= 2 && hDir > 0 && lDir >= 0) {
-      pats.push({ rank: 5, label: "상승 추세(고점 상승)", tone: "up", why: "고점 " + seq(h3) + " 상승" });
+      pats.push({ rank: 5, label: "상승 추세(고점 상승)", tone: "up",
+        why: "고점 " + seq(h3) + " · 직전 고점 대비 " + taPctS((h3[h3.length - 1].v / h3[h3.length - 2].v - 1) * 100) });
     } else if (h3.length >= 2 && hDir === 0 && lDir === 0) {
       pats.push({ rank: 5.5, label: "횡보(고점·저점 횡보)", tone: "flat", why: "고점 " + seq(h3) + " · 저점 " + seq(l3) + " 비슷" });
     }
@@ -7491,39 +7554,6 @@ const REPORT_DATA = [
     return Math.max(0, Math.min(100, (price - lo) / (hi - lo) * 100));
   }
 
-  /* 요약 배지 — 패턴 / 추세 + 1줄 근거 */
-  function taVerdictHTML(A) {
-    const p = A.pattern;
-    const pTone = p ? p.tone : "flat";
-    return '<div class="ta-verdict">' +
-      '<span class="ta-vb ' + pTone + '"><i class="lb">패턴</i>' + esc(p ? p.label : "패턴 없음") + "</span>" +
-      '<span class="ta-vb ' + A.trendTone + '"><i class="lb">추세</i>' + esc(A.trend) + "</span>" +
-      '<span class="ta-vb flat"><i class="lb">' + A.unit + "봉</i>" + A.n + "개</span>" +
-      '<p class="ta-vwhy">' + esc((p ? p.why + " · " : "") + A.trendWhy) + "</p>" +
-      (A.sub ? '<p class="ta-vwhy2">보조 패턴: ' + esc(A.sub.label) + " — " + esc(A.sub.why) + "</p>" : "") +
-      "</div>";
-  }
-
-  /* 핵심 가격 칩 — 차트를 가리지 않게 차트 아래 2열로 */
-  function taChipsHTML(A) {
-    if (!A.levels.length) return "";
-    return '<div class="ta-levs">' +
-      A.levels.map((l) =>
-        '<div class="ta-lev ' + l.role + '"><span class="k">' + esc(l.k) + '</span><span class="v">' + esc(l.v) + "</span></div>"
-      ).join("") + "</div>";
-  }
-
-  /* 차트 위에 실제로 그리는 수평선 — 가장 가까운 저항 1줄 + 1차 지지 1줄뿐.
-     분기점·다음 지지·다음 저항은 아래 가격 칩으로만 보여 차트를 가리지 않는다. */
-  function taPriceLinesOf(A) {
-    const out = [];
-    const res = A.levels.filter((l) => l.role === "res" && l.k === "저항")[0];
-    const sup = A.levels.filter((l) => l.role === "sup" && l.k === "1차 지지")[0];
-    if (res) out.push(res);
-    if (sup) out.push(sup);
-    return out;
-  }
-
   /* 추세선을 실제로 그릴 수 있는지(끝점이 차트 범위를 벗어나지 않는지) — 범례와 렌더러가 같은 기준 */
   function taTrendOn(A) {
     const tl = A.trendline;
@@ -7533,23 +7563,17 @@ const REPORT_DATA = [
     return tl.endV > minP * 0.5 && tl.endV < maxP * 2;
   }
 
-  /* 일봉/주봉 전환 + 크게 보기 + 범위 버튼(일봉 60일 기본 → 캔들이 굵게) */
+  /* 범위 버튼 — 전체(120일) · 60일 · 30일, 크게 보기, 트레이딩뷰 */
   function tvToolbarHTML(A, key) {
     const link = tvLinkOf(TV.w || TVF.w);
     const full = key === "full";
     const id = (v) => (full ? "" : ' id="' + v + '"');
-    const u = A.unit;
-    const range = (A.tf === "d")
-      ? '<button type="button" class="tv-btn" data-act="d60"' + id("tvD60") + ' aria-pressed="true" title="최근 60' + u + ' 보기">60' + u + "</button>" +
-        '<button type="button" class="tv-btn" data-act="d120"' + id("tvD120") + ' aria-pressed="false" title="전체 ' + A.n + u + ' 보기">120' + u + "</button>" +
-        (A.n > 32 ? '<button type="button" class="tv-btn" data-act="d30"' + id("tvD30") + ' aria-pressed="false" title="최근 30' + u + ' 보기">30' + u + "</button>" : "")
-      : '<button type="button" class="tv-btn" data-act="d120"' + id("tvD120") + ' aria-pressed="true" title="전체 ' + A.n + u + ' 보기">전체 ' + A.n + u + "</button>";
     return '<div class="tv-tools">' +
-      '<div class="tv-seg" role="group" aria-label="봉 단위">' +
-        '<button type="button" data-tf="d"' + id("tvTfD") + ' aria-pressed="' + (A.tf === "d") + '">일봉</button>' +
-        '<button type="button" data-tf="w"' + id("tvTfW") + ' aria-pressed="' + (A.tf === "w") + '">주봉</button>' +
+      '<div class="tv-seg tv-seg-range" role="group" aria-label="보이는 기간">' +
+        '<button type="button" data-act="d120"' + id("tvAll") + ' aria-pressed="true" title="전체 ' + A.n + '거래일 보기">전체 ' + A.n + '일</button>' +
+        '<button type="button" data-act="d60"' + id("tv60") + ' aria-pressed="false" title="최근 60거래일 보기">60일</button>' +
+        (A.n > 32 ? '<button type="button" data-act="d30"' + id("tv30") + ' aria-pressed="false" title="최근 30거래일 보기">30일</button>' : "") +
       "</div>" +
-      range +
       (full ? "" : '<button type="button" class="tv-btn tv-big" data-act="big" id="tvBig">🔍 크게 보기</button>') +
       (link ? '<a class="tv-btn tv-link"' + id("tvLink") + ' href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">트레이딩뷰 ↗</a>' : "") +
       "</div>";
@@ -7560,14 +7584,10 @@ const REPORT_DATA = [
     const volOn = !!(view && view.vols && view.vols.length === A.n);
     return '<div class="ta-legend">' +
       '<span><i class="lg-up"></i>상승</span><span><i class="lg-down"></i>하락</span>' +
-      (A.ma5 != null ? "<span><i class=\"lg-ma5\"></i>5" + A.unit + "선</span>" : "") +
-      (A.ma20 != null ? "<span><i class=\"lg-ma20\"></i>20" + A.unit + "선</span>" : "") +
-      (A.ma60 != null ? "<span><i class=\"lg-ma60\"></i>60" + A.unit + "선</span>" : "") +
-      (taTrendOn(A) ? '<span><i class="lg-tl"></i>' + A.trendline.label + "</span>" : "") +
-      (taPriceLinesOf(A).length ? '<span><i class="lg-lev"></i>지지·저항</span>' : "") +
-      '<span><i class="lg-ext"></i>최고·최저</span>' +
+      (A.ma5 != null ? '<span><i class="lg-ma5"></i>5일선</span>' : "") +
+      (A.ma20 != null ? '<span><i class="lg-ma20"></i>20일선</span>' : "") +
+      (A.ma60 != null ? '<span><i class="lg-ma60"></i>60일선</span>' : "") +
       (volOn ? '<span><i class="lg-vol"></i>거래량(천주)</span>' : "") +
-      (A.rs ? '<span><i class="lg-rs"></i>RS(' + esc(A.rs.name) + ")</span>" : "") +
       "</div>";
   }
 
@@ -7618,26 +7638,30 @@ const REPORT_DATA = [
     const lastBar = { time: tvTime(A.lastDate), open: A.last[0], high: A.last[1], low: A.last[2], close: A.last[3] };
     const prev = A.prevClose ? { close: A.prevClose } : null;
 
-    h += taVerdictHTML(A);
+    /* 기본 차트는 캔들 · 5·20·60 이평 · 거래량만 — 추세선·지지저항·마커·RS는 넣지 않는다.
+       분석 리포트는 아래 🎯 전문가 분석 차트에서 따로 본다. */
     h += '<div class="' + (key === "full" ? "taf-chartwrap" : "ta-chartwrap") + '">' +
         '<div class="tv-top"><span class="tv-ohlc"' + (key === "full" ? "" : ' id="tvOhlc"') + ">" +
           tvOhlcHTML(lastBar, prev, A.volLast) + "</span></div>" +
         tvToolbarHTML(A, key) +
         '<div class="tv-plot"' + (key === "full" ? "" : ' id="tvPlot"') +
-          ' role="img" aria-label="' + esc(w.name) + " " + A.unit + "봉 캔들·이평선·추세선·지지저항 차트\"></div>" +
+          ' role="img" aria-label="' + esc(w.name) + " 일봉 캔들·이동평균선·거래량 차트\"></div>" +
       "</div>" +
       taLegendHTML(A, got.view) +
-      taChipsHTML(A) +
-      (key === "full"
-        ? '<p class="taf-foot">' + esc(A.trendWhy) + (A.pattern ? " · " + esc(A.pattern.why) : "") +
-          " · 지지·저항은 최근 피벗 고점·저점을 2.5% 이내로 묶은 가격대이고, 데이터 " +
-          esc(A.n + A.unit) + "봉 실측값만 씁니다.</p>"
-        : taFactsHTML(A, w) +
-          '<p class="ta-note">출처: 네이버 금융 일봉 ' + got.data.dates.length + "거래일(data.json charts) · 마지막 봉 " +
-          esc(tvDay(A.lastDate)) + " · 이평선·피벗·지지저항·추세선·RS는 실측 종가에서 자동 계산하며 조건을 못 채우면 표시하지 않습니다. 차트: " +
+      (key === "full" ? "" : taExpertButtonHTML() +
+        taFactsHTML(A, w) +
+        '<p class="ta-note">출처: 네이버 금융 일봉 ' + got.data.dates.length + "거래일(data.json charts) · 마지막 봉 " +
+          esc(tvDay(A.lastDate)) + " · 이동평균은 종가 기준 5·20·60일선(봉이 쌓인 지점부터)이고 거래량은 같은 날 실측값입니다. 차트: " +
           '<a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener noreferrer">' +
           "TradingView Lightweight Charts™</a> v" + LWC_VERSION + " (핀치 확대, 드래그 이동, 십자선 시·고·저·종).</p>");
     return h;
+  }
+
+  /* 🎯 전문가 분석 차트 열기 버튼 — 기본 차트를 건드리지 않고 리포트로 넘어간다 */
+  function taExpertButtonHTML() {
+    return '<button type="button" class="tx-open" data-act="expert" aria-label="전문가 분석 차트 열기">' +
+      '<span class="tx-open-t">🎯 전문가 분석 차트</span>' +
+      '<span class="tx-open-s">추세·패턴 · 발판 · 지지저항 4단계 · VOL·RS 리포트</span></button>';
   }
 
   function tvDispose(st) {
@@ -7716,13 +7740,11 @@ const REPORT_DATA = [
     const add = (def, opts, pane) => (isV5 ? chart.addSeries(def, opts, pane || 0) : null);
     const hasPanes = typeof chart.panes === "function";
     const paneVol = hasPanes ? 1 : 0;
-    const paneRs = hasPanes ? 2 : 0;
     const priceFmt = { type: "price", precision: 0, minMove: 1 };
 
     const candleOpts = {
       upColor: "#e11d48", downColor: "#2563eb", borderVisible: false,
       wickUpColor: "#e11d48", wickDownColor: "#2563eb", priceFormat: priceFmt,
-      /* 현재가 수평선은 긋지 않는다 — 수평선은 저항·1차 지지 2줄만(우측 축의 현재가 라벨은 남긴다) */
       priceLineVisible: false, lastValueVisible: true
     };
     const candleSeries = isV5 ? chart.addSeries(lib.CandlestickSeries, candleOpts) : chart.addCandlestickSeries(candleOpts);
@@ -7737,52 +7759,7 @@ const REPORT_DATA = [
       series.setData(tvMA(A.closes, d.k).map((p) => ({ time: candles[p.i].time, value: Math.round(p.v) })));
     });
 
-    /* 자동 추세선 — 스윙 두 점을 마지막 봉까지 연장(은은한 1.5px 점선) */
-    if (taTrendOn(A)) {
-      const tl = A.trendline;
-      const pts = [{ time: candles[tl.p1.i].time, value: Math.round(tl.p1.v) }];
-      if (tl.p2.i !== tl.p1.i) pts.push({ time: candles[tl.p2.i].time, value: Math.round(tl.p2.v) });
-      if (tl.endI > tl.p2.i) pts.push({ time: candles[tl.endI].time, value: Math.round(tl.endV) });
-      const opts = {
-        color: tl.role === "res" ? "rgba(190,18,60,.55)" : "rgba(29,78,216,.55)", lineWidth: 1.5, lineStyle: lib.LineStyle.Dashed,
-        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: priceFmt
-      };
-      const series = add(lib.LineSeries, opts, 0) || chart.addLineSeries(opts);
-      series.setData(pts);
-    }
-
-    /* 수평 지지·저항은 2줄만 — 가장 가까운 저항 + 1차 지지. 나머지 가격은 아래 칩이 맡는다 */
-    taPriceLinesOf(A).forEach((lv) => {
-      candleSeries.createPriceLine({
-        price: lv.mid,
-        color: lv.role === "res" ? "rgba(225,29,72,.55)" : "rgba(37,99,235,.55)",
-        lineWidth: 1, lineStyle: lib.LineStyle.Dashed, axisLabelVisible: false,
-        title: lv.role === "res" ? "저항" : "지지"
-      });
-    });
-
-    /* 최고가·최저가 마커는 딱 2개 — 화면에 보이는 구간 기준으로 다시 찍는다 */
-    let markApi = null, markWin = "";
-    const paintMarks = () => {
-      if (!markApi) return;
-      const r = chart.timeScale().getVisibleLogicalRange();
-      if (!r) return;
-      const from = Math.max(0, Math.floor(r.from));
-      const to = Math.min(n - 1, Math.ceil(r.to));
-      if (to < from) return;
-      const win = from + ":" + to;
-      if (win === markWin) return;
-      markWin = win;
-      markApi.setMarkers(tvExtremeMarkers(candles, bars, from, to, plot.clientWidth, r.from, r.to));
-    };
-    if (typeof lib.createSeriesMarkers === "function") {
-      try {
-        const from0 = st.tf === "w" ? 0 : Math.max(0, n - 60), to0 = n - 1;
-        markApi = lib.createSeriesMarkers(candleSeries,
-          tvExtremeMarkers(candles, bars, from0, to0, plot.clientWidth, from0 - 2, to0 + 3));
-        chart.timeScale().subscribeVisibleLogicalRangeChange(() => paintMarks());
-      } catch (e) { markApi = null; /* 마커는 없어도 차트는 그린다 */ }
-    }
+    /* 기본 차트에는 추세선·지지저항선·마커를 그리지 않는다 — 분석은 🎯 전문가 분석 차트에서 */
 
     /* 거래량 페인 */
     if (hasPanes && A.tf && st.view.vols && st.view.vols.length === n) {
@@ -7805,43 +7782,27 @@ const REPORT_DATA = [
       }
     }
 
-    /* RS(상대강도) 페인 — 120일 전 = 100 */
-    let rsSeries = null;
-    if (hasPanes && A.rs) {
-      rsSeries = add(lib.LineSeries, {
-        color: "#7c3aed", lineWidth: 2, priceLineVisible: false, lastValueVisible: true,
-        crosshairMarkerVisible: false, priceFormat: { type: "price", precision: 1, minMove: 0.1 }
-      }, paneRs);
-      if (rsSeries) {
-        rsSeries.setData(A.rs.series.map((p) => ({ time: candles[p.i].time, value: +p.v.toFixed(2) })));
-        rsSeries.createPriceLine({ price: 100, color: "#c4b5fd", lineWidth: 1, lineStyle: lib.LineStyle.Dotted, axisLabelVisible: false, title: "100" });
-      }
-    }
-
     /* 페인 높이 — 캔들 영역을 최대한 넓게 */
     if (hasPanes && typeof chart.panes === "function") {
       const panes = chart.panes();
       /* 비율(stretch)로 잡아 창 크기가 바뀌어도 캔들 영역이 가장 넓게 유지된다 */
       if (panes[0]) panes[0].setStretchFactor(9);
-      if (panes[1]) panes[1].setStretchFactor(1.7);
-      if (panes[2]) panes[2].setStretchFactor(1.3);
+      if (panes[1]) panes[1].setStretchFactor(1.8);
     }
 
-    /* 보이는 구간 — 일봉은 최근 60거래일이 기본(캔들이 굵게), 120·30으로 바꿔 볼 수 있다 */
+    /* 보이는 구간 — 전체(최대 120거래일)가 기본, 60·30거래일로 좁혀 볼 수 있다 */
     const applyRange = (act) => {
-      const cnt = Math.min(n, act === "d30" ? 30 : act === "d120" ? n : st.tf === "w" ? n : 60);
-      /* 왼쪽에 2봉 여유를 두어 구간 첫 봉의 최고·최저 마커가 잘리지 않게 한다 */
-      const from = cnt >= n ? -0.5 : Math.max(0, n - cnt) - 2;
-      chart.timeScale().setVisibleLogicalRange({ from: from, to: n + 2 });
+      const cnt = Math.min(n, act === "d30" ? 30 : act === "d60" ? 60 : n);
+      const from = cnt >= n ? -1 : Math.max(0, n - cnt) - 0.5;
+      const to = cnt >= n ? n + 6 : n + 0.5;
+      chart.timeScale().setVisibleLogicalRange({ from: from, to: to });
       box.querySelectorAll("[data-act]").forEach((b) => {
         const a = b.getAttribute("data-act");
-        if (a === "big") return;
+        if (a !== "d120" && a !== "d60" && a !== "d30") return;
         b.setAttribute("aria-pressed", String(a === act));
       });
-      markWin = "";
-      paintMarks();
     };
-    applyRange(st.tf === "w" ? "d120" : "d60");
+    applyRange("d120");
 
     /* 십자선 — 그 봉의 시·고·저·종(+거래량)을 위에 */
     const ohlc = box.querySelector(".tv-ohlc");
@@ -7859,14 +7820,10 @@ const REPORT_DATA = [
     wire('[data-act="d60"]', () => applyRange("d60"));
     wire('[data-act="d120"]', () => applyRange("d120"));
     wire('[data-act="d30"]', () => applyRange("d30"));
-    /* 일봉 ↔ 주봉 — 같은 실측 일봉을 다시 집계해 그린다 */
-    box.querySelectorAll("[data-tf]").forEach((b) => b.addEventListener("click", () => {
-      const tf = b.getAttribute("data-tf");
-      if (tf === st.tf) return;
-      st.tf = tf;
-      if (key === "full") renderTaFull(); else renderTaBody();
-    }));
-    if (key !== "full") wire('[data-act="big"]', openTaFull);
+    if (key !== "full") {
+      wire('[data-act="big"]', openTaFull);
+      wire('[data-act="expert"]', openTaExpert);
+    }
 
     /* 크기 변화 대응 */
     if (typeof ResizeObserver !== "undefined") {
@@ -7874,8 +7831,6 @@ const REPORT_DATA = [
         if (!st.chart || !st.plot) return;
         const wpx = st.plot.clientWidth, hpx = st.plot.clientHeight;
         if (wpx > 0 && hpx > 0) st.chart.resize(wpx, hpx);
-        markWin = "";
-        paintMarks();
       });
       st.ro.observe(plot);
     }
@@ -7920,6 +7875,726 @@ const REPORT_DATA = [
       }
     });
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  }
+
+  /* ==========================================================================
+     🎯 전문가 분석 차트 — 시그널리포트형 카드 (SVG 직접 렌더)
+     --------------------------------------------------------------------------
+     · 기본 📈 차트는 그대로 두고, 이 리포트만 따로 연다.
+     · 카드는 viewBox 고정 SVG 한 장 — 폭이 넓으면 16:9 가로 카드,
+       좁은 화면은 세로 카드로 다시 배치해 글자가 작아지지 않게 한다.
+     · 모든 값은 data.json charts(실측 일봉 120거래일)·지수에서만 계산하고,
+       발판·추세선·콜아웃은 조건을 만족할 때만 그린다(억지 표시 없음).
+     ========================================================================== */
+  const TX = { w: null, report: null, tf: "d", fit: true, s: 1, W: 1600, H: 900, A: null, data: null };
+  const TX_TONE = {
+    res: { line: "#c0263f", fill: "#fff6f7", ink: "#a11430" },
+    brk: { line: "#d97706", fill: "#fffaf0", ink: "#9a3412" },
+    s1: { line: "#0f7a4f", fill: "#f4fbf7", ink: "#0b6240" },
+    s2: { line: "#6b7280", fill: "#f8f9fb", ink: "#4b5563" }
+  };
+  const txR = (v) => Math.round(Number(v) * 10) / 10;
+  const txWon = (v) => (v == null || isNaN(v) ? "—" : Math.round(Number(v)).toLocaleString("ko-KR"));
+  const txSign = (v, d) => (v == null || isNaN(v) ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d == null ? 1 : d) + "%");
+  /* "20261124" → "26.11.24" */
+  function txDot(d) {
+    const s = String(d || "");
+    return s.length === 8 ? s.slice(2, 4) + "." + s.slice(4, 6) + "." + s.slice(6) : s;
+  }
+
+  /* ---- 글자 폭 어림 (줄바꿈·잘림·충돌 계산에 쓴다) ---- */
+  function txTw(s, size) {
+    let w = 0;
+    for (const ch of String(s == null ? "" : s)) {
+      const c = ch.codePointAt(0);
+      if (c === 32) w += size * 0.32;
+      else if (c < 128) w += size * (/[0-9]/.test(ch) ? 0.58 : 0.53);
+      else w += size * 0.98;
+    }
+    return w;
+  }
+  function txClip(s, size, maxW) {
+    const src = String(s == null ? "" : s);
+    if (txTw(src, size) <= maxW) return src;
+    let out = "";
+    for (const ch of src) {
+      if (txTw(out + ch + "…", size) > maxW) return out + "…";
+      out += ch;
+    }
+    return src;
+  }
+  function txWrap(s, size, maxW, maxLines) {
+    const src = String(s == null ? "" : s).trim();
+    const lines = [];
+    let cur = "";
+    for (const ch of src) {
+      if (txTw(cur + ch, size) > maxW) {
+        if (lines.length >= maxLines - 1) { lines.push(txClip(cur + ch, size, maxW)); return lines; }
+        lines.push(cur.trim());
+        cur = ch === " " ? "" : ch;
+      } else cur += ch;
+    }
+    if (cur.trim()) lines.push(cur.trim());
+    return lines.slice(0, maxLines);
+  }
+  function txT(x, y, s, o) {
+    o = o || {};
+    return '<text x="' + txR(x) + '" y="' + txR(y) + '"' +
+      (o.anchor ? ' text-anchor="' + o.anchor + '"' : "") +
+      ' font-size="' + (o.size || 10) + '"' +
+      (o.weight ? ' font-weight="' + o.weight + '"' : "") +
+      ' fill="' + (o.fill || "#1f2937") + '"' +
+      (o.ls ? ' letter-spacing="' + o.ls + '"' : "") +
+      (o.opacity != null ? ' opacity="' + o.opacity + '"' : "") +
+      ">" + esc(s) + "</text>";
+  }
+  /* 눈금 간격 — 1·2·2.5·5 × 10^n */
+  function txStep(span, cnt) {
+    const raw = Math.max(1, span / Math.max(1, cnt));
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / mag;
+    const m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+    return Math.max(1, m * mag);
+  }
+
+  /* ==========================================================================
+     지지·저항 4박스 — 첨부 리포트의 우측 색상 박스(저항 / 직전 이탈·돌파 /
+     1차 지지 / 다음 지지)를 실측 피벗에서 만든다. 못 만들면 그 박스는 뺀다.
+     ========================================================================== */
+  function txBreak(A) {
+    const bars = A.bars, n = A.n, dates = A.dates, last = A.lastClose;
+    for (let i = n - 2; i >= Math.max(21, n - 30); i--) {
+      let hi = -Infinity, lo = Infinity;
+      for (let k = i - 20; k < i; k++) {
+        if (bars[k][1] > hi) hi = bars[k][1];
+        if (bars[k][2] < lo) lo = bars[k][2];
+      }
+      const c = bars[i][3], p = bars[i - 1][3];
+      if (c > hi && p <= hi) return { v: hi, k: "직전 돌파", why: "20봉 고점 " + txWon(hi) + " · " + txDot(dates[i]) + " 돌파" };
+      if (c < lo && p >= lo) return { v: lo, k: "직전 이탈", why: "20봉 저점 " + txWon(lo) + " · " + txDot(dates[i]) + " 이탈" };
+    }
+    const cand = A.pivots.highs.slice(-3).concat(A.pivots.lows.slice(-3)).sort((a, b) => a.i - b.i);
+    const p = cand[cand.length - 1];
+    if (!p) return null;
+    const up = last >= p.v;
+    return {
+      v: p.v, k: up ? "직전 돌파" : "직전 이탈",
+      why: "직전 피벗 " + txWon(p.v) + " · " + txDot(dates[p.i]) + (up ? " 위 유지" : " 아래")
+    };
+  }
+
+  function txLevels(A) {
+    const last = A.lastClose, piv = A.pivots;
+    const pts = piv.highs.map((p) => ({ i: p.i, v: p.v }))
+      .concat(piv.lows.map((p) => ({ i: p.i, v: p.v })))
+      .sort((a, b) => a.v - b.v);
+    const cl = [];
+    pts.forEach((p) => {
+      const c = cl[cl.length - 1];
+      if (c && p.v <= c.hi * 1.025) {
+        c.hi = Math.max(c.hi, p.v); c.lo = Math.min(c.lo, p.v);
+        c.n += 1; c.last = Math.max(c.last, p.i);
+      } else cl.push({ lo: p.v, hi: p.v, n: 1, last: p.i });
+    });
+    const above = cl.filter((c) => c.lo > last * 1.004).sort((a, b) => a.lo - b.lo);
+    const below = cl.filter((c) => c.hi < last * 0.996).sort((a, b) => b.hi - a.hi);
+    const rng = (c) => (c.hi > c.lo * 1.004 ? txWon(c.lo) + "~" + txWon(c.hi) : txWon(c.hi));
+    const pc = (v) => (v ? "현재가 " + txSign((last / v - 1) * 100, 1) : "—");
+    /* 같은 자리를 두 번 보여주지 않는다 — 0.9% 안쪽으로 겹치면 한 박스만 */
+    const out = [];
+    const add = (o) => {
+      if (out.length >= 4) return;
+      if (out.some((x) => Math.abs(x.mid - o.mid) / Math.max(o.mid, 1) < 0.009)) return;
+      out.push(o);
+    };
+    if (above[0]) add({ key: "res", k: "저항", v: rng(above[0]), mid: (above[0].lo + above[0].hi) / 2,
+      why: "피벗 고점 " + above[0].n + "회 · " + txDot(A.dates[above[0].last]) + " 고점", pc: pc(above[0].lo) });
+    const brk = txBreak(A);
+    if (brk) add({ key: "brk", k: brk.k, v: txWon(brk.v), mid: brk.v, why: brk.why, pc: pc(brk.v) });
+    if (below[0]) add({ key: "s1", k: "1차 지지", v: rng(below[0]), mid: (below[0].lo + below[0].hi) / 2,
+      why: "피벗 저점 " + below[0].n + "회 · " + txDot(A.dates[below[0].last]) + " 저점", pc: pc(below[0].hi) });
+    if (below[1]) add({ key: "s2", k: "다음 지지", v: rng(below[1]), mid: (below[1].lo + below[1].hi) / 2,
+      why: "피벗 저점 " + below[1].n + "회 · " + txDot(A.dates[below[1].last]) + " 저점", pc: pc(below[1].hi) });
+    return out;
+  }
+
+  /* 발판(횡보 박스) — 좁은 변동폭으로 N봉 이상 머문 구간 중, 이후 12% 이상
+     움직인 곳. 가장 좁고 긴 최근 구간 하나만 쓴다. */
+  function txBase(A) {
+    const bars = A.bars, n = A.n;
+    let best = null;
+    for (let len = 15; len <= 50; len++) {
+      for (let i = 0; i + len <= n - 4; i++) {
+        let hi = -Infinity, lo = Infinity;
+        for (let k = i; k < i + len; k++) {
+          if (bars[k][1] > hi) hi = bars[k][1];
+          if (bars[k][2] < lo) lo = bars[k][2];
+        }
+        if (!(lo > 0)) continue;
+        const r = (hi - lo) / lo;
+        if (r > 0.26) continue;
+        const end = Math.min(n, i + len + 50);
+        if (end - (i + len) < 6) continue;
+        let fh = -Infinity, fl = Infinity;
+        for (let k = i + len; k < end; k++) {
+          if (bars[k][1] > fh) fh = bars[k][1];
+          if (bars[k][2] < fl) fl = bars[k][2];
+        }
+        const move = Math.max(fh / hi - 1, 1 - fl / lo);
+        if (move < 0.12) continue;
+        const score = r * 100 - len * 0.45 - (n - (i + len)) * 0.12;
+        if (!best || score < best.score) best = { i0: i, i1: i + len - 1, hi: hi, lo: lo, r: r, score: score };
+      }
+    }
+    return best;
+  }
+
+  /* ---- 충돌 없는 자리 찾기: 캔들·이미 놓은 박스와 겹치는 면적이 가장 작은 곳 ---- */
+  function txCover(r, candles, taken) {
+    let area = 0;
+    for (let i = 0; i < candles.length; i++) {
+      const c = candles[i];
+      const x0 = Math.max(r.x, c.x0), x1 = Math.min(r.x + r.w, c.x1);
+      const y0 = Math.max(r.y, c.y0), y1 = Math.min(r.y + r.h, c.y1);
+      if (x1 > x0 && y1 > y0) area += (x1 - x0) * (y1 - y0);
+    }
+    for (let i = 0; i < taken.length; i++) {
+      const c = taken[i];
+      const x0 = Math.max(r.x, c.x), x1 = Math.min(r.x + r.w, c.x + c.w);
+      const y0 = Math.max(r.y, c.y), y1 = Math.min(r.y + r.h, c.y + c.h);
+      if (x1 > x0 && y1 > y0) area += (x1 - x0) * (y1 - y0);
+    }
+    return area / Math.max(1, r.w * r.h);
+  }
+  function txPickFree(w, h, L, candles, taken, pref) {
+    let best = null;
+    const stepX = Math.max(5, Math.round(w / 7)), stepY = Math.max(5, Math.round(h / 2));
+    for (let y = L.T + 2; y + h <= L.B - 2; y += stepY) {
+      for (let x = L.padL + 2; x + w <= L.plotR - 2; x += stepX) {
+        const r = { x: x, y: y, w: w, h: h };
+        const cov = txCover(r, candles, taken);
+        const d = Math.abs(x - (pref && pref.x != null ? pref.x : x)) + Math.abs(y - (pref && pref.y != null ? pref.y : y));
+        const score = cov * 120 + d * 0.05;
+        if (!best || score < best.score) best = { r: r, score: score, cov: cov };
+      }
+    }
+    return best ? best.r : { x: L.padL + 4, y: L.T + 4, w: w, h: h };
+  }
+
+  /* ==========================================================================
+     레이아웃 — 가로(16:9 1600×900) / 세로(좁은 화면 390×586)
+     ========================================================================== */
+  function txLayout(mo) {
+    if (mo) return {
+      mo: true, W: 390, H: 604,
+      headH: 46, statY0: 46, statY1: 72,
+      padL: 8, plotR: 288, axisX: 292,
+      T: 142, B: 360,
+      sumY: 76, sumH: 58,
+      xlab: 372,
+      volLab: 384, volY0: 388, volY1: 414,
+      rsLab: 426, rsY0: 430, rsY1: 456,
+      boxX0: 8, boxX1: 382, boxH: 36, boxY1: 464, boxY2: 506,
+      footY: 568,
+      fs: { title: 13.5, sub: 8.2, brand: 9, stat: 7.8, axis: 6.6, xlab: 6.8,
+        sumK: 8.8, sumV: 7.8, ev: 8.2, cbox: 6.8, cboxP: 7.8, cboxW: 7.4,
+        subLab: 6.9, foot: 7.2, callout: 7, calloutLh: 9.6, ma: 1 }
+    };
+    return {
+      mo: false, W: 1600, H: 900,
+      headH: 76, statY0: 76, statY1: 104,
+      padL: 54, plotR: 1150, axisX: 1158,
+      T: 116, B: 628,
+      sumY: 116, sumH: 88,
+      xlab: 644,
+      volLab: 668, volY0: 674, volY1: 730,
+      rsLab: 748, rsY0: 754, rsY1: 810,
+      boxX0: 1246, boxX1: 1572, boxH: 58, boxY1: 0, boxY2: 0,
+      footY: 838,
+      fs: { title: 30, sub: 15, brand: 17, stat: 12.5, axis: 10.5, xlab: 10.5,
+        sumK: 14, sumV: 12, ev: 11, cbox: 11.5, cboxP: 14, cboxW: 9.6,
+        subLab: 10, foot: 12, callout: 11, calloutLh: 15.5, ma: 1.6 }
+    };
+  }
+
+  /* ==========================================================================
+     카드 그리기
+     ========================================================================== */
+  function txSVG(A, w, data, view, mo) {
+    const L = txLayout(mo);
+    const F = L.fs;
+    const n = A.n, bars = A.bars, dates = A.dates, closes = A.closes;
+    let rawMax = -Infinity, rawMin = Infinity;
+    for (let i = 0; i < n; i++) {
+      if (bars[i][1] > rawMax) rawMax = bars[i][1];
+      if (bars[i][2] < rawMin) rawMin = bars[i][2];
+    }
+    const span = Math.max(1, rawMax - rawMin);
+    const pMax = rawMax + span * (mo ? 0.12 : 0.2);
+    const pMin = Math.max(0, rawMin - span * 0.05);
+    const plotW = L.plotR - L.padL, plotH = L.B - L.T;
+    const xOf = (i) => L.padL + (i + 0.5) * plotW / n;
+    const yOf = (v) => L.B - (v - pMin) / (pMax - pMin) * plotH;
+    const bw = Math.max(mo ? 1.1 : 2, Math.min(mo ? 3.2 : 7, plotW / n * 0.62));
+    const ink = "#233029", mute = "#7b8478", paper = "#fbf9f0";
+    const chg = A.prevClose ? (A.lastClose / A.prevClose - 1) * 100 : null;
+
+    let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + L.W + " " + L.H + '" role="img" ' +
+      'font-family="-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Malgun Gothic\',sans-serif" ' +
+      'aria-label="' + esc(w.name) + " " + A.unit + '봉 전문가 분석 차트">';
+    s += '<defs><clipPath id="txC"><rect x="0" y="0" width="' + L.W + '" height="' + L.H + '" rx="' + (mo ? 8 : 10) + '"/></clipPath>' +
+      '<marker id="txArw" markerWidth="7" markerHeight="7" refX="5.6" refY="3" orient="auto">' +
+      '<path d="M0,0 L6,3 L0,6 z" fill="#b3263c"/></marker></defs>';
+    s += '<g clip-path="url(#txC)">';
+    s += '<rect x="0" y="0" width="' + L.W + '" height="' + L.H + '" fill="' + paper + '"/>';
+
+    /* ---- 헤더 ---- */
+    s += '<rect x="0" y="0" width="' + L.W + '" height="' + L.headH + '" fill="#0f3d2e"/>';
+    s += '<rect x="0" y="' + L.headH + '" width="' + L.W + '" height="' + (mo ? 1.6 : 2.4) + '" fill="#c9a227"/>';
+    s += txT(mo ? 12 : 34, mo ? 21 : 44, w.name + " " + A.unit + "봉 추세", { size: F.title, weight: 850, fill: "#fff", ls: "-.4" });
+    s += txT(mo ? 12 : 34, mo ? 36 : 64,
+      tvDay(A.lastDate) + " 기준 · 종가 " + txWon(A.lastClose) + "원 (" + txSign(chg, 2) + ")",
+      { size: F.sub, weight: 700, fill: "#bcd8c9" });
+    s += txT(L.W - (mo ? 12 : 30), mo ? 20 : 40, "시루 시그널리포트", { size: F.brand, weight: 850, fill: "#e8d9a8", anchor: "end", ls: "-.2" });
+    s += txT(L.W - (mo ? 12 : 30), mo ? 34 : 60, "wonies86.github.io/today", { size: mo ? 6.8 : 11, weight: 700, fill: "#8fb4a4", anchor: "end" });
+
+    /* ---- 통계 줄 (시·고·저·종·거래량 / 이평) ---- */
+    s += '<rect x="0" y="' + L.statY0 + '" width="' + L.W + '" height="' + (L.statY1 - L.statY0) + '" fill="#efece0"/>';
+    const oh = "시 " + txWon(A.last[0]) + " · 고 " + txWon(A.last[1]) + " · 저 " + txWon(A.last[2]) + " · 종 " + txWon(A.last[3]);
+    const maTxt = [A.ma5 != null ? "MA5 " + txWon(A.ma5) : "", A.ma20 != null ? "MA20 " + txWon(A.ma20) : "",
+      A.ma60 != null ? "MA60 " + txWon(A.ma60) : ""].filter(Boolean).join(" · ");
+    if (mo) {
+      s += txT(12, 57, oh, { size: F.stat, weight: 700, fill: "#5b655c" });
+      s += txT(12, 68, (A.volLast != null ? "거래량 " + txWon(A.volLast) + "주 · " : "") + (maTxt || "60봉 미만"), { size: F.stat - 0.4, weight: 650, fill: "#7b8478" });
+    } else {
+      s += txT(34, 95, oh + (A.volLast != null ? " · 거래량 " + txWon(A.volLast) + "주" : ""), { size: F.stat, weight: 700, fill: "#5b655c" });
+      s += txT(L.W - 30, 95, maTxt || "이평 계산 봉 부족", { size: F.stat, weight: 700, fill: "#7b8478", anchor: "end" });
+    }
+
+    /* ---- 차트 판 ---- */
+    s += '<rect x="' + L.padL + '" y="' + L.T + '" width="' + plotW + '" height="' + plotH + '" fill="#fffdf6"/>';
+
+    /* 눈금 */
+    const st = txStep(pMax - pMin, mo ? 4 : 5);
+    const yLast0 = yOf(A.lastClose);
+    const tagH0 = mo ? 9 : 15;
+    let grid = "", axisLab = "";
+    for (let v = Math.ceil(pMin / st) * st; v <= pMax; v += st) {
+      const y = yOf(v);
+      if (y < L.T - 1 || y > L.B + 1) continue;
+      if (Math.abs(y - yLast0) < tagH0 / 2 + (mo ? 9 : 12)) { grid += '<line x1="' + L.padL + '" y1="' + txR(y) + '" x2="' + L.plotR + '" y2="' + txR(y) + '" stroke="#e7e2d0" stroke-width="' + (mo ? 0.6 : 1) + '"/>'; continue; }
+      grid += '<line x1="' + L.padL + '" y1="' + txR(y) + '" x2="' + L.plotR + '" y2="' + txR(y) + '" stroke="#e7e2d0" stroke-width="' + (mo ? 0.6 : 1) + '"/>';
+      axisLab += txT(L.axisX, y + (mo ? 2.2 : 3.5), txWon(v), { size: F.axis, fill: "#8a8574" });
+    }
+    let xlab = "", lastM = "";
+    for (let i = 0; i < n; i++) {
+      const d = String(dates[i] || "");
+      const m = d.slice(4, 6);
+      if (m && m !== lastM) {
+        lastM = m;
+        const x = xOf(i);
+        if (x > L.padL + 3 && x < L.plotR - 6) {
+          xlab += '<line x1="' + txR(x) + '" y1="' + L.T + '" x2="' + txR(x) + '" y2="' + L.B + '" stroke="#f1eddd" stroke-width="' + (mo ? 0.6 : 1) + '"/>';
+          xlab += txT(x, L.xlab + (mo ? 0 : 2), (+m) + "월", { size: F.xlab, fill: "#8a8574", anchor: "middle" });
+        }
+      }
+    }
+    s += grid + xlab;
+
+    /* ---- 지지·저항 수평 점선 (캔들 뒤) ---- */
+    const levels = txLevels(A);
+    levels.forEach((l) => {
+      const y = yOf(l.mid);
+      if (y < L.T + 1 || y > L.B - 1) return;
+      const t = TX_TONE[l.key];
+      const x2 = mo ? L.plotR : L.boxX0 - 4;
+      s += '<line x1="' + L.padL + '" y1="' + txR(y) + '" x2="' + x2 + '" y2="' + txR(y) +
+        '" stroke="' + t.line + '" stroke-width="' + (mo ? 0.7 : 1.1) + '" stroke-dasharray="' + (mo ? "2 2.4" : "4 4") + '" opacity=".5"/>';
+      /* 가격 라벨은 오른쪽 색상 박스가 맡는다 — 차트 안에 겹쳐 쓰지 않는다 */
+    });
+    s += axisLab;
+
+    /* ---- 캔들 ---- */
+    const rects = [];
+    let candles = "";
+    for (let i = 0; i < n; i++) {
+      const b = bars[i], up = b[3] >= b[0];
+      const col = up ? "#d92d3c" : "#2f6fdb";
+      const x = xOf(i), yH = yOf(b[1]), yL = yOf(b[2]), yO = yOf(b[0]), yC = yOf(b[3]);
+      const top = Math.min(yO, yC), bh = Math.max(mo ? 0.8 : 1.2, Math.abs(yC - yO));
+      candles += '<line x1="' + txR(x) + '" y1="' + txR(yH) + '" x2="' + txR(x) + '" y2="' + txR(yL) + '" stroke="' + col + '" stroke-width="' + txR(Math.max(0.5, bw * 0.2)) + '"/>';
+      candles += '<rect x="' + txR(x - bw / 2) + '" y="' + txR(top) + '" width="' + txR(bw) + '" height="' + txR(bh) + '" fill="' + col + '"/>';
+      rects.push({ x0: x - bw / 2, x1: x + bw / 2, y0: yH, y1: yL });
+    }
+    s += candles;
+
+    /* ---- 이동평균 5·20·60 ---- */
+    [[5, "#d97706"], [20, "#7c3aed"], [60, "#0f766e"]].forEach((d) => {
+      const pts = tvMA(closes, d[0]);
+      if (!pts.length) return;
+      s += '<path d="' + pts.map((p, i) => (i ? "L" : "M") + txR(xOf(p.i)) + " " + txR(yOf(p.v))).join(" ") +
+        '" fill="none" stroke="' + d[1] + '" stroke-width="' + F.ma + '" stroke-linejoin="round" stroke-linecap="round" opacity=".95"/>';
+    });
+
+    /* ---- 발판(횡보 박스) ---- */
+    const base = txBase(A);
+    if (base) {
+      const bx0 = xOf(base.i0) - bw / 2 - (mo ? 1 : 2), bx1 = xOf(base.i1) + bw / 2 + (mo ? 1 : 2);
+      const by0 = yOf(base.hi), by1 = yOf(base.lo);
+      s += '<rect x="' + txR(bx0) + '" y="' + txR(by0) + '" width="' + txR(Math.max(6, bx1 - bx0)) + '" height="' + txR(Math.max(4, by1 - by0)) +
+        '" fill="#2f6fdb" opacity=".07"/>';
+      s += '<rect x="' + txR(bx0) + '" y="' + txR(by0) + '" width="' + txR(Math.max(6, bx1 - bx0)) + '" height="' + txR(Math.max(4, by1 - by0)) +
+        '" fill="none" stroke="#5b6472" stroke-width="' + (mo ? 0.8 : 1.3) + '" stroke-dasharray="' + (mo ? "3 2" : "5 3") + '"/>';
+      const inBox = A.lastClose >= base.lo * 0.97 && A.lastClose <= base.hi * 1.03;
+      const posTxt = inBox ? "현재 이 구간" : (A.lastClose > base.hi ? "현재 " + txSign((A.lastClose / base.hi - 1) * 100, 1) + " 위" : "현재 " + txSign((A.lastClose / base.lo - 1) * 100, 1) + " 아래");
+      const lab = "발판 " + txDot(dates[base.i0]) + "~" + txDot(dates[base.i1]) + " · " +
+        txWon(base.lo) + "~" + txWon(base.hi) + " · " + posTxt;
+      const lsz = mo ? 6.4 : 10;
+      const lw = Math.min(plotW - 8, txTw(lab, lsz) + 12);
+      const lx = Math.min(Math.max(bx0, L.padL + 4), L.plotR - lw - 4);
+      const ly = Math.max(L.T + 2, by0 - (mo ? 11 : 16));
+      s += '<rect x="' + txR(lx) + '" y="' + txR(ly) + '" width="' + txR(lw) + '" height="' + (mo ? 10 : 15) + '" rx="2" fill="#fffdf6" opacity=".92"/>';
+      s += txT(lx + 5, ly + (mo ? 7.4 : 11), txClip(lab, lsz, lw - 8), { size: lsz, weight: 700, fill: "#4b5563" });
+    }
+
+    /* ---- 고점 추세선 (조건 충족 시에만) ---- */
+    let tlLab = null;
+    if (taTrendOn(A) && A.trendline) {
+      const tl = A.trendline;
+      const x1 = xOf(tl.p1.i), y1 = yOf(tl.p1.v), x3 = xOf(tl.endI), y3 = yOf(tl.endV);
+      const x2 = xOf(tl.p2.i), y2 = yOf(tl.p2.v);
+      s += '<line x1="' + txR(x1) + '" y1="' + txR(y1) + '" x2="' + txR(x3) + '" y2="' + txR(y3) +
+        '" stroke="#b3263c" stroke-width="' + (mo ? 0.9 : 1.5) + '" stroke-dasharray="' + (mo ? "3 2.6" : "6 4") + '" opacity=".8" marker-end="url(#txArw)"/>';
+      s += '<circle cx="' + txR(x1) + '" cy="' + txR(y1) + '" r="' + (mo ? 1.6 : 2.6) + '" fill="#fffdf6" stroke="#b3263c" stroke-width="' + (mo ? 0.8 : 1.2) + '"/>';
+      s += '<circle cx="' + txR(x2) + '" cy="' + txR(y2) + '" r="' + (mo ? 1.6 : 2.6) + '" fill="#fffdf6" stroke="#b3263c" stroke-width="' + (mo ? 0.8 : 1.2) + '"/>';
+      s += txT(x3 - 3, y3 - (mo ? 4 : 7), A.trendline.label, { size: mo ? 6 : 9.5, fill: "#b3263c", anchor: "end", weight: 700 });
+      tlLab = { x: x3 - txTw(A.trendline.label, mo ? 6 : 9.5) - 6, y: y3 - (mo ? 12 : 18), w: txTw(A.trendline.label, mo ? 6 : 9.5) + 8, h: mo ? 9 : 14 };
+    }
+
+    /* ---- 현재가 축 태그 ---- */
+    const yLast = yLast0;
+    if (yLast > L.T - 2 && yLast < L.B + 2) {
+      const tagW = mo ? 34 : 62, tagH = tagH0;
+      s += '<rect x="' + L.plotR + '" y="' + txR(yLast - tagH / 2) + '" width="' + tagW + '" height="' + tagH + '" rx="2" fill="#0f3d2e"/>';
+      s += txT(L.plotR + tagW / 2, yLast + (mo ? 3 : 4.4), txWon(A.lastClose), { size: mo ? 6.2 : 9.6, weight: 800, fill: "#fff", anchor: "middle" });
+    }
+
+    /* ---- 추세·패턴 요약 박스 자리 (콜아웃보다 먼저 — 서로 겹치지 않게) ---- */
+    const taken = [];
+    const sumLines = [];
+    if (A.pattern) sumLines.push("패턴 " + A.pattern.label + " — " + A.pattern.why);
+    sumLines.push(A.trendWhy);
+    const sumW = mo ? L.W - 16 : 470;
+    const sumH = L.sumH;
+    const evSize = F.ev;
+    const evAll = [];
+    sumLines.forEach((t) => { txWrap(t, evSize, sumW - (mo ? 20 : 26), mo ? 3 : 4).forEach((x) => evAll.push(x)); });
+    const needH = sumH + Math.max(0, (evAll.length - 2) * (mo ? 9 : 13));
+    let sx = 8, sy = L.sumY;
+    if (!mo) {
+      const r0 = txPickFree(sumW, needH, L, rects, taken, { x: L.padL + 12, y: L.T + 12 });
+      sx = r0.x; sy = r0.y;
+    }
+    taken.push({ x: sx, y: sy, w: sumW, h: needH });
+    if (tlLab) taken.push(tlLab);
+
+    /* ---- 콜아웃 (최고점 / 고점 흐름) — 캔들과 안 겹치는 자리에 ---- */
+    const callouts = [];
+    let hiI = 0;
+    for (let i = 1; i < n; i++) if (bars[i][1] > bars[hiI][1]) hiI = i;
+    const hiV = bars[hiI][1];
+    const drop = (A.lastClose / hiV - 1) * 100;
+    if (drop < -2) {
+      callouts.push({
+        lines: ["최고 " + txWon(hiV) + " (" + txDot(dates[hiI]) + ")",
+          "→ 오늘 " + txWon(A.lastClose) + " (" + txSign(drop, 1) + ")"],
+        ax: xOf(hiI), ay: yOf(hiV), tone: "down"
+      });
+    }
+    const ph = A.pivots.highs.slice(-3);
+    if (ph.length === 3) {
+      const d1 = ph[2].v < ph[1].v && ph[1].v < ph[0].v;
+      const d2 = ph[2].v > ph[1].v && ph[1].v > ph[0].v;
+      if (d1 || d2) {
+        callouts.push({
+          lines: [(d1 ? "고점 낮아짐 " : "고점 높아짐 ") + ph.map((p) => txWon(p.v)).join(" → "),
+            "피벗 고점 3개 · 이평 " + A.align],
+          ax: xOf(ph[2].i), ay: yOf(ph[2].v), tone: d1 ? "down" : "up"
+        });
+      }
+      ph.forEach((p) => {
+        s += '<circle cx="' + txR(xOf(p.i)) + '" cy="' + txR(yOf(p.v)) + '" r="' + (mo ? 1.3 : 2.2) + '" fill="#b3263c" opacity=".75"/>';
+      });
+    }
+    callouts.forEach((c) => {
+      const lh = F.calloutLh, pad = mo ? 4 : 7;
+      const cw = Math.min(L.plotR - L.padL - 8, Math.max.apply(null, c.lines.map((t) => txTw(t, F.callout))) + pad * 2);
+      const chh = c.lines.length * lh + pad * 2 - 2;
+      const pref = { x: c.ax - cw / 2, y: c.ay - chh - (mo ? 8 : 16) };
+      const r = txPickFree(cw, chh, L, rects, taken, pref);
+      taken.push(r);
+      s += '<rect x="' + txR(r.x) + '" y="' + txR(r.y) + '" width="' + txR(r.w) + '" height="' + txR(r.h) + '" rx="3" fill="#fffdf6" stroke="#b3263c" stroke-width="' + (mo ? 0.7 : 1.1) + '" opacity=".97"/>';
+      c.lines.forEach((t, i) => {
+        s += txT(r.x + pad, r.y + pad + lh * (i + 1) - (mo ? 2.4 : 4), txClip(t, F.callout, r.w - pad * 2),
+          { size: F.callout, weight: i === 0 ? 800 : 700, fill: i === 0 ? "#8f1d31" : "#4b5563" });
+      });
+      /* 말풍선 꼬리 — 가장 가까운 모서리에서 실제 고점으로 */
+      const cx = Math.max(r.x + 6, Math.min(r.x + r.w - 6, c.ax));
+      const cy = c.ay < r.y ? r.y : r.y + r.h;
+      s += '<line x1="' + txR(cx) + '" y1="' + txR(cy) + '" x2="' + txR(c.ax) + '" y2="' + txR(c.ay) + '" stroke="#b3263c" stroke-width="' + (mo ? 0.6 : 0.9) + '" stroke-dasharray="2 2"/>';
+    });
+
+    /* ---- 추세·패턴 요약 박스 ---- */
+    s += '<rect x="' + txR(sx) + '" y="' + txR(sy) + '" width="' + sumW + '" height="' + txR(needH) + '" rx="3" fill="#fffdf6" stroke="#b3263c" stroke-width="' + (mo ? 1 : 1.6) + '" opacity=".97"/>';
+    const toneInk = A.trendTone === "up" ? "#a11430" : A.trendTone === "down" ? "#1e40af" : "#4b5563";
+    if (mo) {
+      s += txT(sx + 8, sy + 13, "추세: " + A.trend, { size: F.sumK, weight: 850, fill: toneInk });
+      if (A.pattern) s += txT(sx + sumW - 8, sy + 13, "패턴: " + txClip(A.pattern.label, F.sumV, sumW - 130), { size: F.sumV, weight: 800, fill: "#4b5563", anchor: "end" });
+      evAll.slice(0, 4).forEach((t, i) => {
+        s += txT(sx + 8, sy + 25 + i * 9.2, t, { size: evSize - 0.2, weight: 600, fill: "#4b5563" });
+      });
+    } else {
+      s += txT(sx + 12, sy + 20, "추세: " + A.trend, { size: F.sumK, weight: 850, fill: toneInk });
+      if (A.pattern) s += txT(sx + 12 + txTw("추세: " + A.trend, F.sumK) + 14, sy + 20, "패턴: " + A.pattern.label, { size: F.sumV, weight: 800, fill: "#4b5563" });
+      evAll.slice(0, 4).forEach((t, i) => {
+        s += txT(sx + 12, sy + 38 + i * 13, t, { size: evSize, weight: 600, fill: "#4b5563" });
+      });
+    }
+
+    /* ---- VOL ---- */
+    s += txT(L.padL, L.volLab - (mo ? 3 : 4), "VOL 거래량" + (A.volLast != null ? " · " + txWon(A.volLast) + "주" : ""), { size: F.subLab, weight: 800, fill: "#6b7469" });
+    if (view.vols && view.vols.length === n) {
+      const vmax = Math.max.apply(null, view.vols.map(Number)) || 1;
+      const vy0 = L.volY0, vy1 = L.volY1, vh = vy1 - vy0;
+      s += '<line x1="' + L.padL + '" y1="' + vy1 + '" x2="' + L.plotR + '" y2="' + vy1 + '" stroke="#e7e2d0" stroke-width="1"/>';
+      let vb = "";
+      for (let i = 0; i < n; i++) {
+        const h = Math.max(0.4, view.vols[i] / vmax * vh);
+        vb += '<rect x="' + txR(xOf(i) - bw / 2) + '" y="' + txR(vy1 - h) + '" width="' + txR(bw) + '" height="' + txR(h) + '" fill="' + (bars[i][3] >= bars[i][0] ? "#d92d3c" : "#2f6fdb") + '" opacity=".62"/>';
+      }
+      s += vb;
+      const vma = tvMA(view.vols.map(Number), 5);
+      if (vma.length) {
+        s += '<path d="' + vma.map((p, i) => (i ? "L" : "M") + txR(xOf(p.i)) + " " + txR(vy1 - p.v / vmax * vh)).join(" ") +
+          '" fill="none" stroke="#d97706" stroke-width="' + (mo ? 0.7 : 1.1) + '" opacity=".9"/>';
+      }
+      s += txT(L.axisX, vy0 + (mo ? 4 : 6), txWon(vmax) + "천주", { size: F.axis - 0.4, fill: "#8a8574" });
+    }
+
+    /* ---- RS ---- */
+    if (A.rs) {
+      s += txT(L.padL, L.rsLab - (mo ? 3 : 4), "RS " + A.rs.name + " 대비 " + A.rs.cur.toFixed(1) + (A.rs.d20 != null ? " (" + txSign(A.rs.d20, 1) + "·20" + A.unit + ")" : ""), { size: F.subLab, weight: 800, fill: "#6b7469" });
+      const vals = A.rs.series.map((p) => p.v);
+      let rmin = Math.min.apply(null, vals), rmax = Math.max.apply(null, vals);
+      const pad2 = Math.max(0.6, (rmax - rmin) * 0.15);
+      rmin -= pad2; rmax += pad2;
+      const ry0 = L.rsY0, ry1 = L.rsY1, rh = ry1 - ry0;
+      const ry = (v) => ry1 - (v - rmin) / (rmax - rmin) * rh;
+      const pts = A.rs.series;
+      s += '<path d="' + pts.map((p, i) => (i ? "L" : "M") + txR(xOf(p.i)) + " " + txR(ry(p.v))).join(" ") +
+        " L" + txR(xOf(pts[pts.length - 1].i)) + " " + ry1 + " L" + txR(xOf(pts[0].i)) + " " + ry1 + 'Z" fill="#7c3aed" opacity=".13"/>';
+      s += '<path d="' + pts.map((p, i) => (i ? "L" : "M") + txR(xOf(p.i)) + " " + txR(ry(p.v))).join(" ") + '" fill="none" stroke="#7c3aed" stroke-width="' + (mo ? 0.9 : 1.4) + '"/>';
+      if (rmin < 100 && rmax > 100) {
+        s += '<line x1="' + L.padL + '" y1="' + txR(ry(100)) + '" x2="' + L.plotR + '" y2="' + txR(ry(100)) + '" stroke="#b9a6f0" stroke-width="1" stroke-dasharray="3 3"/>';
+        s += txT(L.plotR - 2, ry(100) - 2, "100", { size: F.axis - 0.6, fill: "#8b7ad0", anchor: "end" });
+      }
+      s += txT(L.axisX, ry0 + (mo ? 4 : 6), Math.round(rmax).toString(), { size: F.axis - 0.4, fill: "#8a8574" });
+    }
+
+    /* ---- 지지·저항 4박스 ---- */
+    if (levels.length) {
+      if (mo) {
+        const bwid = (L.boxX1 - L.boxX0 - 8) / 2;
+        levels.forEach((l, i) => {
+          const x = L.boxX0 + (i % 2) * (bwid + 8);
+          const y = i < 2 ? L.boxY1 : L.boxY2;
+          const t = TX_TONE[l.key];
+          s += '<rect x="' + txR(x) + '" y="' + y + '" width="' + txR(bwid) + '" height="' + L.boxH + '" rx="3" fill="' + t.fill + '" stroke="' + t.line + '" stroke-width="1"/>';
+          s += txT(x + 6, y + 12, l.k, { size: F.cbox, weight: 850, fill: t.ink });
+          s += txT(x + bwid - 6, y + 12.6, l.v, { size: F.cboxP, weight: 850, fill: t.ink, anchor: "end" });
+          s += txT(x + 6, y + 23, txClip(l.why, F.cboxW - 0.6, bwid - 12), { size: F.cboxW - 0.6, weight: 600, fill: "#5b655c" });
+          s += txT(x + 6, y + 31.5, txClip(l.pc, F.cboxW - 1.1, bwid - 12), { size: F.cboxW - 1.1, weight: 700, fill: "#8a8574" });
+        });
+      } else {
+        const bx = L.boxX0, bwid = L.boxX1 - L.boxX0, bh = L.boxH;
+        const pos = levels.map((l) => ({ l: l, y: yOf(l.mid) - bh / 2 }));
+        pos.sort((a, b) => a.y - b.y);
+        let prev = L.T - 6;
+        pos.forEach((o) => { o.y = Math.max(o.y, prev + 6, L.T); prev = o.y + bh; });
+        const over = prev - L.B;
+        if (over > 0) pos.forEach((o) => { o.y -= over; });
+        pos.forEach((o) => {
+          const l = o.l, t = TX_TONE[l.key];
+          /* 박스가 자기 가격선에서 밀려났을 때만 — 어느 선의 박스인지 잇는다 */
+          const ly = yOf(l.mid), cy = o.y + bh / 2;
+          if (Math.abs(ly - cy) > 5 && ly > L.T && ly < L.B) {
+            s += '<path d="M' + (bx - 7) + ' ' + txR(ly) + ' L' + (bx - 7) + ' ' + txR(cy) + ' L' + bx + ' ' + txR(cy) +
+              '" fill="none" stroke="' + t.line + '" stroke-width="1" stroke-dasharray="2 2" opacity=".65"/>';
+          }
+          s += '<rect x="' + bx + '" y="' + txR(o.y) + '" width="' + bwid + '" height="' + bh + '" rx="4" fill="' + t.fill + '" stroke="' + t.line + '" stroke-width="1.8"/>';
+          s += txT(bx + 12, o.y + 19, l.k, { size: F.cbox, weight: 850, fill: t.ink });
+          s += txT(bx + bwid - 12, o.y + 21, l.v, { size: F.cboxP, weight: 850, fill: t.ink, anchor: "end" });
+          s += txT(bx + 12, o.y + 39, txClip(l.why, F.cboxW, bwid - 24), { size: F.cboxW, weight: 600, fill: "#5b655c" });
+          s += txT(bx + bwid - 12, o.y + 39, txClip(l.pc, F.cboxW - 1, 110), { size: F.cboxW - 1, weight: 700, fill: "#8a8574", anchor: "end" });
+        });
+      }
+    } else {
+      s += txT(L.padL, L.footY - (mo ? 6 : 8), "피벗 고점·저점이 부족해 지지·저항 가격대를 만들지 못했습니다.", { size: F.foot - 1, weight: 700, fill: "#8a8574" });
+    }
+
+    /* ---- 각주 ---- */
+    s += '<line x1="' + (mo ? 8 : 34) + '" y1="' + (L.footY - (mo ? 12 : 18)) + '" x2="' + (L.W - (mo ? 8 : 34)) + '" y2="' + (L.footY - (mo ? 12 : 18)) + '" stroke="#ddd7c3" stroke-width="1"/>';
+    s += txT(mo ? 8 : 34, L.footY, "※ 기술적 지표 자동 분석이며 매수·매도 추천이 아닙니다.", { size: F.foot, weight: 800, fill: "#6b7469" });
+    s += txT(mo ? 8 : 34, L.footY + (mo ? 11 : 16),
+      "지지·저항은 피벗 고점·저점을 2.5% 이내로 묶은 가격대이며, 조건을 못 채운 박스는 그리지 않습니다.",
+      { size: F.foot - 0.8, weight: 600, fill: "#8a8574" });
+    s += txT(mo ? 8 : 34, L.footY + (mo ? 21 : 31),
+      "출처: 네이버 금융 일봉 " + data.bars.length + "거래일(data.json charts) · 마지막 봉 " + tvDay(A.lastDate) +
+      (A.rs ? " · RS 기준 " + A.rs.name : "") + " · 계산: 시루 대시보드",
+      { size: F.foot - 0.8, weight: 600, fill: "#8a8574" });
+    s += "</g></svg>";
+    return s;
+  }
+
+  /* ---- 🎯 전문가 분석 차트 열기·닫기·확대 ---- */
+  function txDialog() { return $("#taExpert"); }
+
+  function openTaExpert() {
+    const dlg = txDialog();
+    if (!dlg || !TA.w) return;
+    TX.w = TA.w;
+    TX.report = TA.report;
+    TX.tf = "d";
+    TX.fit = true;
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
+    else dlg.setAttribute("open", "");
+    document.body.classList.add("tx-lock");
+    txRender();
+  }
+
+  function txRender() {
+    const card = $("#txCard");
+    const dlg = txDialog();
+    if (!card || !dlg) return;
+    const w = TX.w, report = TX.report;
+    if (!w) return;
+    const t = $("#txTitle"), sub = $("#txSub");
+    const data = chartDataOf(report, w);
+    if (t) t.textContent = w.name + " · 전문가 분석 차트";
+    if (sub) {
+      sub.textContent = [w.ticker, w.market, (report && report.priceBasis) || ""].filter(Boolean).join(" · ");
+    }
+    dlg.querySelectorAll("[data-xtf]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-xtf") === TX.tf));
+    });
+    if (!data) {
+      card.style.width = "";
+      card.innerHTML = '<div class="tx-empty">' + taNoChartNote(report) + "</div>";
+      return;
+    }
+    const view = taViewOf(data, TX.tf);
+    const A = taAnalyze(view, TX.tf, data);
+    TX.A = A; TX.data = data;
+    const mo = window.innerWidth < 640;
+    TX.mo = mo;
+    const L = txLayout(mo);
+    TX.W = L.W; TX.H = L.H;
+    card.innerHTML = txSVG(A, w, data, view, mo);
+    /* 검증·디버깅용 참조 (화면에 영향 없음) */
+    window.__txModel = { tf: TX.tf, n: A.n, trend: A.trend, pattern: A.pattern ? A.pattern.label : null,
+      levels: txLevels(A).map((l) => ({ k: l.k, v: l.v, mid: l.mid })), base: txBase(A), rs: A.rs ? +A.rs.cur.toFixed(2) : null };
+    txFitScale();
+  }
+
+  function txFitScale(reset) {
+    const scr = $("#txBody"), card = $("#txCard");
+    if (!scr || !card) return;
+    const availW = Math.max(160, scr.clientWidth - 14);
+    const availH = Math.max(160, scr.clientHeight - 22);
+    let sc = TX.fit ? Math.min(availW / TX.W, availH / TX.H) : TX.s;
+    sc = Math.max(0.18, Math.min(3, sc));
+    TX.s = sc;
+    card.style.width = Math.round(TX.W * sc) + "px";
+    const lab = $("#txZoomVal");
+    if (lab) lab.textContent = Math.round(sc * 100) + "%";
+    const fitBtn = $("#txFit");
+    if (fitBtn) fitBtn.setAttribute("aria-pressed", String(!!TX.fit));
+    if (reset) { scr.scrollLeft = 0; scr.scrollTop = 0; }
+  }
+
+  function txZoom(mul) {
+    const scr = $("#txBody");
+    if (!scr) return;
+    TX.fit = false;
+    TX.s = Math.max(0.18, Math.min(3, TX.s * mul));
+    const cx = (scr.scrollLeft + scr.clientWidth / 2) / Math.max(1, TX.W * (TX.s / mul));
+    txFitScale(false);
+    scr.scrollLeft = Math.max(0, cx * TX.W * TX.s - scr.clientWidth / 2);
+  }
+
+  function wireTaExpert() {
+    const dlg = txDialog();
+    if (!dlg) return;
+    const x = $("#txClose");
+    if (x) x.addEventListener("click", () => dlg.close());
+    const fit = $("#txFit");
+    if (fit) fit.addEventListener("click", () => { TX.fit = true; txFitScale(true); });
+    const zin = $("#txZoomIn"), zout = $("#txZoomOut");
+    if (zin) zin.addEventListener("click", () => txZoom(1.25));
+    if (zout) zout.addEventListener("click", () => txZoom(1 / 1.25));
+    dlg.querySelectorAll("[data-xtf]").forEach((b) => b.addEventListener("click", () => {
+      const tf = b.getAttribute("data-xtf");
+      if (tf === TX.tf) return;
+      TX.tf = tf;
+      txRender();
+    }));
+    dlg.addEventListener("close", () => {
+      document.body.classList.remove("tx-lock");
+      TX.w = null; TX.report = null; TX.A = null;
+      window.__txModel = null;
+      const card = $("#txCard");
+      if (card) card.innerHTML = "";
+    });
+    /* 바깥(어두운 배경) 누르면 닫기 */
+    dlg.addEventListener("click", (e) => {
+      const body = $("#txBody");
+      if (e.target === dlg || (body && !body.contains(e.target) && e.target === dlg)) dlg.close();
+    });
+
+    /* 두 손가락 확대 — 카드 폭을 직접 키운다(모바일) */
+    const body = $("#txBody");
+    if (body) {
+      let pinch = null;
+      const dist = (t) => {
+        const a = t[0], b = t[1];
+        return Math.sqrt((a.clientX - b.clientX) * (a.clientX - b.clientX) + (a.clientY - b.clientY) * (a.clientY - b.clientY)) || 1;
+      };
+      body.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) { pinch = { d: dist(e.touches), s: TX.s }; TX.fit = false; }
+      }, { passive: true });
+      body.addEventListener("touchmove", (e) => {
+        if (!pinch || e.touches.length !== 2) return;
+        e.preventDefault();
+        TX.s = Math.max(0.18, Math.min(3, pinch.s * dist(e.touches) / pinch.d));
+        txFitScale(false);
+      }, { passive: false });
+      const end = () => { pinch = null; };
+      body.addEventListener("touchend", end, { passive: true });
+      body.addEventListener("touchcancel", end, { passive: true });
+      /* 더블탭 = 맞춤 ↔ 100% */
+      let lastTap = 0;
+      body.addEventListener("touchend", (e) => {
+        if (e.touches.length) return;
+        const now = Date.now();
+        if (now - lastTap < 300) { TX.fit = !TX.fit; txFitScale(true); }
+        lastTap = now;
+      }, { passive: true });
+    }
+    window.addEventListener("resize", () => {
+      if (!dlg.open) return;
+      if ((window.innerWidth < 640) !== !!TX.mo) txRender();
+      else txFitScale(false);
+    });
   }
 
   function wireTechnicalDialog() {
@@ -10439,6 +11114,7 @@ const REPORT_DATA = [
 
   wireTechnicalDialog();
   wireTaFull();
+  wireTaExpert();
   wireShot();
   wireStockClicks();
   wireRefresh();
