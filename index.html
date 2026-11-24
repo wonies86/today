@@ -8270,7 +8270,11 @@ const REPORT_DATA = [
       const lsz = mo ? 6.4 : 10;
       const lw = Math.min(plotW - 8, txTw(lab, lsz) + 12);
       const lx = Math.min(Math.max(bx0, L.padL + 4), L.plotR - lw - 4);
-      const ly = Math.max(L.T + 2, by0 - (mo ? 11 : 16));
+      /* 설명 라벨은 박스 아래(첨부 리포트와 같은 자리) — 아래가 더 막혔으면 위로 */
+      const lh = mo ? 10 : 15;
+      const rBelow = { x: lx, y: Math.min(L.B - lh - 2, by1 + 3), w: lw, h: lh };
+      const rAbove = { x: lx, y: Math.max(L.T + 2, by0 - lh - 1), w: lw, h: lh };
+      const ly = txCover(rAbove, rects, []) + 0.02 < txCover(rBelow, rects, []) ? rAbove.y : rBelow.y;
       s += '<rect x="' + txR(lx) + '" y="' + txR(ly) + '" width="' + txR(lw) + '" height="' + (mo ? 10 : 15) + '" rx="2" fill="#fffdf6" opacity=".92"/>';
       s += txT(lx + 5, ly + (mo ? 7.4 : 11), txClip(lab, lsz, lw - 8), { size: lsz, weight: 700, fill: "#4b5563" });
     }
