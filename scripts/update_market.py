@@ -187,6 +187,27 @@ SCAN_RULE = "A and (B or C) and D and E"
 SCAN_FETCH = 130          # 스캔용 일봉 조회 개수(보관 120봉에 여유를 둔다)
 SCAN_KEYS = ("scanners", "conditionHits", "conditionScan", "chartReactions")
 
+# ── 종가베팅 핵심 지표 — 52주 신고가·앞전 매물대 소화·오후장 수급 ────────────────
+#   2026-11-24 사용자 확정: "종가매매 핵심 2가지(4번 오후장 돈 유입/분봉 우상향,
+#   6번 52주 신고가 근접·앞전 매물대 소화)"를 대시보드에 추가한다.
+#   · 52주 신고가는 일봉 250거래일이 필요해 전 종목(120봉)으로는 계산할 수 없다
+#     → 거래대금 300억 이상 + 관찰·카드 종목만 260거래일 일봉을 따로 받아 계산한다
+#   · 오후장 수급은 장중 분봉 실측(네이버 fchart 분봉) — 13:00 이전에는 계산하지 않는다
+SCAN_BARS = 260           # 52주 계산용 일봉 조회 수(250거래일 + 여유)
+HIGH52_BARS = 250         # 52주 = 약 250거래일
+SHELF_DAYS = 60           # 앞전 매물대 = 최근 60거래일 최대 거래량일
+EDGE_MIN_VALUE = 300      # 종가베팅 핵심 교집합 최소 거래대금(억 원)
+EDGE_REL_MIN = 2.0        # '지수 대비 강세' 기준(%p) — 종목 등락률 − 소속 지수 등락률
+EDGE_NEAR_PCT = 10.0      # 52주 신고가 '근접' 기준(고점 대비 -10% 이내)
+EDGE_DEEP_MAX = 160       # 250거래일 일봉을 받을 최대 종목 수(갱신 시간 상한)
+PM_START_MIN = 13 * 60          # 오후장 시작 13:00
+PM_JUDGE_MIN = 13 * 60 + 30     # 오후장 비중 판정 시작 13:30 (30분 이상 쌓인 뒤)
+PM_END_MIN = 15 * 60 + 30       # 정규장 마감 15:30
+PM_SHARE_MIN = 30.0       # '오후장 유입' 기준 — 13:00 이후 거래대금 비중(%)
+PM_MAX_FETCH = 24         # 한 실행에서 분봉을 받을 최대 종목 수
+SCAN_REFRESH_MIN = 25     # 오후장 판정 중 스캔을 다시 계산하는 간격(분)
+MINUTE_URL = FCHART + "?symbol={code}&timeframe=minute&count=400&requestType=0"
+
 # 조건식(scanners) 잠금 — data.json 에는 암호문만 남기고 평문 키는 저장하지 않는다.
 # 키는 저장소 **밖** 파일(/workspace/kr-market-project/.scanner_key) 또는 환경변수만 쓴다.
 # (Public 저장소이므로 index.html·이 스크립트·워크플로 어디에도 비밀번호를 적지 않는다)
@@ -1151,6 +1172,103 @@ def build_charts(codes, cached, now, need_series=False):
     return charts, series
 
 
+# ---------------------------------------------------------------- 52주·매물대용 깊은 일봉
+def deep_signal_series(codes, workers: int = 10):
+    """52주 신고가 계산용 250거래일 일봉 — 후보(거래대금 300억↑ + 관찰·카드)만 받는다.
+
+    · 전 종목(599)을 250봉으로 받으면 전송량이 2배가 되므로 후보만 따로 받는다
+    · 120거래일 미만(신규상장·거래정지)은 넣지 않는다 — 52주라는 이름을 흘리지 않는다
+    · 실패한 종목은 그냥 빠진다(그 종목만 52주 지표를 못 붙이고 나머지는 그대로)
+    """
+    codes = [str(c) for c in dict.fromkeys(codes or []) if c][:EDGE_DEEP_MAX]
+    if not codes:
+        return {}
+    out = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {code: pool.submit(fetch_chart, code, SCAN_BARS) for code in codes}
+        for code, future in futures.items():
+            try:
+                rows = future.result() or []
+            except Exception:               # noqa: BLE001
+                rows = []
+            if len(rows) >= CHARTS_DAYS:
+                out[code] = rows[-SCAN_BARS:]
+    return out
+
+
+def edge_candidate_codes(all_stocks, extra_codes):
+    """52주 일봉을 받을 후보 — 당일 거래대금 EDGE_MIN_VALUE억 이상 + 관찰·카드 종목."""
+    cand = []
+    for row in all_stocks or []:
+        if not row or not row[0]:
+            continue
+        if (row[5] or 0) >= EDGE_MIN_VALUE:
+            cand.append(str(row[0]))
+    cand.extend(str(c) for c in (extra_codes or ()) if c)
+    return list(dict.fromkeys(cand))[:EDGE_DEEP_MAX]
+
+
+def index_change_map(entry, kospi=None, kosdaq=None):
+    """지수 등락률 {'KOSPI': x, 'KOSDAQ': y} — 실행 시점 값 우선, 없으면 data.json indices."""
+    out = {}
+    if kospi and kospi.get("chg") is not None:
+        out["KOSPI"] = kospi["chg"]
+    if kosdaq and kosdaq.get("chg") is not None:
+        out["KOSDAQ"] = kosdaq["chg"]
+    if not out:
+        for item in (entry or {}).get("indices") or []:
+            name = str(item.get("name") or "")
+            if "코스피" in name:
+                out.setdefault("KOSPI", item.get("chg"))
+            elif "코스닥" in name:
+                out.setdefault("KOSDAQ", item.get("chg"))
+    return out
+
+
+def scan_built_at(entry, key):
+    """마지막 스캔 계산 시각 — 잠금 키가 있으면 복호화해 읽는다(없으면 None).
+
+    조건식 평문은 저장하지 않으므로, 갱신 여부 판단을 위해 복호화만 해서
+    `scanners[].updatedAt` 만 읽고 바로 버린다.
+    """
+    if not key or not isinstance(entry, dict):
+        return None
+    blob = entry.get(SCAN_ENC_KEY)
+    if not (isinstance(blob, dict) and blob.get("ct")):
+        return None
+    try:
+        payload = decrypt_scan_payload(blob, key)
+        stamps = [s.get("updatedAt") for s in payload.get("scanners") or [] if s.get("updatedAt")]
+        return datetime.fromisoformat(max(stamps)) if stamps else None
+    except Exception:                       # noqa: BLE001 - 키가 다르면 갱신 판단만 건너뛴다
+        return None
+
+
+def scan_needs_rebuild(entry, key, now) -> bool:
+    """오후장 수급은 시각이 지나면 값이 달라진다 — 장중·마감 뒤 스캔을 다시 계산할지.
+
+    · 13:30~15:30: 마지막 스캔이 25분보다 오래되면 다시 계산(오후 비중·등락률 갱신)
+    · 15:30 이후: 장중에 만든 스캔이면 한 번 다시 계산(마감 확정 분봉으로)
+    · 키가 없는 실행(Actions cron)은 복호화·재암호화가 안 되므로 항상 False
+    """
+    if not key:
+        return False
+    built = scan_built_at(entry, key)
+    if built is None:
+        return False
+    if built.tzinfo is None:
+        built = built.replace(tzinfo=KST)
+    if built.date() != now.date():
+        return False
+    hm = now.hour * 60 + now.minute
+    bhm = built.hour * 60 + built.minute
+    if PM_JUDGE_MIN <= hm <= PM_END_MIN:
+        return (now - built).total_seconds() >= SCAN_REFRESH_MIN * 60
+    if hm > PM_END_MIN and bhm < PM_END_MIN:
+        return True
+    return False
+
+
 # ---------------------------------------------------------------- 조건식 × 수급 교집합
 def _mean(values):
     return sum(values) / len(values) if values else None
@@ -1243,12 +1361,284 @@ def trend_scan(rows):
     }
 
 
+# ---------------------------------------------------------------- 종가베팅 핵심 지표
+#  ① 52주 신고가 근접(high52)  ② 앞전 매물대 소화(shelf)  ③ 오후장 수급(pm)
+#  모두 일봉·분봉 실측값만 쓴다 — 모자란 봉은 "계산 불가"로 두고 추정하지 않는다.
+def high52_signal(rows, bars: int = HIGH52_BARS, price=None):
+    """52주(250거래일) 신고가 대비 이격과 위치 — 당일 봉을 뺀 직전 고가와 비교.
+
+    · 고점 기준: 당일 봉을 제외한 최근 250거래일 최고가(장중 고가)
+      → 오늘 장중에 신고가를 찍고 밀린 경우도 '이격'이 정직하게 나온다
+    · price: 현재가(allStocks 실시간 값) — 장중에는 일봉 마지막 종가가 늦을 수 있다
+    · state: 돌파 / 신고가 근접(-5% 이내) / 10% 이내(-10% 이내) / ""(멀다)
+    · todayBreak: 오늘 고가가 직전 52주 고가를 넘었는지(장중 신고가 경신)
+    """
+    if not rows or len(rows) < 61:
+        return None
+    win = rows[-(bars + 1):-1]                 # 당일 봉 제외
+    if not win:
+        return None
+    hi_row = max(win, key=lambda r: r["h"])
+    hi = hi_row["h"]
+    close = price or rows[-1]["c"]
+    if not hi or not close:
+        return None
+    gap = (close / hi - 1) * 100
+    if close >= hi:
+        state = "돌파"
+    elif gap >= -5.0:
+        state = "신고가 근접"
+    elif gap >= -EDGE_NEAR_PCT:
+        state = "10% 이내"
+    else:
+        state = ""
+    return {
+        "high": hi,
+        "highDate": hi_row["d"],
+        "price": close,
+        "gap": round(gap, 2),
+        "state": state,
+        "near": gap >= -EDGE_NEAR_PCT,
+        "todayBreak": bool(rows[-1]["h"] > hi),
+        "bars": len(win),
+        "partial": len(win) < bars,      # 상장 이력이 짧아 52주를 다 못 쓴 경우
+    }
+
+
+def volume_shelf(rows, days: int = SHELF_DAYS, price=None):
+    """앞전 매물대 소화 — 최근 60거래일 최대 거래량일(직전 대량 매물대) 위 안착 여부.
+
+    · 당일 봉은 빼고 센다(오늘 대량 거래는 '앞전' 매물대가 아니다)
+    · overHigh(완전 소화): 현재가 ≥ 그날 고가 · overClose(부분): 현재가 ≥ 그날 종가
+    """
+    if not rows or len(rows) < days + 1:
+        return None
+    win = rows[-(days + 1):-1]
+    shelf = max(win, key=lambda r: r["v"])
+    close = price or rows[-1]["c"]
+    if not shelf["v"] or not close or not shelf["h"]:
+        return None
+    over_close = close >= shelf["c"]
+    over_high = close >= shelf["h"]
+    return {
+        "date": shelf["d"],
+        "close": shelf["c"],
+        "high": shelf["h"],
+        "vol": shelf["v"],
+        "value_eok": round(shelf["c"] * shelf["v"] / 1e8, 1),
+        "overClose": over_close,
+        "overHigh": over_high,
+        "gapHigh": round((close / shelf["h"] - 1) * 100, 2),
+        "state": "매물대 소화" if over_high else ("종가 위" if over_close else ""),
+        "days": len(win),
+    }
+
+
+def fetch_minute_bars(code: str, day: str):
+    """장중 분봉 [(HHMM, 가격, 누적거래량)] — 당일 봉만. 실패하면 None.
+
+    네이버 fchart 분봉은 `YYYYMMDDHHMM|null|null|null|가격|누적거래량` 형식이고,
+    거래량은 그날 누적값이다 — 분당 거래량은 앞 봉과의 차이로 구한다.
+    """
+    text = get_text(MINUTE_URL.format(code=code), "euc-kr", timeout=15)
+    if not text:
+        return None
+    out = {}
+    for m in re.finditer(r'item data="([^"]+)"', text):
+        parts = m.group(1).split("|")
+        if len(parts) < 6 or len(parts[0]) < 12:
+            continue
+        stamp = parts[0]
+        if not stamp.startswith(day):
+            continue
+        try:
+            hm = int(stamp[8:10]) * 60 + int(stamp[10:12])
+            price = int(parts[4])
+            cum = int(parts[5])
+        except ValueError:
+            continue
+        if price <= 0:
+            continue
+        out[hm] = (price, cum)
+    return [(hm, out[hm][0], out[hm][1]) for hm in sorted(out)] or None
+
+
+class AfternoonFlow:
+    """오후장(13:00 이후) 거래대금 비중·등락률 — 장중 분봉 실측.
+
+    09:00~13:00 오전장에는 **억지로 계산하지 않는다**. `pass=None`(대기)으로 두고
+    화면은 `오전장 진행 중`으로 표시한다. 13:30 이전 30분 남짓도 비중을 판정하기에
+    이르므로 `오후장 초반`으로 대기 처리한다.
+    """
+
+    def __init__(self, now: datetime, limit: int = PM_MAX_FETCH):
+        self.now = now
+        self.limit = limit
+        self.phase = self._phase()
+        self.cache: dict[str, dict | None] = {}
+        self.fetched = 0
+
+    def _phase(self) -> str:
+        if self.now.weekday() >= 5:
+            return "휴장"
+        hm = self.now.hour * 60 + self.now.minute
+        if hm < PM_START_MIN:
+            return "오전장 진행 중"
+        if hm < PM_JUDGE_MIN:
+            return "오후장 초반"
+        if hm < PM_END_MIN:
+            return "오후장 실측 중"
+        return "오후장 마감"
+
+    def pending(self) -> bool:
+        return self.phase in ("오전장 진행 중", "오후장 초반", "휴장")
+
+    def _measure(self, code: str):
+        bars = fetch_minute_bars(code, self.now.strftime("%Y%m%d"))
+        if not bars:
+            return None
+        px13 = None
+        for hm, px, _cum in bars:
+            if hm <= PM_START_MIN:
+                px13 = px
+        pm = [b for b in bars if PM_START_MIN <= b[0] <= PM_END_MIN]
+        if not pm or px13 is None:
+            return None
+        value = 0.0                      # 13:00 이후 분당 (누적거래량 차이 × 가격) 합
+        prev = None
+        for hm, px, cum in bars:
+            if hm < PM_START_MIN:
+                prev = cum
+                continue
+            if hm > PM_END_MIN:
+                break
+            if prev is not None and cum > prev:
+                value += (cum - prev) * px
+            prev = cum
+        end_hm, end_px, _c = pm[-1]
+        return {"px13": px13, "px": end_px, "valueWon": value,
+                "at": f"{end_hm // 60:02d}:{end_hm % 60:02d}"}
+
+    def _measure_safe(self, code: str):
+        try:
+            return self._measure(code)
+        except Exception as exc:            # noqa: BLE001 - 분봉 실패는 조건만 비운다
+            warn(f"분봉 조회 실패 {code}({type(exc).__name__})")
+            return None
+
+    def warm(self, codes, workers: int = 8) -> None:
+        """판정 시각(13:30) 이후 후보 종목 분봉을 미리 병렬로 받아 둔다.
+
+        오전장·오후장 초반에는 아예 호출하지 않는다 — 억지 계산 금지.
+        """
+        if self.pending() or not codes:
+            return
+        todo = [str(c) for c in codes if str(c) not in self.cache][:self.limit]
+        if not todo:
+            return
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for code, res in zip(todo, pool.map(self._measure_safe, todo)):
+                self.cache[code] = res
+                self.fetched += 1
+
+    def get(self, code: str, value_eok=None):
+        """종목 하나의 오후장 수급 — 판정 전이면 status만 돌려준다(API 호출 없음)."""
+        if self.pending():
+            return {"status": self.phase, "pass": None,
+                    "basis": "13:00부터 분봉 실측(오전장은 계산하지 않음)"}
+        if code not in self.cache:
+            if self.fetched >= self.limit:
+                return None
+            self.fetched += 1
+            try:
+                self.cache[code] = self._measure(code)
+            except Exception as exc:        # noqa: BLE001 - 분봉 실패는 조건만 비운다
+                warn(f"분봉 조회 실패 {code}({type(exc).__name__})")
+                self.cache[code] = None
+        base = self.cache.get(code)
+        if not base:
+            return {"status": self.phase, "pass": None, "basis": "분봉을 받지 못해 미판정"}
+        chg = (base["px"] / base["px13"] - 1) * 100 if base["px13"] else None
+        share = None
+        if value_eok:
+            share = (base["valueWon"] / 1e8) / float(value_eok) * 100
+        inflow = share is not None and share >= PM_SHARE_MIN
+        up = chg is not None and chg > 0
+        return {
+            "status": self.phase,
+            "pmShare": round(min(max(share, 0.0), 100.0), 1) if share is not None else None,
+            "chgPm": round(chg, 2) if chg is not None else None,
+            "px13": base["px13"],
+            "px": base["px"],
+            "at": base["at"],
+            "inflow": bool(inflow),
+            "up": bool(up),
+            "pass": bool(inflow and up),
+            "basis": "13:00~15:30 분봉 실측",
+        }
+
+
+def closing_edge_scan(rows, ctx):
+    """종가베팅 핵심 — 52주 신고가 근접/매물대 소화 + 수급·강세 + 오후장 유입.
+
+    A [일] 52주(250거래일) 신고가 대비 -10% 이내(돌파 포함)
+    B [일] 직전 60일 최대 거래량일(앞전 매물대) 고가 위 = 매물대 소화
+    C [수급] 외인·기관 2일 이상 연속 순매수 또는 지수 대비 +2%p 강세
+    D [분봉] 13:00 이후 거래대금 비중 30% 이상 + 13:00 대비 우상향
+    조건식: (A or B) and C and D — 당일 거래대금 300억↑ 교집합(SCAN_DEFS.minValue)
+    13:00 이전에는 D를 판정하지 않는다(pending) — 대기 상태로 목록에 남기고 화면에 표시.
+    """
+    if not rows or len(rows) < 61:
+        return None
+    w52 = (ctx or {}).get("w52") or high52_signal(rows, price=(ctx or {}).get("price"))
+    shelf = (ctx or {}).get("shelf") or volume_shelf(rows, price=(ctx or {}).get("price"))
+    if not w52 and not shelf:
+        return None
+    chg = (ctx or {}).get("chg")
+    index_chg = (ctx or {}).get("index_chg")
+    rel = (chg - index_chg) if (chg is not None and index_chg is not None) else None
+    inv = (ctx or {}).get("investor") or {}
+    streak = max(int(inv.get("dualStreak") or 0), int(inv.get("instStreak") or 0),
+                 int(inv.get("frgnStreak") or 0))
+    pm = (ctx or {}).get("pm") or {}
+    pending = pm.get("pass") is None
+    cond = {
+        "A": bool(w52 and w52["near"]),
+        "B": bool(shelf and shelf["overHigh"]),
+        "C": bool(streak >= INVESTOR_MIN_STREAK or (rel is not None and rel >= EDGE_REL_MIN)),
+        "D": bool(pm.get("pass") is True),
+    }
+    passed = (cond["A"] or cond["B"]) and cond["C"] and (cond["D"] or pending)
+    bits = []
+    if w52 and w52["state"]:
+        bits.append(f"52주 {w52['gap']:+.1f}%")
+    if streak >= INVESTOR_MIN_STREAK:
+        bits.append(f"외인·기관 {streak}일 연속")
+    elif rel is not None:
+        bits.append(f"지수 대비 {rel:+.1f}%p")
+    if pending:
+        bits.append("오후장 대기")
+    elif pm.get("pass"):
+        bits.append(f"오후 비중 {pm.get('pmShare')}% · {pm.get('chgPm'):+.1f}%")
+    return {
+        "gap": round(rel, 2) if rel is not None else 0.0,
+        "conditions": cond,
+        "pass": bool(passed),
+        "pending": bool(pending),
+        "line2": " · ".join(bits),
+    }
+
+
+
 # ---------------------------------------------------------------- 조건식 정의
 #  등록된 조건식 — 여기에 항목 하나만 더하면 data.json·대시보드에 자동으로 늘어난다.
 #   · evaluate(rows): 일봉 리스트 → 조건 판정 dict (계산 불가면 None)
+#   · evaluate(rows, ctx): ctx 가 필요한 조건식(52주·오후장 같은 외부 실측값)
 #   · pick(scan)    : 그 dict 로 "조건 통과" 여부 판정
 #   · minValue      : 당일 거래대금 교집합 기준(억 원)
 #   · rules         : 화면에 그대로 보여줄 필터 기준 카드(키·짧은 라벨·설명)
+#   · deep          : 250거래일 일봉이 필요한 조건식(거래대금 300억↑ 종목만 따로 받아 계산)
+#   · ctx / pm      : 수급·지수·분봉 같은 실행 시점 값을 쓰는 조건식(오후장 수급 포함)
 SCANNER_DEFS = [
     {
         "id": "power-wiggle",
@@ -1308,6 +1698,45 @@ SCANNER_DEFS = [
         "rawNote": "A·D를 모두 만족하고 B·C 중 하나 이상을 통과한 종목 중 당일 거래대금 "
                    f"{TREND_MIN_VALUE}억 이상만 포착으로 남깁니다.",
         "evaluate": trend_scan,
+        "pick": lambda scan: bool(scan["pass"]),
+    },
+    {
+        "id": "closing-edge",
+        "name": "종가베팅 핵심",
+        "summary": "52주 신고가 -10% 이내(돌파·근접) 또는 앞전 매물대(60일 최대 거래량일) 소화 "
+                   "+ 외인·기관 2일↑ 연속 순매수 또는 지수 대비 +2%p 강세 "
+                   "+ 오후장(13:00 이후) 거래대금 비중 30%↑·13:00 대비 우상향 — 당일 거래대금 300억↑",
+        "formula": "(A or B) and C and D",
+        "minValue": EDGE_MIN_VALUE,
+        "deep": True,
+        "ctx": True,
+        "pm": True,
+        "rules": [
+            {"key": "A", "label": "52주 신고가 -10% 이내",
+             "detail": "당일 봉을 뺀 250거래일 최고가 대비 현재가 -10% 이내(돌파 포함)"},
+            {"key": "B", "label": "앞전 매물대 소화",
+             "detail": "최근 60거래일 최대 거래량일 고가 위에 현재가 안착"},
+            {"key": "C", "label": "수급 또는 지수 대비 강세",
+             "detail": f"외인·기관 {INVESTOR_MIN_STREAK}일 이상 연속 순매수 또는 종목 등락률이 "
+                       f"소속 지수보다 +{EDGE_REL_MIN:.0f}%p 이상"},
+            {"key": "D", "label": "오후장 유입·우상향",
+             "detail": f"13:00 이후 거래대금 비중 {PM_SHARE_MIN:.0f}% 이상 + 13:00 대비 플러스 "
+                       "(13:00 이전은 '오전장 진행 중'으로 대기)"},
+        ],
+        "intersection": f"당일 거래대금 {EDGE_MIN_VALUE}억+",
+        "rawSource": "시루 자체 조건식 (일봉 250거래일 + 장중 분봉 실측)",
+        "rawTarget": f"당일 거래대금 {EDGE_MIN_VALUE}억 이상 종목(250거래일 일봉 보유분)",
+        "rawRules": [
+            {"key": "A", "text": f"[일]0봉전 종가 ≥ (직전 250거래일 최고가 × 0.9) — 52주 신고가 -10% 이내"},
+            {"key": "B", "text": "[일]0봉전 종가 ≥ 최근 60거래일 최대 거래량일 고가 (앞전 매물대 소화)"},
+            {"key": "C", "text": "외인·기관 2일 이상 연속 순매수 또는 (종목 등락률 − 소속 지수 등락률) ≥ +2%p"},
+            {"key": "D", "text": "[분봉] 13:00 이후 거래대금 비중 ≥ 30% 이고 13:00 대비 등락률 > 0%"},
+        ],
+        "rawFormula": "(A or B) and C and D",
+        "rawIntersection": f"당일 거래대금 {EDGE_MIN_VALUE}억+ 교집합",
+        "rawNote": "D(오후장 수급)는 13:00부터 분봉으로 실측합니다. 그 전에는 판정하지 않고 "
+                   "'오전장 진행 중'으로 표시하며, A·B·C를 통과한 종목을 대기 상태로 보여줍니다.",
+        "evaluate": closing_edge_scan,
         "pick": lambda scan: bool(scan["pass"]),
     },
 ]
@@ -1457,21 +1886,56 @@ def scanner_meta(definition: dict) -> dict:
     return meta
 
 
-def build_scanner_scan(definition, series, info, extra_codes, now):
+def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_series=None,
+                       deep_map=None, ctx_base=None):
     """조건식 하나 — 통과 + 거래대금 기준 이상 종목과 모달용 차트 반응.
 
     · series 는 메모리의 일봉(거래량 포함) — data.json에는 결과만 저장
     · 거래대금은 allStocks(당일 누적) 값을 쓰고, 없으면 마지막 봉 종가×거래량으로 계산
+    · deep 조건식은 250거래일 일봉(deep_series)으로 계산하고, 52주·매물대 같은
+      실측값(deep_map)은 모든 조건식의 종목 항목에 같이 붙인다(행 배지·모달용)
     """
     evaluate = definition.get("evaluate") or condition_scan
     pick = definition.get("pick") or (lambda scan: bool(scan.get("pass")))
     min_value = definition.get("minValue", SCAN_MIN_VALUE)
+    use_ctx = bool(definition.get("ctx"))
+    base = ctx_base or {}
+    flow = base.get("pm_flow")
+    pm_codes = set(base.get("pm_codes") or ())
+    index_chg = base.get("index_chg") or {}
+    investor = base.get("investor") or {}
+    src = deep_series if (definition.get("deep") and deep_series) else series
     scanned = 0
     hits = []
     reactions = {}
     last_dates = {}
-    for code, rows in series.items():
-        scan = evaluate(rows)
+    for code, rows in src.items():
+        row = info.get(code) or []
+        market = row[2] if len(row) > 2 else ""
+        value_eok = None
+        if len(row) > 5 and row[5] is not None:
+            value_eok = float(row[5])
+        elif rows and rows[-1].get("v"):
+            value_eok = round(rows[-1]["c"] * rows[-1]["v"] / 1e8, 1)
+        dmap = (deep_map or {}).get(code) or {}
+        pm = None
+        if flow and (definition.get("pm") or code in pm_codes):
+            pm = flow.get(code, value_eok)
+        ctx = None
+        if use_ctx:
+            ctx = {
+                "code": code,
+                "market": market,
+                "chg": row[4] if len(row) > 4 else None,
+                "value_eok": value_eok,
+                "index_chg": index_chg.get(market),
+                "investor": investor.get(code),
+                "price": row[3] if len(row) > 3 else None,
+                "w52": dmap.get("w52"),
+                "shelf": dmap.get("shelf"),
+                "pm": pm,
+            }
+        scan = evaluate(rows, ctx) if use_ctx else evaluate(rows)
         if not scan:
             continue
         scanned += 1
@@ -1480,18 +1944,13 @@ def build_scanner_scan(definition, series, info, extra_codes, now):
         passed = bool(pick(scan))
         if not passed and not is_extra:
             continue
-        row = info.get(code) or []
-        value_eok = None
-        if len(row) > 5 and row[5] is not None:
-            value_eok = float(row[5])
-        elif rows[-1]["v"]:
-            value_eok = round(rows[-1]["c"] * rows[-1]["v"] / 1e8, 1)
-        tags, text = chart_pattern(rows)
-        back = reaction_backtest(rows)
+        pat_rows = rows[-CHARTS_DAYS:]          # 차트 구조·과거 반응은 늘 최근 120거래일 기준
+        tags, text = chart_pattern(pat_rows)
+        back = reaction_backtest(pat_rows)
         item = {
             "code": code,
             "name": (row[1] if len(row) > 1 and row[1] else code),
-            "market": (row[2] if len(row) > 2 and row[2] else ""),
+            "market": market,
             "price": (row[3] if len(row) > 3 else None),
             "chg": (row[4] if len(row) > 4 else None),
             "value_eok": round(value_eok, 1) if value_eok is not None else None,
@@ -1503,6 +1962,14 @@ def build_scanner_scan(definition, series, info, extra_codes, now):
             "patternText": text,
             "backtest": back,
         }
+        if scan.get("pending"):
+            item["pending"] = True
+        if dmap.get("w52"):
+            item["w52"] = dmap["w52"]
+        if dmap.get("shelf"):
+            item["shelf"] = dmap["shelf"]
+        if pm:
+            item["pm"] = pm
         if passed and (value_eok or 0) >= min_value:
             summary = tags[0] if tags else text
             if back and back.get("n"):
@@ -1527,14 +1994,23 @@ def build_scanner_scan(definition, series, info, extra_codes, now):
         "hits": hits,
         "reactions": reactions,
     })
+    if definition.get("pm") and flow:
+        # 오후장 수급 판정 상태 — 화면이 '오전장 진행 중'·'오후장 실측 중'을 그대로 보여준다
+        result["phase"] = flow.phase
+        result["pmBasis"] = (f"13:00 이후 거래대금 비중 {PM_SHARE_MIN:.0f}%↑ · 13:00 대비 우상향")
+        result["pmMeasured"] = flow.fetched
     return result
 
 
-def build_condition_scan(series, all_stocks, extra_codes, now):
+def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=None,
+                         index_chg=None, investor=None):
     """등록된 조건식 전부(SCANNER_DEFS)를 계산해 스캔 결과를 만든다.
 
     반환값은 메모리에서만 쓰는 모양이다 — 저장은 apply_scan 이 암호화해
     `scannersEncrypted` 한 덩어리로만 남긴다(평문 키는 data.json 에 남기지 않는다).
+    · deep_series: 거래대금 300억↑ 종목의 250거래일 일봉(52주 신고가 계산용)
+    · index_chg  : {'KOSPI': 3.7, 'KOSDAQ': 2.75} — 지수 대비 강세 판정
+    · investor   : 직전 실행의 investorStreak.stocks — 외인·기관 연속 순매수 판정
     """
     if not series:
         return None
@@ -1542,7 +2018,26 @@ def build_condition_scan(series, all_stocks, extra_codes, now):
     for row in all_stocks or []:
         if row and row[0]:
             info[str(row[0])] = row
-    scanners = [build_scanner_scan(defn, series, info, extra_codes, now) for defn in SCANNER_DEFS]
+    deep_map = {}
+    for code, rows in (deep_series or {}).items():
+        row = info.get(code) or []
+        price = row[3] if len(row) > 3 else None
+        sig = {"w52": high52_signal(rows, price=price),
+               "shelf": volume_shelf(rows, price=price)}
+        if sig["w52"] or sig["shelf"]:
+            deep_map[code] = sig
+    # 오후장 수급은 거래대금 큰 종목부터 — 13:00 이후에만 분봉을 받는다(오전장엔 호출 없음)
+    flow = AfternoonFlow(now)
+    ordered = sorted(((deep_series or {}).keys()),
+                     key=lambda c: -((info.get(c) or [None] * 6)[5] or 0))
+    pm_codes = set(str(c) for c in (extra_codes or ())) | set(ordered[:PM_MAX_FETCH])
+    flow.warm(ordered[:PM_MAX_FETCH], info)
+    ctx_base = {"pm_flow": flow, "pm_codes": pm_codes,
+                "index_chg": index_chg or {}, "investor": investor or {}}
+    scanners = [build_scanner_scan(defn, series, info, extra_codes, now,
+                                  deep_series=deep_series, deep_map=deep_map,
+                                  ctx_base=ctx_base)
+                for defn in SCANNER_DEFS]
     primary = scanners[0] if scanners else None
     if not primary:
         return None
@@ -2872,7 +3367,11 @@ def scan_only(argv):
             bars = future.result() or []
             if len(bars) >= 116:
                 series[code] = bars[-CHARTS_DAYS:]
-    result = build_condition_scan(series, rows, extra, now)
+    deep_series = deep_signal_series(edge_candidate_codes(rows, extra))
+    log(f"  · 52주·매물대용 250거래일 일봉 {len(deep_series)}종목")
+    result = build_condition_scan(series, rows, extra, now, deep_series=deep_series,
+                                 index_chg=index_change_map(entry),
+                                 investor=(entry.get("investorStreak") or {}).get("stocks"))
     if not result or not result["meta"].get("asOf"):
         log("  · 일봉을 받지 못해 스캔을 만들지 않았습니다 — data.json 그대로 둡니다.")
         return 1
@@ -3115,7 +3614,11 @@ def main(argv):
     chart_codes = [row[0] for row in (all_stocks or []) if row] + target_codes + card_codes
     # merge_entry 는 차트를 넘겨주지 않으므로, 같은 날짜의 이전 data.json 항목에서 캐시를 가져온다
     cached_charts = (old_entry or {}).get("charts") or entry.get("charts")
-    charts, series = build_charts(chart_codes, cached_charts, now)
+    # 오후장 수급(13:00 이후)은 시각이 지나면 값이 달라진다 — 장중·마감 뒤에는 스캔을 다시 계산
+    need_series = scan_needs_rebuild(old_entry, scanner_key(), now)
+    if need_series:
+        log("  · 오후장 수급 갱신 — 일봉·분봉으로 스캔을 다시 계산합니다")
+    charts, series = build_charts(chart_codes, cached_charts, now, need_series=need_series)
     if charts:
         entry["charts"] = charts
     else:
@@ -3124,9 +3627,19 @@ def main(argv):
     # 6-2) 조건식 × 당일 수급 교집합 + 과거 차트 반응 (거래량은 메모리에서만)
     scan = None
     if series:
-        scan = build_condition_scan(series, all_stocks, set(target_codes + card_codes), now)
+        extra_all = set(target_codes + card_codes)
+        deep_series = deep_signal_series(edge_candidate_codes(all_stocks, extra_all))
+        if deep_series:
+            log(f"    52주·매물대용 250거래일 일봉 {len(deep_series)}종목")
+        scan = build_condition_scan(series, all_stocks, extra_all, now,
+                                    deep_series=deep_series,
+                                    index_chg=index_change_map(old_entry, kospi, kosdaq),
+                                    investor=((old_entry or {}).get("investorStreak") or {}).get("stocks"))
         if scan and apply_scan(entry, scan):
             log(f"    조건식×수급: {scan['meta']['scanned']}종목 계산 → {len(scan['hits'])}종목 포착 (암호화 저장)")
+            for sc in scan["scanners"]:
+                log(f"      [{sc['name']}] {len(sc['hits'])}종목" +
+                    (f" · 오후장 수급 {sc.get('phase')}" if sc.get("phase") else ""))
         else:
             carry_scan(entry, old_entry, prev_entry)
     else:

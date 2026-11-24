@@ -143,11 +143,65 @@ def check_scanner(s: dict) -> None:
     for h in hits:
         cnd = h.get("conditions") or {}
         # 조건식마다 규칙이 다르다 — formula 에 적힌 필수 키와 (X or Y) 묶음만 검사한다
-        check(all(cnd.get(k) for k in req), f"[{name}] {h.get('name')}: {'·'.join(req)} 충족",
-              f"[{name}] {h.get('name')}: {'·'.join(req)} 미충족 {cnd}")
+        # 오후장 수급(D)처럼 시각이 되기 전에는 판정하지 않는 조건은 '대기'로 통과 처리한다
+        pending = bool(h.get("pending"))
+        req_use = [k for k in req if not (pending and k == "D")]
+        check(all(cnd.get(k) for k in req_use), f"[{name}] {h.get('name')}: {'·'.join(req_use)} 충족",
+              f"[{name}] {h.get('name')}: {'·'.join(req_use)} 미충족 {cnd}")
+        if pending:
+            check(cnd.get("D") is False,
+                  f"[{name}] {h.get('name')}: 오후장 대기(D는 미판정)",
+                  f"[{name}] {h.get('name')}: 대기인데 D가 참 {cnd}")
         if grp:
             check(any(cnd.get(k) for k in grp), f"[{name}] {h.get('name')}: {' 또는 '.join(grp)} 충족",
                   f"[{name}] {h.get('name')}: {'·'.join(grp)} 모두 미충족 {cnd}")
+
+
+def check_edge_item(s: dict, item: dict) -> None:
+    """종가베팅 핵심 항목의 새 지표(52주·매물대·오후장) — 값의 앞뒤가 맞는지."""
+    name = s.get("name") or "?"
+    nm = item.get("name")
+    w = item.get("w52")
+    sh = item.get("shelf")
+    pm = item.get("pm")
+    if w:
+        ok_gap = isinstance(w.get("gap"), (int, float)) and -100 <= w["gap"] <= 60
+        check(ok_gap, f"[{name}] {nm}: 52주 이격 {w.get('gap')}%", f"[{name}] {nm}: 52주 이격 이상 {w}")
+        check((w.get("high") or 0) > 0 and bool(w.get("highDate")),
+              f"[{name}] {nm}: 52주 최고 {w.get('high')} · {w.get('highDate')}",
+              f"[{name}] {nm}: 52주 최고값 이상")
+        state_ok = (w.get("gap") <= -10 and not w.get("state")) or \
+                   (w.get("gap") > -10 and bool(w.get("state")))
+        check(state_ok, f"[{name}] {nm}: 52주 상태 '{w.get('state')}' 판정 일치",
+              f"[{name}] {nm}: 52주 상태 불일치 {w.get('gap')}% / '{w.get('state')}'")
+    if sh:
+        check(sh.get("overHigh") in (True, False) and (sh.get("high") or 0) > 0,
+              f"[{name}] {nm}: 매물대 {sh.get('date')} 고가 {sh.get('high')} · 소화 {sh.get('overHigh')}",
+              f"[{name}] {nm}: 매물대 수치 이상 {sh}")
+        check((sh.get("state") == "매물대 소화") == bool(sh.get("overHigh")),
+              f"[{name}] {nm}: 매물대 소화 판정 일치",
+              f"[{name}] {nm}: 매물대 상태 불일치 {sh.get('state')} / {sh.get('overHigh')}")
+    if pm:
+        st = str(pm.get("status") or "")
+        check(bool(st), f"[{name}] {nm}: 오후장 상태 '{st}'", f"[{name}] {nm}: 오후장 상태 없음")
+        if pm.get("pass") is None:
+            check(st in ("오전장 진행 중", "오후장 초반", "휴장"),
+                  f"[{name}] {nm}: 미판정 상태 '{st}' (오후장 실측 아님)",
+                  f"[{name}] {nm}: 미판정인데 상태가 '{st}'")
+            check("pmShare" not in pm, f"[{name}] {nm}: 대기 상태에 수치 없음",
+                  f"[{name}] {nm}: 대기인데 오후 수치가 있음 {pm}")
+        else:
+            share = pm.get("pmShare")
+            chg = pm.get("chgPm")
+            check(isinstance(share, (int, float)) and 0 <= share <= 100,
+                  f"[{name}] {nm}: 오후 비중 {share}%", f"[{name}] {nm}: 오후 비중 이상 {share}")
+            check(isinstance(chg, (int, float)) and -35 <= chg <= 35,
+                  f"[{name}] {nm}: 13:00 대비 {chg}%", f"[{name}] {nm}: 13:00 대비 이상 {chg}")
+            check(bool(pm.get("pass")) == (share >= 30 and chg > 0),
+                  f"[{name}] {nm}: 오후장 유입·우상향 판정 일치 ({share}% · {chg}%)",
+                  f"[{name}] {nm}: 오후장 판정 불일치 {pm}")
+    else:
+        bad(f"[{name}] {nm}: 오후장 수급 기록 없음")
 
 
 def load_scan(entry: dict) -> bool:
@@ -193,7 +247,8 @@ def main(argv) -> int:
     rx = entry.get("chartReactions") or {}
 
     check(bool(meta), "conditionScan 있음", "conditionScan 없음")
-    check(bool(hits), "conditionHits 있음", "conditionHits 없음")
+    check(isinstance(entry.get("conditionHits"), list),
+          f"conditionHits {len(hits)}종목", "conditionHits 없음")
     check(meta.get("rule") == RULE, f"규칙 '{RULE}'", f"규칙 다름: {meta.get('rule')}")
     check(meta.get("minValue") == MIN_VALUE, "거래대금 기준 100억",
           f"기준 다름: {meta.get('minValue')}")
@@ -218,6 +273,31 @@ def main(argv) -> int:
               f"필터 기준 개수 다름: {len(first.get('rules') or [])}")
     for s in scanners:
         check_scanner(s)
+
+    # ── 종가베팅 핵심 — 52주 신고가·앞전 매물대·오후장 수급 (2026-11-24 추가) ──
+    edge = next((s for s in scanners if s.get("id") == "closing-edge"), None)
+    check(bool(edge), "종가베팅 핵심 조건식 있음", "종가베팅 핵심 조건식 없음")
+    if edge:
+        check(edge.get("formula") == "(A or B) and C and D",
+              "종가베팅 수식 (A or B) and C and D", f"수식 다름 {edge.get('formula')}")
+        check(edge.get("minValue") == 300, "종가베팅 교집합 300억",
+              f"교집합 다름 {edge.get('minValue')}")
+        check(len(edge.get("rules") or []) == 4, "종가베팅 필터 기준 4개(A~D)",
+              f"필터 기준 개수 다름 {len(edge.get('rules') or [])}")
+        check(bool(edge.get("phase")), f"오후장 수급 단계 '{edge.get('phase')}'", "오후장 단계 없음")
+        check(isinstance(edge.get("pmMeasured"), int), "오후장 분봉 조회 수 기록",
+              "pmMeasured 없음")
+        edge_items = list(edge.get("hits") or []) + list((edge.get("reactions") or {}).values())
+        for item in edge_items:
+            check_edge_item(edge, item)
+        # 관찰·카드 종목(모달용)도 다른 조건식 항목에 52주·오후장 기록이 붙었는지
+        rx_all = {}
+        for s in scanners:
+            rx_all.update(s.get("reactions") or {})
+        with52 = sum(1 for v in rx_all.values() if v.get("w52"))
+        withpm = sum(1 for v in rx_all.values() if v.get("pm"))
+        check(with52 > 0, f"모달용 종목 {with52}건에 52주 지표 기록", "52주 지표가 붙은 모달 항목 없음")
+        check(withpm > 0, f"모달용 종목 {withpm}건에 오후장 기록", "오후장 기록이 붙은 모달 항목 없음")
 
     charts = entry.get("charts") or {}
     stocks = charts.get("stocks") or {}
@@ -326,6 +406,34 @@ def main(argv) -> int:
             check(r["n"] == bt.get("n") and r["m"] == bt.get("m"),
                   f"{h.get('name')}: 백테스트 {r['m']}/{r['n']}회 일치",
                   f"{h.get('name')}: 백테스트 불일치 재계산 {r['m']}/{r['n']} vs {bt.get('m')}/{bt.get('n')}")
+
+        # 52주 신고가·매물대 — 260거래일 일봉으로 다시 계산해 대조
+        if edge:
+            items = list(edge.get("hits") or []) + list((edge.get("reactions") or {}).values())
+            need = [it.get("code") for it in items if it.get("w52") or it.get("shelf")]
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                deep = dict(pool.map(lambda c: (c, fetch_bars(c, 260)), need))
+            for it in items:
+                rows = deep.get(it.get("code"))
+                if not rows or len(rows) < 122:
+                    continue
+                price = it.get("price") or rows[-1]["c"]
+                hi = max(r["h"] for r in rows[-251:-1])
+                gap = (price / hi - 1) * 100
+                got = (it.get("w52") or {}).get("gap")
+                if got is None:
+                    continue
+                check(abs(gap - got) < 0.2,
+                      f"{it.get('name')}: 52주 이격 재계산 {gap:+.2f}% vs {got}%",
+                      f"{it.get('name')}: 52주 이격 불일치 {gap:+.2f}% vs {got}%")
+                win = rows[-61:-1]
+                shelf = max(win, key=lambda x: x["v"])
+                sh = it.get("shelf") or {}
+                if sh:
+                    check(sh.get("date") == shelf["d"] and sh.get("high") == shelf["h"],
+                          f"{it.get('name')}: 매물대 {shelf['d']} 고가 {shelf['h']} 일치",
+                          f"{it.get('name')}: 매물대 불일치 {sh.get('date')}/{sh.get('high')} vs "
+                          f"{shelf['d']}/{shelf['h']}")
 
     print(f"\n결과: 통과 {len(passes)} · 실패 {len(fails)}")
     return 1 if fails else 0
