@@ -1130,7 +1130,7 @@ def charts_fresh(cached, codes, now):
     return False                          # 마감 뒤 첫 실행에서 정식 종가로 재생성
 
 
-def fetch_index(symbol: str, count: int = CHARTS_DAYS):
+def fetch_index_closes(symbol: str, count: int = CHARTS_DAYS):
     """지수 일봉 종가 — {날짜: 종가} (실패 시 None). 네이버 금융 일봉 그대로."""
     url = f"{FCHART}?symbol={symbol}&timeframe=day&count={count}&requestType=0"
     text = get_text(url, "euc-kr", timeout=15)
@@ -1156,7 +1156,7 @@ def build_index_series(dates):
     """
     out = {}
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = {sym: pool.submit(fetch_index, sym, CHARTS_DAYS) for sym, _ in INDEX_SYMBOLS}
+        futures = {sym: pool.submit(fetch_index_closes, sym, CHARTS_DAYS) for sym, _ in INDEX_SYMBOLS}
         for sym, name in INDEX_SYMBOLS:
             try:
                 closes = futures[sym].result() or {}
