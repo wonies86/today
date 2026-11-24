@@ -13,6 +13,10 @@
 · 새 날짜는 실시간 데이터로 요약을 새로 만듭니다.
 · 어떤 엔드포인트가 실패해도 스크립트는 죽지 않습니다(이전 값 유지 + 경고).
 
+· 📈 차트 탭 고도화(2026-11-24): charts 에 거래량(vols·천주 단위)과 코스피·코스닥
+  일봉 종가(index)를 함께 담아 화면이 거래량 서브차트와 RS(지수 대비 상대강도)를
+  추정 없이 그린다. 주봉은 화면에서 날짜 기준으로 정확히 집계한다.
+
 · 조건식 × 당일 수급 교집합: 일봉 120거래일(거래량 포함)을 메모리에서 계산해
   등록된 조건식(SCANNER_DEFS)마다 통과 + 거래대금 기준 이상 종목을 골라
   data.json 최신 날짜 항목에 담는다(첫 조건식 = '세력꿈틀이').
@@ -24,7 +28,8 @@
   `scannersEncrypted`(PBKDF2-SHA256 300k → AES-256-GCM) 한 덩어리로만 남긴다.
   키는 저장소 밖 `../.scanner_key` 또는 환경변수 SCANNER_KEY — 저장소(Public)에는 절대 적지 않는다.
   키가 없는 실행(GitHub Actions)은 스캔을 새로 저장하지 않고 기존 `scannersEncrypted`를 그대로 보존한다.
-  (거래량은 data.json에 저장하지 않는다 — charts 는 [시,고,저,종] 그대로)
+  (charts.stocks 는 [시,고,저,종] 4개 그대로 — 거래량은 charts.vols 에 종목코드별
+   천주 단위 정수 배열로만 담는다. 조건식 스캔용 series 는 지금처럼 메모리에서만 쓴다)
 
 사용법
   python3 scripts/update_market.py            # 자동 (주말·휴장일·거래시간 판단)
@@ -81,9 +86,12 @@ ALL_MV_KEEP = 150       # 시가총액 상위 150위 안이면 거래대금과 �
 ALL_STOCKS_MARK = "__ALLSTOCKS_JSON__"   # data.json 한 줄 압축 저장용 자리표시자
 
 # 차트(일봉) — 대시보드 모달의 📈 차트 탭이 쓰는 실측 일봉
-CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·60일선 계산·확대/축소에 충분)
+CHARTS_DAYS = 120         # 종목당 보관 일봉 수(약 6개월 — 5·20·60일선 계산·주봉 24주·확대/축소에 충분)
 CHARTS_MIN_BARS = 20      # 이보다 짧으면(신규상장·거래정지) 차트를 만들지 않는다
 CHARTS_MARK = "__CHARTS_JSON__"
+VOL_UNIT = 1000           # 거래량 저장 단위(주) — 천주 단위로 반올림해 담는다(용량 3,000KB 상한)
+CHARTS_MAX_BYTES = 2_880_000   # charts 압축 본문 상한 — 넘으면 거래량(vols)을 빼고 저장한다
+INDEX_SYMBOLS = (("KOSPI", "코스피"), ("KOSDAQ", "코스닥"))   # RS(상대강도) 기준 지수
 
 # 주도 섹터 점유율(sectorDominance) — 화면 막대·카드 (모수 = 당일 등락률 +2% 이상 종목 거래대금)
 RISE_MIN_PCT = 2.0       # 모수에 넣는 최소 당일 등락률(%) — 2026-11-23 사용자 확정("바꿔줘")
@@ -1091,6 +1099,9 @@ def charts_fresh(cached, codes, now):
     # 보관 일봉이 줄었으면(과거 30일본 등) 120거래일로 다시 받는다
     if int(cached.get("days") or 0) < CHARTS_DAYS:
         return False
+    # 거래량·지수 시계열이 없는 예전 형식이면 한 번 다시 만든다(📈 차트 탭 거래량·RS)
+    if "vols" not in cached or "index" not in cached:
+        return False
     have = {str(k) for k in cached["stocks"].keys()}
     missing = len(set(codes) - have)
     if missing > max(3, int(len(codes) * 0.02)):
@@ -1119,14 +1130,58 @@ def charts_fresh(cached, codes, now):
     return False                          # 마감 뒤 첫 실행에서 정식 종가로 재생성
 
 
+def fetch_index(symbol: str, count: int = CHARTS_DAYS):
+    """지수 일봉 종가 — {날짜: 종가} (실패 시 None). 네이버 금융 일봉 그대로."""
+    url = f"{FCHART}?symbol={symbol}&timeframe=day&count={count}&requestType=0"
+    text = get_text(url, "euc-kr", timeout=15)
+    if not text:
+        return None
+    out = {}
+    for m in re.finditer(r'item data="([^"]+)"', text):
+        parts = m.group(1).split("|")
+        if len(parts) < 5:
+            continue
+        try:
+            out[parts[0]] = round(float(parts[4]), 2)
+        except ValueError:
+            continue
+    return out or None
+
+
+def build_index_series(dates):
+    """지수 종가를 종목 일봉 dates 축에 그대로 맞춘 배열 — {KOSPI: [...], KOSDAQ: [...]}
+
+    · 없는 날짜는 null(보간·추정 금지) — 화면은 null 구간을 선으로 잇지 않는다
+    · 두 지수 모두 절반 이상이 맞을 때만 담는다(어긋난 지수로 RS 를 만들지 않는다)
+    """
+    out = {}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = {sym: pool.submit(fetch_index, sym, CHARTS_DAYS) for sym, _ in INDEX_SYMBOLS}
+        for sym, name in INDEX_SYMBOLS:
+            try:
+                closes = futures[sym].result() or {}
+            except Exception:               # noqa: BLE001
+                closes = {}
+            if not closes:
+                continue
+            series = [closes.get(d) for d in dates]
+            hit = sum(1 for v in series if v is not None)
+            if hit < len(dates) * 0.5:
+                warn(f"{name} 지수 일봉이 종목 날짜와 맞지 않아 RS 계산에서 뺐니다({hit}/{len(dates)})")
+                continue
+            out[sym] = {"name": name, "c": series}
+    return out
+
+
 def build_charts(codes, cached, now, need_series=False):
-    """(data.json charts, 스캔용 일봉 series) — 종목별 최근 일봉 OHLC 경량 배열.
+    """(data.json charts, 스캔용 일봉 series) — 종목별 최근 일봉 OHLC + 거래량 경량 배열.
 
     · 네이버 금융 일봉(fchart) 실측값만 넣는다. 없는 봉은 보간·추정하지 않는다
     · 날짜 배열을 한 벌만 두고 종목은 [[시,고,저,종], ...] 만 저장한다(용량 절감)
+    · 거래량은 charts.vols 에 종목코드별 정수 배열(천주 단위 반올림)로 따로 담는다
+      — 📈 차트 서브차트용. charts.stocks 는 [시,고,저,종] 4개를 그대로 유지한다
+    · 코스피·코스닥 일봉 종가(charts.index)를 같은 날짜 축으로 담아 RS 를 정확히 계산한다
     · 봉 날짜가 기준 날짜와 어긋나는 종목(거래정지·신규상장)은 넣지 않는다
-    · series(거래량 포함)는 메모리에서만 쓰고 data.json에는 저장하지 않는다
-      — 조건식 스캔·차트 반응 계산에만 쓰고 버린다(용량 폭증 방지)
     """
     codes = [str(c) for c in (codes or []) if c]
     if not codes:
@@ -1153,13 +1208,16 @@ def build_charts(codes, cached, now, need_series=False):
     dates = [r["d"] for r in base]
 
     stocks = {}
+    vols = {}
     for code, rows in rows_by_code.items():
         if [r["d"] for r in rows] != dates:
             continue                      # 봉 날짜가 어긋나면 그리지 않는다(가짜 봉 금지)
         stocks[code] = [[r["o"], r["h"], r["l"], r["c"]] for r in rows]
+        vols[code] = [int(round((r.get("v") or 0) / VOL_UNIT)) for r in rows]
     if not stocks:
         return (cached or None), {}
 
+    index = build_index_series(dates)
     charts = {
         "asOf": latest,
         "basis": f"{latest[:4]}-{latest[4:6]}-{latest[6:]} 종가",
@@ -1167,7 +1225,14 @@ def build_charts(codes, cached, now, need_series=False):
         "days": len(dates),
         "dates": dates,
         "stocks": stocks,
+        "vols": vols,
+        "volUnit": VOL_UNIT,
+        "index": index,
     }
+    # 3,000KB 상한 — 넘으면 거래량을 빼고 일봉만 담는다(차트는 계속 뜨고 거래량·RS만 빠짐)
+    if len(json.dumps(charts, ensure_ascii=False, separators=(",", ":")).encode()) > CHARTS_MAX_BYTES:
+        warn(f"charts 용량 초과({len(json.dumps(charts, ensure_ascii=False)) / 1024:.0f}KB) — 거래량 시계열을 뺏니다")
+        charts["vols"] = {}
     series = {code: rows for code, rows in rows_by_code.items() if code in stocks}
     return charts, series
 

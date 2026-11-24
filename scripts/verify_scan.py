@@ -305,6 +305,31 @@ def main(argv) -> int:
     check(bool(stocks) and four == len(stocks), f"charts.stocks {four}종목 모두 [o,h,l,c] 4개",
           f"charts.stocks 형식 위반 {len(stocks) - four}종목")
 
+    # 📈 차트 탭 거래량·RS — 종목 수와 봉 수가 OHLC와 같은지(빠진 종목은 거래량만 안 그린다)
+    days = int(charts.get("days") or 0)
+    vols = charts.get("vols") or {}
+    if vols:
+        bad = [c for c, v in vols.items()
+               if c not in stocks or len(v) != days or not all(isinstance(x, int) and x >= 0 for x in v)]
+        check(not bad, f"charts.vols {len(vols)}종목 · 거래량 {days}봉 정수",
+              f"charts.vols 형식 위반 {len(bad)}종목(예: {bad[:3]})")
+        check(int(charts.get("volUnit") or 0) == 1000, "거래량 단위 천주(volUnit=1000)",
+              f"volUnit={charts.get('volUnit')}")
+    else:
+        warn_only = "charts.vols 없음 — 용량 여유가 생기면 채워집니다"
+        check(True, warn_only, "")
+    idx = charts.get("index") or {}
+    for sym in ("KOSPI", "KOSDAQ"):
+        block = idx.get(sym) or {}
+        series = block.get("c") or []
+        if not series:
+            continue
+        check(len(series) == days, f"{block.get('name', sym)} 지수 {days}봉(RS 기준)",
+              f"{sym} 지수 봉 수 {len(series)} != {days}")
+        real = [v for v in series if isinstance(v, (int, float)) and v > 0]
+        check(len(real) >= days * 0.5, f"{block.get('name', sym)} 지수 유효값 {len(real)}봉",
+              f"{sym} 지수 유효값 부족 {len(real)}/{days}")
+
     values = [h.get("value_eok") or 0 for h in hits]
     check(values == sorted(values, reverse=True), "거래대금 내림차순 정렬",
           f"정렬 안 됨: {values}")
