@@ -1622,6 +1622,20 @@
 #viewSimple .seg button:focus-visible{
   outline:2px solid var(--accent);outline-offset:1px
 }
+/* 5탭(관찰 5선·수급 시나리오·스레드 관점·상승·거래대금·관련 기사)
+   모바일 390px 에서도 줄바꿈 없이 한 줄 — 라벨은 절대 자르지 않고, 모자라면 가로 스크롤 */
+#viewSimple .seg.seg-5{
+  gap:2px;justify-content:space-between;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity
+}
+#viewSimple .seg.seg-5::-webkit-scrollbar{display:none}
+#viewSimple .seg.seg-5 button{
+  flex:0 0 auto;padding:7px 6px;font-size:12px;letter-spacing:-.03em;
+  text-overflow:clip;scroll-snap-align:center
+}
+@media (max-width:430px){
+  #viewSimple .seg.seg-5 button{font-size:11.5px;padding:7px 4px;letter-spacing:-.04em}
+}
 #viewSimple .sess-nav{
   margin-top:12px
 }
@@ -1736,6 +1750,9 @@
 #viewSimple .core{
   margin-top:9px;padding:12px 13px 6px
 }
+#viewSimple .panel > .core{
+  margin-top:0
+}
 #viewSimple .core-head{
   display:flex;align-items:baseline;gap:7px
 }
@@ -1755,6 +1772,64 @@
 }
 #viewSimple .core-lead b{
   font-weight:760
+}
+/* ---------------- 스레드 관점 — 4분할 개별 게시용 카드 ---------------- */
+#viewSimple .th-note{
+  margin:6px 2px 7px;font-size:10.5px;color:var(--mute);letter-spacing:-.01em
+}
+#viewSimple .th-list{
+  display:grid;gap:8px
+}
+#viewSimple .th-card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);padding:10px 12px 11px
+}
+#viewSimple .th-head{
+  display:flex;align-items:center;gap:6px
+}
+#viewSimple .th-title{
+  font-size:12.5px;font-weight:760;letter-spacing:-.01em
+}
+#viewSimple .th-card.wait .th-title{
+  color:var(--ink-2)
+}
+#viewSimple .th-hint{
+  margin-left:auto;font-size:9.5px;color:var(--mute);white-space:nowrap
+}
+#viewSimple .th-copy{
+  appearance:none;-webkit-appearance:none;cursor:pointer;font-family:inherit;
+  flex:0 0 auto;font-size:10px;font-weight:780;letter-spacing:-.01em;
+  color:#5b21b6;background:#f6f2ff;border:1px solid #e4d9fc;border-radius:999px;
+  padding:3px 9px;line-height:1.4;white-space:nowrap;-webkit-tap-highlight-color:transparent;
+  transition:background .15s,border-color .15s,color .15s
+}
+#viewSimple .th-copy:hover{
+  background:#efe8ff;border-color:#d9c9fa
+}
+#viewSimple .th-copy:active{
+  transform:translateY(1px)
+}
+#viewSimple .th-copy.ok{
+  background:#ecfdf5;border-color:#bbf7d0;color:#15803d
+}
+#viewSimple .th-copy[disabled]{
+  color:#a6aec0;background:#f4f5f9;border-color:var(--line-2);cursor:default
+}
+#viewSimple .th-body{
+  margin:8px 0 0;font-size:12.5px;line-height:1.68;color:#1e2739;
+  white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere
+}
+#viewSimple .th-body.wait{
+  margin:7px 0 1px;font-size:11px;color:var(--mute)
+}
+#viewSimple .th-toast{
+  position:fixed;left:50%;bottom:22px;z-index:80;transform:translate(-50%,8px);
+  background:rgba(16,24,40,.93);color:#fff;font-size:11.5px;font-weight:650;
+  padding:7px 13px;border-radius:999px;box-shadow:0 8px 22px rgba(16,24,40,.28);
+  opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;white-space:nowrap
+}
+#viewSimple .th-toast.on{
+  opacity:1;transform:translate(-50%,0)
 }
 #viewSimple .rot{
   margin-top:2px
@@ -2954,8 +3029,10 @@
       <section class="sectors" id="sSectors" aria-label="주도 섹터"></section>
 
       <section class="bottom" aria-label="관찰 종목·순위·기사">
-        <nav class="seg" id="sBottomTabs" role="tablist" aria-label="하단 보기 선택">
+        <nav class="seg seg-5" id="sBottomTabs" role="tablist" aria-label="하단 보기 선택">
           <button type="button" role="tab" data-panel="watch" aria-selected="true">관찰 5선</button>
+          <button type="button" role="tab" data-panel="core" aria-selected="false">수급 시나리오</button>
+          <button type="button" role="tab" data-panel="threads" aria-selected="false">스레드 관점</button>
           <button type="button" role="tab" data-panel="rank" aria-selected="false">상승·거래대금</button>
           <button type="button" role="tab" data-panel="news" aria-selected="false">관련 기사</button>
         </nav>
@@ -2964,6 +3041,18 @@
           <div class="panel-head"><span>오늘 볼 종목</span><span class="r">탭하면 차트 분석</span>
             <button type="button" class="shot-btn" data-shot aria-haspopup="dialog">📸 한화면 캡처</button></div>
           <ul class="watch card" id="sWatchList"></ul>
+        </div>
+
+        <!-- 수급 시나리오 — 예전 페이지 맨 아래(바로묻기 아래)에 있던 블록을 탭 안으로 옮겼다 -->
+        <div class="panel" id="sPanel-core" role="tabpanel" hidden>
+          <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
+        </div>
+
+        <!-- 스레드 관점 — 4분할(장전·장중·애프터·내일 생각) 개별 게시용 -->
+        <div class="panel" id="sPanel-threads" role="tabpanel" hidden>
+          <p class="th-note">구어체 · 팩트 기반 · 주도주 수급 중심 (4분할 개별 게시용)</p>
+          <div class="th-list" id="sThreadList"></div>
+          <div class="th-toast" id="sThreadToast" role="status" aria-live="polite"></div>
         </div>
 
         <div class="panel" id="sPanel-rank" role="tabpanel" hidden>
@@ -3006,7 +3095,6 @@
   </section>
       </div>
 
-      <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
 
       <div id="scanHostSimple">
   <!-- ======================= 조건식 × 수급 교집합 (심플·상세 공통) ======================= -->
@@ -9682,6 +9770,87 @@ const REPORT_DATA = [
     box.innerHTML = h;
   }
 
+  /* ---------------- 스레드 관점 (4분할 개별 게시용) ---------------- */
+  const THREAD_PARTS = [
+    { key: "pre", no: "1", label: "장전", hint: "07:00" },
+    { key: "krx", no: "2", label: "장중", hint: "09:05 · 15:35" },
+    { key: "aft", no: "3", label: "애프터", hint: "20:05 NXT" },
+    { key: "next", no: "4", label: "내일 생각", hint: "20:05 NXT" }
+  ];
+
+  /* strings 또는 줄 배열 모두 받는다 — 스레드는 줄바꿈을 그대로 살려 읽힌다 */
+  function threadText(v) {
+    if (Array.isArray(v)) return v.map((x) => String(x)).join("\n\n");
+    return typeof v === "string" ? v : "";
+  }
+
+  function renderSimpleThreads(report) {
+    const box = $("#sThreadList");
+    if (!box) return;
+    const th = (report && report.threads) || {};
+    box.innerHTML = THREAD_PARTS.map((p) => {
+      const text = threadText(th[p.key]).replace(/\s+$/, "");
+      const ready = !!text;
+      return '<section class="th-card' + (ready ? "" : " wait") + '" data-thread="' + p.key + '">' +
+        '<div class="th-head">' +
+          '<span class="th-title">' + p.no + ". " + esc(p.label) + "</span>" +
+          '<span class="th-hint">' + esc(p.hint) + "</span>" +
+          '<button type="button" class="th-copy" data-copy-thread="' + p.key + '"' +
+            (ready ? "" : " disabled") + ' aria-label="' + esc(p.label) + ' 글 복사">복사</button>' +
+        "</div>" +
+        (ready
+          ? '<p class="th-body">' + esc(text) + "</p>"
+          : '<p class="th-body wait">업데이트 대기 중</p>') +
+      "</section>";
+    }).join("");
+  }
+
+  /* 클립보드 — 보안 컨텍스트·권한 실패 시 textarea+execCommand 로 한 번 더 시도 */
+  function copyPlainText(text) {
+    const legacy = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "-1000px";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(() => true).catch(legacy);
+    }
+    return Promise.resolve(legacy());
+  }
+
+  function threadCopyFeedback(btn, part, ok) {
+    const label = btn.getAttribute("data-label") || btn.textContent;
+    btn.setAttribute("data-label", label);
+    btn.textContent = ok ? "복사됨 ✓" : "복사 실패";
+    btn.classList.toggle("ok", !!ok);
+    const toast = $("#sThreadToast");
+    if (toast) {
+      toast.textContent = ok
+        ? (part ? part.label + " 글을 복사했어요 — 스레드에 붙여넣기" : "복사했어요")
+        : "복사하지 못했어요 — 글을 길게 눌러 선택해 주세요";
+      toast.classList.add("on");
+    }
+    clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+      btn.textContent = label;
+      btn.classList.remove("ok");
+      if (toast) toast.classList.remove("on");
+    }, 1700);
+  }
+
   /* ---------------- 관찰 5선 ---------------- */
   function renderSimpleWatch(report) {
     const box = $("#sWatchList");
@@ -9764,7 +9933,8 @@ const REPORT_DATA = [
 
   /* ---------------- 패널 전환 ---------------- */
   function syncSimplePanels() {
-    const map = [["watch", "#sPanel-watch"], ["rank", "#sPanel-rank"], ["news", "#sPanel-news"]];
+    const map = [["watch", "#sPanel-watch"], ["core", "#sPanel-core"], ["threads", "#sPanel-threads"],
+                 ["rank", "#sPanel-rank"], ["news", "#sPanel-news"]];
     map.forEach(([k, sel]) => {
       const p = $(sel);
       if (p) p.hidden = k !== SVIEW.panel;
@@ -9787,6 +9957,7 @@ const REPORT_DATA = [
     renderSimpleSectors(report);
     renderSimpleCore(report);
     renderSimpleWatch(report);
+    renderSimpleThreads(report);
     renderSimpleRank(report);
     renderSimpleNews(report);
     renderSimpleFine(report);
@@ -9865,6 +10036,11 @@ const REPORT_DATA = [
       if (!b) return;
       SVIEW.panel = b.getAttribute("data-panel");
       syncSimplePanels();
+      /* 5탭이 화면 폭을 넘길 때 — 고른 탭이 보이도록 탭 줄만 가로로 움직인다 */
+      if (tabs.scrollWidth > tabs.clientWidth + 1) {
+        const left = b.offsetLeft - (tabs.clientWidth - b.offsetWidth) / 2;
+        tabs.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+      }
     });
     const ranks = $("#sRankTabs");
     if (ranks) ranks.addEventListener("click", (e) => {
@@ -9881,6 +10057,17 @@ const REPORT_DATA = [
       const report = findReport(activeDate);
       const w = (report.watchlist || [])[Number(btn.getAttribute("data-idx"))];
       if (w) openAnalysis(w, btn, report);
+    });
+    const thList = $("#sThreadList");
+    if (thList) thList.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-copy-thread]");
+      if (!btn || btn.disabled) return;
+      const key = btn.getAttribute("data-copy-thread");
+      const report = findReport(activeDate);
+      const text = threadText(((report && report.threads) || {})[key]).replace(/\s+$/, "");
+      if (!text) return;
+      const part = THREAD_PARTS.filter((p) => p.key === key)[0];
+      copyPlainText(text).then((ok) => threadCopyFeedback(btn, part, ok));
     });
   }
 

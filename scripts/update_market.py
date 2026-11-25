@@ -3242,7 +3242,7 @@ def merge_entry(new, old):
     if not old:
         return out
     for key in ("label", "shortLabel", "context", "articles",
-                "disclaimer", "rangeLabels", "axis", "stages", "issue"):
+                "disclaimer", "rangeLabels", "axis", "stages", "issue", "threads"):
         if key in old:
             out[key] = old[key]
 
