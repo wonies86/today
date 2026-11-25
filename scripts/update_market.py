@@ -13,6 +13,11 @@
 · 새 날짜는 실시간 데이터로 요약을 새로 만듭니다.
 · 어떤 엔드포인트가 실패해도 스크립트는 죽지 않습니다(이전 값 유지 + 경고).
 
+· 🗂 charts.json 분리(2026-11-25): 일봉(charts, 약 2.1MB)은 data.json 에서 빼
+  `charts.json`({날짜: charts})에 따로 저장한다. 화면이 60초마다 다시 받는 본문이
+  가벼워지고, index.html 은 차트가 필요할 때 ./charts.json 을 한 번만 받아 쓴다.
+  data.json 에 charts 가 남아 있는 예전 형식도 읽어 charts.json 으로 옮긴다.
+
 · 📈 차트 탭 고도화(2026-11-24): charts 에 거래량(vols·천주 단위)과 코스피·코스닥
   일봉 종가(index)를 함께 담아 화면이 거래량 서브차트와 RS(지수 대비 상대강도)를
   추정 없이 그린다. 주봉은 화면에서 날짜 기준으로 정확히 집계한다.
@@ -34,7 +39,7 @@
 사용법
   python3 scripts/update_market.py            # 자동 (주말·휴장일·거래시간 판단)
   python3 scripts/update_market.py --force    # 수동 강제 갱신 (workflow_dispatch)
-  python3 scripts/update_market.py --charts-only     # data.json 은 두고 일봉만 재생성
+  python3 scripts/update_market.py --charts-only     # data.json 은 두고 일봉만 재생성(charts.json)
   python3 scripts/update_market.py --scan-only [--date YYYY-MM-DD]  # 조건식 스캔만 재계산
   python3 scripts/verify_scan.py [--live]     # 스캔 결과 검증(정적/독립 재계산)
 """
@@ -60,6 +65,7 @@ from pathlib import Path
 KST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "data.json"
+CHARTS_PATH = ROOT / "charts.json"       # 일봉(charts) 분리 파일 — data.json 은 60초마다 다시 받는 본문
 
 API = "https://m.stock.naver.com/api"
 POLL_BASE = "https://polling.finance.naver.com/api/realtime/domestic"
@@ -2252,10 +2258,13 @@ def carry_scan(entry, *sources):
 
 
 def serialize_data(data):
-    """data.json 본문 문자열 — allStocks·charts 는 배열이라 한 줄 압축으로 둔다."""
+    """data.json 본문 문자열 — allStocks 는 배열이라 한 줄 압축으로 둔다.
+
+    charts(일봉)는 여기서 쓰지 않는다 — collect_charts 로 charts.json 에 따로 저장한다.
+    """
     saved = []
     for entry in data:
-        for key, mark in (("allStocks", ALL_STOCKS_MARK), ("charts", CHARTS_MARK)):
+        for key, mark in (("allStocks", ALL_STOCKS_MARK),):
             value = entry.get(key)
             if isinstance(value, (list, dict)) and value:
                 entry[key] = mark
@@ -2266,6 +2275,67 @@ def serialize_data(data):
         text = text.replace(f'"{mark}"',
                             json.dumps(value, ensure_ascii=False, separators=(",", ":")), 1)
     return text
+
+
+def load_charts_cache():
+    """charts.json — {날짜: charts}. 없거나 깨졌으면 빈 dict(다시 받는다)."""
+    if not CHARTS_PATH.exists():
+        return {}
+    try:
+        raw = json.loads(CHARTS_PATH.read_text(encoding="utf-8"))
+    except Exception:                       # noqa: BLE001
+        warn("charts.json 파싱 실패 — 차트를 새로 받습니다")
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(date): charts for date, charts in raw.items()
+            if isinstance(charts, dict) and charts.get("stocks")}
+
+
+def collect_charts(data, base=None):
+    """data.json 항목의 charts 를 걷어 charts.json 본문({날짜: charts})으로 모은다.
+
+    · data.json 은 60초마다 다시 받는 본문이라 2.4MB 차트를 빼 두고,
+      화면(index.html)은 ./charts.json 을 한 번만 받아 쓴다
+    · 지난 날짜 항목에는 차트를 두지 않는다(용량 관리) — data.json 에 남은 날짜만 유지
+    """
+    by_date = {}
+    for date, charts in (base or {}).items():
+        if isinstance(charts, dict) and charts.get("stocks"):
+            by_date[str(date)] = charts
+    for entry in data:
+        charts = entry.pop("charts", None)
+        if isinstance(charts, dict) and charts.get("stocks"):
+            by_date[str(entry.get("date"))] = charts
+    keep = {str(entry.get("date")) for entry in data}
+    return {date: charts for date, charts in by_date.items() if date in keep}
+
+
+def serialize_charts(by_date):
+    """charts.json 본문 — 날짜별로 한 줄에 압축한다(파일 전체가 2.4MB라 전송·diff 최소화)."""
+    rows = ["  " + json.dumps(date) + ": " +
+            json.dumps(by_date[date], ensure_ascii=False, separators=(",", ":"))
+            for date in sorted(by_date, reverse=True)]
+    return "{\n" + ",\n".join(rows) + "\n}\n" if rows else "{}\n"
+
+
+def save_data_files(data, charts_base=None):
+    """data.json + charts.json 을 함께 쓴다(내용이 바뀐 파일만).
+
+    반환: (data_changed, charts_changed, data_text)
+    """
+    charts_by_date = collect_charts(data, charts_base)
+    text = serialize_data(data)
+    previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
+    data_changed = text != previous
+    charts_text = serialize_charts(charts_by_date)
+    previous_charts = CHARTS_PATH.read_text(encoding="utf-8") if CHARTS_PATH.exists() else ""
+    charts_changed = charts_text != previous_charts
+    if data_changed:
+        DATA_PATH.write_text(text, encoding="utf-8")
+    if charts_changed:
+        CHARTS_PATH.write_text(charts_text, encoding="utf-8")
+    return data_changed, charts_changed, text
 
 
 # ---------------------------------------------------------------- 지표 계산
@@ -3366,18 +3436,20 @@ def charts_only(argv):
     if not codes:
         log("  · allStocks 가 없어 차트를 만들 수 없습니다.")
         return 1
-    charts, _ = build_charts(codes, entry.get("charts"), now)
+    charts_base = load_charts_cache()
+    cached = entry.get("charts") or charts_base.get(str(entry.get("date")))
+    charts, _ = build_charts(codes, cached, now)
     if not charts:
         log("  · 차트 생성 실패 — data.json 그대로 둡니다.")
         return 1
-    entry["charts"] = charts
-    text = serialize_data(data)
-    if DATA_PATH.exists() and text == DATA_PATH.read_text(encoding="utf-8"):
+    charts_base[str(entry.get("date"))] = charts
+    data_changed, charts_changed, text = save_data_files(data, charts_base)
+    if not data_changed and not charts_changed:
         log("  · 변경 없음 — data.json 그대로 둡니다.")
         return 0
-    DATA_PATH.write_text(text, encoding="utf-8")
     log(f"  · charts 갱신: {charts['asOf']} · {len(charts['stocks'])}종목 · "
-        f"{len(text.encode()) / 1024:.1f}KB · 경고 {len(WARNINGS)}건")
+        f"data.json {len(text.encode()) / 1024:.1f}KB · "
+        f"charts.json {CHARTS_PATH.stat().st_size / 1024:.1f}KB · 경고 {len(WARNINGS)}건")
     return 0
 
 
@@ -3457,8 +3529,10 @@ def scan_only(argv):
         log("  · 스캔 외 필드가 바뀌었습니다 — 쓰기를 중단합니다.")
         return 1
     scrub_scan_plaintext(data)
-    text = serialize_data(data)
-    DATA_PATH.write_text(text, encoding="utf-8")
+    data_changed, charts_changed, text = save_data_files(data, load_charts_cache())
+    if not data_changed and not charts_changed:
+        log("  · 변경 없음 — data.json 그대로 둡니다.")
+        return 0
     meta = result["meta"]
     log(f"  · 스캔 갱신: {meta['basis']} · {meta['scanned']}종목 계산 · "
         f"조건식 {len(result['scanners'])}개 · {len(text.encode()) / 1024:.1f}KB")
@@ -3677,8 +3751,11 @@ def main(argv):
 
     # 6-1) 차트(일봉) — 모달 📈 차트 탭용. 전 종목 인덱스 + 관찰·카드 종목
     chart_codes = [row[0] for row in (all_stocks or []) if row] + target_codes + card_codes
-    # merge_entry 는 차트를 넘겨주지 않으므로, 같은 날짜의 이전 data.json 항목에서 캐시를 가져온다
-    cached_charts = (old_entry or {}).get("charts") or entry.get("charts")
+    # merge_entry 는 차트를 넘겨주지 않으므로, 같은 날짜의 이전 data.json 항목이나
+    # charts.json(분리 저장분)에서 캐시를 가져온다 — 없으면 599종목 일봉을 새로 받는다
+    charts_base = load_charts_cache()
+    cached_charts = ((old_entry or {}).get("charts") or charts_base.get(date_str)
+                     or entry.get("charts"))
     # 오후장 수급(13:00 이후)은 시각이 지나면 값이 달라진다 — 장중·마감 뒤에는 스캔을 다시 계산
     need_series = scan_needs_rebuild(old_entry, scanner_key(), now)
     if need_series:
@@ -3733,8 +3810,15 @@ def main(argv):
     invest_secs = time.time() - invest_started
 
     # 7) 병합 후 저장 (시각·스탬프만 달라졌으면 커밋하지 않음)
+    #    charts 는 charts.json 으로 분리 — 비교도 분리해 data.json 이 늘 달라 보이지 않게 한다
+    entry_charts = entry.pop("charts", None)
+    if isinstance(entry_charts, dict) and entry_charts.get("stocks"):
+        charts_base[date_str] = entry_charts
     if old_entry and _without_dynamic(entry) == _without_dynamic(old_entry):
-        log("  · 시세가 그대로 — data.json 변경 없음.")
+        # data.json 은 그대로 — 차트만 다시 만들어졌으면 charts.json 만 쓴다
+        charts_changed = save_data_files(old_data, charts_base)[1]
+        log("  · 시세가 그대로 — data.json 변경 없음" +
+            (" · charts.json 만 갱신." if charts_changed else "."))
         return 0
     by_date = {d.get("date"): d for d in old_data if d.get("date")}
     by_date[date_str] = entry
@@ -3750,15 +3834,15 @@ def main(argv):
     # allStocks는 종목 수가 많아 한 줄 압축(다른 필드는 그대로 읽기 좋게 들여쓰기 유지)
     rows = entry.get("allStocks")
     scrub_scan_plaintext(data)              # 조건식 평문은 어떤 경우에도 저장하지 않는다
-    text = serialize_data(data)
-    previous = DATA_PATH.read_text(encoding="utf-8") if DATA_PATH.exists() else ""
-    if text == previous:
+    data_changed, charts_changed, text = save_data_files(data, charts_base)
+    if not data_changed and not charts_changed:
         log("  · 변경 없음 — data.json 그대로 둡니다.")
         return 0
-    DATA_PATH.write_text(text, encoding="utf-8")
 
     elapsed = time.time() - started
     log(f"  · data.json 갱신 완료 ({len(data)}개 날짜, {len(text.encode()) / 1024:.1f}KB, {elapsed:.1f}초)")
+    if charts_changed:
+        log(f"    charts.json {CHARTS_PATH.stat().st_size / 1024:.1f}KB (일봉 분리 저장)")
     if rows:
         log(f"    전 종목 시세 인덱스 {len(rows)}종목 · 업종 매핑 {len(sector_map)}건")
     dom = entry.get("sectorDominance") or {}

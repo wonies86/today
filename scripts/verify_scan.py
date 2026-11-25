@@ -10,7 +10,8 @@
     `../.scanner_key` 또는 환경변수 SCANNER_KEY(키가 없으면 조건식 검사는 건너뛴다)
   · 최신 항목에 conditionScan / conditionHits / chartReactions 가 있고 규칙이 맞는지
   · 포착 종목마다 A·D·E 참, B 또는 C 참, 거래대금 100억 이상, 거래대금 내림차순
-  · charts.stocks 는 [시,고,저,종] 4개만 (용량 규칙)
+  · charts(charts.json) stocks 는 [시,고,저,종] 4개만 (용량 규칙)
+  · data.json 에는 charts 가 없고 charts.json 에 따로 있는지(분리 규칙)
   · 과거 반응 수치(0<=M<=N, 평균이 최소~최대 사이)가 맞는지
   · --live: 일봉 120거래일을 새로 받아 A~E·백테스트를 다른 코드로 다시 계산해 대조
 """
@@ -26,6 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "data.json"
+CHARTS_PATH = ROOT / "charts.json"
 FCHART = "https://fchart.stock.naver.com/sise.nhn"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
@@ -234,10 +236,24 @@ def load_scan(entry: dict) -> bool:
     return True
 
 
+def load_charts() -> dict:
+    """charts.json — {날짜: charts}. data.json 에서 분리한 일봉(네이버 금융) 본문."""
+    if not CHARTS_PATH.exists():
+        print("  ! charts.json 이 없습니다 — 일봉 분리가 안 된 저장소입니다")
+        return {}
+    try:
+        raw = json.loads(CHARTS_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:                  # noqa: BLE001
+        print(f"  ! charts.json 파싱 실패({type(exc).__name__})")
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
 def main(argv) -> int:
     live = "--live" in argv
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     entry = data[0]
+    charts_by_date = load_charts()
     print(f"[verify_scan] {entry.get('date')} · {DATA_PATH.stat().st_size / 1024:.0f}KB")
     if not load_scan(entry):
         print("  · data.json 에 풀 수 있는 조건식 기록이 없습니다.")
@@ -299,7 +315,11 @@ def main(argv) -> int:
         check(with52 > 0, f"모달용 종목 {with52}건에 52주 지표 기록", "52주 지표가 붙은 모달 항목 없음")
         check(withpm > 0, f"모달용 종목 {withpm}건에 오후장 기록", "오후장 기록이 붙은 모달 항목 없음")
 
-    charts = entry.get("charts") or {}
+    charts = entry.get("charts") or charts_by_date.get(str(entry.get("date"))) or {}
+    check("charts" not in entry or not entry.get("charts"),
+          "data.json 에 charts 없음 (charts.json 분리)",
+          "data.json 에 charts 가 남아 있음 — 분리되지 않음")
+    check(bool(charts), "charts.json 일봉 있음", "charts.json 에 차트 없음")
     stocks = charts.get("stocks") or {}
     four = sum(1 for bars in stocks.values() if bars and len(bars[0]) == 4)
     check(bool(stocks) and four == len(stocks), f"charts.stocks {four}종목 모두 [o,h,l,c] 4개",
@@ -366,7 +386,12 @@ def main(argv) -> int:
               f"참고용 {item.get('name')}: 반응 수치 없음")
 
     size_kb = DATA_PATH.stat().st_size / 1024
-    check(size_kb < 3000, f"data.json {size_kb:.0f}KB (3,000KB 미만)", f"data.json 비대 {size_kb:.0f}KB")
+    check(size_kb < 1200, f"data.json {size_kb:.0f}KB (차트 분리로 1,200KB 미만)",
+          f"data.json 비대 {size_kb:.0f}KB")
+    if CHARTS_PATH.exists():
+        charts_kb = CHARTS_PATH.stat().st_size / 1024
+        check(charts_kb < 3000, f"charts.json {charts_kb:.0f}KB (3,000KB 미만)",
+              f"charts.json 비대 {charts_kb:.0f}KB")
 
     # ── 기관·외인 연속 순매수(investorStreak) + 종목 뉴스 3건 ──
     inv = entry.get("investorStreak") or {}

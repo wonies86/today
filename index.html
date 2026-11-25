@@ -6460,7 +6460,7 @@ const REPORT_DATA = [
      · 관찰 5선: 손으로 쓴 why·technical 그대로(지금과 같은 글 화면이 기본)
      · 그 밖 종목: data.json 실측값(전 종목 인덱스·섹터 카드 기록)과 일봉만 사용
        — 없는 수치는 만들지 않고 '기록 없음'으로 둔다
-     · 일봉은 data.json.charts (네이버 금융 일봉, update_market.py가 시세와 함께 저장)
+     · 일봉은 charts.json (네이버 금융 일봉, update_market.py가 시세와 함께 저장 · data.json 에서 분리)
      ====================================================================== */
   const TA = { w: null, report: null, view: "text", idxReport: null, idx: null };
 
@@ -6473,10 +6473,67 @@ const REPORT_DATA = [
     return TA.idx;
   }
 
+  /* ---------------- 일봉(charts) — data.json 에서 분리한 ./charts.json ----------------
+     · data.json 은 60초마다 다시 받는 본문이라 2.4MB 차트를 charts.json 으로 따로 뒀다
+     · 화면은 차트가 필요해지는 순간 ./charts.json 을 1회 lazy-fetch 해 날짜별로 캐시하고,
+       예전처럼 r.charts 가 data.json 에 남아 있으면 그 값을 먼저 쓴다(호환)
+     ===================================================================================== */
+  const CHARTS = { byDate: null, promise: null, failAt: 0 };
+  const CHARTS_PATHS = /\/today\/?$/.test(location.pathname)
+    ? ["./charts.json"]
+    : ["./charts.json", "./today-repo/charts.json"];
+
   function chartsOf(report) {
-    const c = report && report.charts;
+    if (!report) return null;
+    let c = report.charts;
+    if ((!c || !c.stocks) && CHARTS.byDate && report.date) c = CHARTS.byDate[report.date];
     if (!c || !c.stocks || !Array.isArray(c.dates)) return null;
     return c;
+  }
+
+  /* charts.json 1회 로드 — 실패하면 30초 동안은 다시 요청하지 않는다(60초 폴링마다 재시도 방지) */
+  function ensureCharts() {
+    if (CHARTS.byDate) return Promise.resolve(true);
+    if (CHARTS.promise) return CHARTS.promise;
+    if (!location.protocol.startsWith("http")) return Promise.resolve(false);
+    if (Date.now() - CHARTS.failAt < 30000) return Promise.resolve(false);
+    CHARTS.promise = (async () => {
+      for (const path of CHARTS_PATHS) {
+        try {
+          const res = await fetch(path);          /* 캐시 헤더를 그대로 쓴다(GitHub Pages 재검증) */
+          if (!res || !res.ok) continue;
+          const d = await res.json();
+          if (d && typeof d === "object" && !Array.isArray(d)) {
+            CHARTS.byDate = d;
+            return true;
+          }
+        } catch (e) { /* 다음 경로 */ }
+      }
+      CHARTS.failAt = Date.now();
+      return false;
+    })().then((ok) => { CHARTS.promise = null; return ok; });
+    return CHARTS.promise;
+  }
+
+  /* 차트가 필요한 화면이 열릴 때 — 아직 없으면 받아 오고, 도착하면 그 화면만 다시 그린다 */
+  function ensureChartsFor(report, redraw) {
+    if (chartsOf(report)) return;
+    ensureCharts().then((ok) => {
+      if (!ok) return;
+      try { redraw(); } catch (e) { /* 무시 */ }
+    });
+  }
+
+  /* charts.json 이 도착한 뒤 — 첫 화면(주도 섹터 카드 막대)과 열려 있는 차트 화면을 다시 그린다 */
+  function chartsArrived() {
+    render();
+    if (!TA.w || !TA.report) return;
+    const md = $("#taDialog");
+    if (md && md.open) renderTaBody();
+    const fd = $("#taFull");
+    if (fd && fd.open) renderTaFull();
+    const xd = txDialog();
+    if (xd && xd.open) txRender();
   }
 
   /* ======================================================================
@@ -6681,6 +6738,10 @@ const REPORT_DATA = [
     }
     /* 모달이 화면에 붙은 뒤에야 1줄 높이를 잴 수 있다 */
     syncSums($("#taScroll"));
+    /* 차트(일봉)가 아직 없으면 charts.json 을 받아 오고, 도착하면 이 모달만 다시 그린다 */
+    ensureChartsFor(rep, () => {
+      if (TA.w === w && TA.report === rep) renderTaBody();
+    });
   }
 
   function syncTaTabs() {
@@ -6698,6 +6759,7 @@ const REPORT_DATA = [
     TA.view = next;
     syncTaTabs();
     renderTaBody();
+    ensureChartsFor(TA.report, () => { if (TA.view === "chart") renderTaBody(); });
   }
 
   function renderTaBody() {
@@ -6797,7 +6859,7 @@ const REPORT_DATA = [
   }
 
   /* ---- 🔍 수급·하락 4체크 (강한데 빠질 때) ----
-     data.json 의 investorStreak · investorNews · sectorDominance · indices · flows · charts 만으로 판정한다.
+     data.json 의 investorStreak · investorNews · sectorDominance · indices · flows · charts.json 만으로 판정한다.
      수집되지 않은 종목은 ②③만 그리고 ①④는 '수집 대상 아님'을 그대로 적는다 — 없는 수를 만들지 않는다. */
   function taNum(v) {
     if (v === null || v === undefined || v === "") return null;
@@ -7156,7 +7218,7 @@ const REPORT_DATA = [
   /* ==========================================================================
      📈 차트 탭 — 실측 분석 엔진 + TradingView Lightweight Charts 렌더러
      --------------------------------------------------------------------------
-     · 모든 판정은 data.json charts(네이버 금융 일봉 120거래일)의 실측값만 쓴다
+     · 모든 판정은 charts.json(네이버 금융 일봉 120거래일)의 실측값만 쓴다
        — 이평선·피벗·지지·저항·추세선·RS 전부 같은 실측 봉에서 계산하고,
          조건을 만족하지 않으면 패턴을 붙이지 않는다(억지 끼워맞춤 금지)
      · 주봉은 같은 일봉을 월~금 단위로 정확히 집계한다(추정·보간 없음)
@@ -7650,7 +7712,7 @@ const REPORT_DATA = [
       taLegendHTML(A, got.view) +
       (key === "full" ? "" : taExpertButtonHTML() +
         taFactsHTML(A, w) +
-        '<p class="ta-note">출처: 네이버 금융 일봉 ' + got.data.dates.length + "거래일(data.json charts) · 마지막 봉 " +
+        '<p class="ta-note">출처: 네이버 금융 일봉 ' + got.data.dates.length + "거래일(charts.json 일봉) · 마지막 봉 " +
           esc(tvDay(A.lastDate)) + " · 이동평균은 종가 기준 5·20·60일선(봉이 쌓인 지점부터)이고 거래량은 같은 날 실측값입니다. 차트: " +
           '<a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener noreferrer">' +
           "TradingView Lightweight Charts™</a> v" + LWC_VERSION + " (핀치 확대, 드래그 이동, 십자선 시·고·저·종).</p>");
@@ -7861,6 +7923,7 @@ const REPORT_DATA = [
     if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
     else dlg.setAttribute("open", "");
     renderTaFull();
+    ensureChartsFor(TA.report, () => { if (dlg.open) renderTaFull(); });
   }
 
   function wireTaFull() {
@@ -7883,7 +7946,7 @@ const REPORT_DATA = [
      · 기본 📈 차트는 그대로 두고, 이 리포트만 따로 연다.
      · 카드는 viewBox 고정 SVG 한 장 — 폭이 넓으면 16:9 가로 카드,
        좁은 화면은 세로 카드로 다시 배치해 글자가 작아지지 않게 한다.
-     · 모든 값은 data.json charts(실측 일봉 120거래일)·지수에서만 계산하고,
+     · 모든 값은 charts.json(실측 일봉 120거래일)·지수에서만 계산하고,
        발판·추세선·콜아웃은 조건을 만족할 때만 그린다(억지 표시 없음).
      ========================================================================== */
   const TX = { w: null, report: null, tf: "d", fit: true, s: 1, W: 1600, H: 900, A: null, data: null };
@@ -8477,7 +8540,7 @@ const REPORT_DATA = [
       "지지·저항은 피벗 고점·저점을 2.5% 이내로 묶은 가격대이며, 조건을 못 채운 박스는 그리지 않습니다.",
       { size: F.foot - 0.8, weight: 600, fill: "#8a8574" });
     s += txT(mo ? 8 : 34, L.footY + (mo ? 21 : 31),
-      "출처: 네이버 금융 일봉 " + data.bars.length + "거래일(data.json charts) · 마지막 봉 " + tvDay(A.lastDate) +
+      "출처: 네이버 금융 일봉 " + data.bars.length + "거래일(charts.json 일봉) · 마지막 봉 " + tvDay(A.lastDate) +
       (A.rs ? " · RS 기준 " + A.rs.name : "") + " · 계산: 시루 대시보드",
       { size: F.foot - 0.8, weight: 600, fill: "#8a8574" });
     s += "</g></svg>";
@@ -8498,6 +8561,7 @@ const REPORT_DATA = [
     else dlg.setAttribute("open", "");
     document.body.classList.add("tx-lock");
     txRender();
+    ensureChartsFor(TA.report, () => { const d = txDialog(); if (d && d.open) txRender(); });
   }
 
   function txRender() {
@@ -9038,7 +9102,7 @@ const REPORT_DATA = [
      · 숫자는 update_market.py가 매 시세 갱신마다 allStocks 실시간 거래대금으로 다시 계산한 값
        (점유율 = 섹터 합산 거래대금 ÷ 당일 +2% 이상 상승 종목 거래대금 — 하락·보합·+2% 미만은 모수에서 제외)
      · 막대 구간 색 = 카드 배지 색 — 같은 섹터는 같은 색
-     · 카드 종목 막대는 data.json charts(일봉)의 당일 고·저 중 현재가 위치. 오늘 봉이 없으면
+     · 카드 종목 막대는 charts.json(일봉)의 당일 고·저 중 현재가 위치. 오늘 봉이 없으면
        보유 일봉(최대 120일) 전체 고·저 기준으로 바꿔 표기한다(없는 값을 만들지 않는다)
      ------------------------------------------------------------------------- */
   const DOM_TONES = ["#3f5a6d", "#0e9488", "#5b53c8", "#b0722a"];
@@ -9060,10 +9124,11 @@ const REPORT_DATA = [
 
   /* 당일(없으면 보유 일봉 전체) 고·저 범위에서 현재가 위치 — charts 실측 일봉만 */
   function domRange(report, code, price) {
-    const ch = report && report.charts && report.charts.stocks && report.charts.stocks[code];
+    const c = chartsOf(report);
+    const ch = c && c.stocks && c.stocks[code];
     if (!ch || !ch.length || sNull(price)) return null;
     const last = ch[ch.length - 1];
-    const dates = (report.charts && report.charts.dates) || [];
+    const dates = (c && c.dates) || [];
     const today = String(report.date || "").replace(/-/g, "");
     const isToday = dates.length > 0 && String(dates[dates.length - 1]) === today;
     let lo, hi, prev, span;
@@ -10688,16 +10753,19 @@ const REPORT_DATA = [
       .then((buf) => JSON.parse(new TextDecoder().decode(buf)));
   }
 
-  /* 잠긴 날짜들을 차례로 풀어 {date: payload} 로 — 비밀번호가 틀리면 아무것도 남지 않는다 */
+  /* 잠긴 날짜들을 모두 풀어 {date: payload} 로 — 비밀번호가 틀리면 아무것도 남지 않는다
+     · 날짜마다 salt·iv 가 따로라 하나씩 풀어야 한다(첫 날짜가 풀렸다고 멈추면 지난 날짜가
+       계속 잠긴 채로 남으므로, 실패한 날짜만 건너뛰고 끝까지 시도한다 — 2026-11-25 수정) */
   function scanUnlock(pw) {
     const targets = scanLockTargets();
     if (!targets.length) return Promise.reject(new Error("norecord"));
-    return targets.reduce((chain, r) => chain.then((acc) => {
-      if (Object.keys(acc).length) return acc;
-      return scanDecrypt(pw, r.scannersEncrypted)
-        .then((p) => { acc[r.date] = p; return acc; })
-        .catch(() => acc);
-    }), Promise.resolve({})).then((acc) => {
+    return Promise.all(targets.map((r) =>
+      scanDecrypt(pw, r.scannersEncrypted)
+        .then((p) => [r.date, p])
+        .catch(() => null)
+    )).then((rows) => {
+      const acc = {};
+      rows.forEach((row) => { if (row) acc[row[0]] = row[1]; });
       if (!Object.keys(acc).length) throw new Error("badpw");
       return acc;
     });
@@ -11164,7 +11232,13 @@ const REPORT_DATA = [
     /* 저장된 보기(기본 심플)로 첫 화면을 그리고, http(s)면 data.json 최신본으로 이어서 교체 */
     applyMode(readMode());
     startLivePoll();                    /* 장중엔 60초마다 data.json 재조회 */
-    if (location.protocol.startsWith("http")) liveRefresh({ quiet: true });
+    if (location.protocol.startsWith("http")) {
+      liveRefresh({ quiet: true });
+      /* charts.json 은 첫 화면을 그린 뒤 한 번만 받아 둔다 — 카드 막대·차트 탭이 바로 뜨게 */
+      const warmCharts = () => ensureCharts().then((ok) => { if (ok) chartsArrived(); });
+      if (window.requestIdleCallback) window.requestIdleCallback(warmCharts, { timeout: 3000 });
+      else setTimeout(warmCharts, 1200);
+    }
   }
 
   if (document.readyState === "loading") {
