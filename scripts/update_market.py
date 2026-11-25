@@ -54,6 +54,7 @@ import math
 import os
 import re
 import secrets
+import subprocess
 import sys
 import time
 import urllib.request
@@ -2319,6 +2320,27 @@ def serialize_charts(by_date):
     return "{\n" + ",\n".join(rows) + "\n}\n" if rows else "{}\n"
 
 
+def stage_charts_in_ci():
+    """GitHub Actions 에서 charts.json 을 스테이징한다.
+
+    · 워크플로의 `git add data.json` 만으로는 새로 만들어진 charts.json 이 커밋되지 않아,
+      배포본이 지난 날짜 차트에 멈춘다. GitHub App 에 workflows 권한이 없어
+      워크플로 파일을 고칠 수 없는 동안의 보완책이다.
+    · 권한이 생겨 워크플로가 charts.json 을 직접 add 하게 되면 이 함수는 지워도 된다(중복 add 는 무해).
+    """
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    try:
+        done = subprocess.run(["git", "add", "charts.json"], cwd=str(ROOT),
+                              capture_output=True, text=True, timeout=30)
+        if done.returncode == 0:
+            log("    charts.json 스테이징 완료(워크플로 git add 보완)")
+        else:
+            log("    charts.json 스테이징 실패 — 다음 실행에서 다시 시도")
+    except Exception:                            # noqa: BLE001
+        log("    charts.json 스테이징 실패 — 다음 실행에서 다시 시도")
+
+
 def save_data_files(data, charts_base=None):
     """data.json + charts.json 을 함께 쓴다(내용이 바뀐 파일만).
 
@@ -2335,6 +2357,7 @@ def save_data_files(data, charts_base=None):
         DATA_PATH.write_text(text, encoding="utf-8")
     if charts_changed:
         CHARTS_PATH.write_text(charts_text, encoding="utf-8")
+        stage_charts_in_ci()
     return data_changed, charts_changed, text
 
 
