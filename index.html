@@ -6033,6 +6033,10 @@ const REPORT_DATA = [
     const side = $("#ctxSideBoxes");
     main.innerHTML = "";
     side.innerHTML = "";
+    /* 맥락이 아직 없는 날(장전 전 골격 등)에는 수급 카드도 비운다 —
+       남겨 두면 직전에 그려진 다른 날짜(내장 데이터)의 수급이 오늘 숫자처럼 남는다 */
+    const flowBox = $("#flowCard");
+    if (flowBox) flowBox.innerHTML = "";
     if (!c) return;
 
     let h = '<div class="ctx-kicker">' + esc(c.kicker || "시장 맥락") + "</div>" +
@@ -6049,7 +6053,7 @@ const REPORT_DATA = [
     main.innerHTML = h + rotationHTML(c);
 
     /* 수급 바 */
-    const flowCard = $("#flowCard");
+    const flowCard = flowBox;
     let fh = "<h4>기관 · 외국인 · 개인 순매수</h4>";
     (report.flows || []).forEach((f) => {
       const max = Math.max.apply(null, f.rows.map((r) => Math.abs(r.eok)).concat([1]));
@@ -6066,7 +6070,7 @@ const REPORT_DATA = [
       });
       fh += "</div>";
     });
-    flowCard.innerHTML = fh;
+    flowCard.innerHTML = (report.flows || []).length ? fh : "";
 
     if (c.prev) {
       const p = el("div", "ctxbox");
