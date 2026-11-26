@@ -110,6 +110,21 @@ DOM_FOURTH_SHARE = 5.0   # 4번째 섹터를 넣는 최소 점유율(%) — 테�
 DOM_STOCKS = 5           # 섹터 카드에 담는 종목 수(거래대금 순)
 DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
 
+# ── NXT 프리마켓(08:00~08:50) — 장전 탭 「🌅 NXT 프리장 수급」 카드 ───────────────
+# 정규장 집계(sectorDominance·allStocks)와 완전히 분리된 preMarket 블록만 갱신한다.
+# 소스: 네이버 polling API 의 overMarketPriceInfo(tradingSessionType=PRE_MARKET)
+PRE_MARKET_START = 8 * 60        # 08:00 KST
+PRE_MARKET_END = 8 * 60 + 50     # 08:50 KST (NXT 프리마켓 종료)
+PRE_VALUE_TOP = 10               # 거래대금 상위 종목 수
+PRE_RISE_TOP = 10                # 상승률 상위 종목 수
+PRE_SECTOR_TOP = 5               # 점유율 막대 섹터 수
+PRE_SECTOR_STOCKS = 3            # 섹터 카드에 담는 종목 수
+PRE_TAIL_MIN_SHARE = 3.0         # 나머지 섹터를 묶을 최소 섹터 점유율(%) — 이보다 작으면 개별이슈
+PRE_MIN_VALUE = 0.3              # 상승률 상위 후보 최소 프리장 거래대금(억) — 잡음 제거
+PRE_REASON_CODES = 18            # 상승 사유(뉴스 헤드라인)를 붙일 최대 종목 수
+PRE_REASON_LEN = 52              # 사유 문장 길이 상한(글자)
+PRE_QUOTE_WORKERS = 10           # 프리장 시세 병렬 스레드 수
+
 # ── 기관·외국인 연속 순매수(investorStreak) + 종목 뉴스 악재 스캔 ────────────────
 # 599종목을 매번 긁으면 갱신이 느려진다 — 화면에 실제로 노출되는 종목(주도 섹터 카드·
 # 관찰 5선·조건식 포착)만 병렬로 받는다. 실패한 종목은 배지만 빠지고 나머지는 그대로.
@@ -778,6 +793,247 @@ def build_sector_dominance(all_stocks, now):
         "individual": individual,
         "rule": f"점유율 = 섹터 합산 거래대금 ÷ {_rise_label()} 종목 거래대금",
     }
+
+
+# ---------------------------------------------------------------- NXT 프리마켓
+
+def _pre_market_rows(datas, industry_map):
+    """polling 응답 → 프리장 체결 행 [코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종].
+
+    overMarketPriceInfo 의 tradingSessionType 이 PRE_MARKET 인 것만 쓴다 — 정규장·애프터장
+    값이 섞이지 않게 하는 첫 번째 방어선이다. 프리장 체결이 없는 종목(NXT 미상장 등)은 빠진다.
+    """
+    rows = []
+    for d in datas or []:
+        over = d.get("overMarketPriceInfo") or {}
+        if str(over.get("tradingSessionType") or "") != "PRE_MARKET":
+            continue
+        price = to_int(over.get("overPrice"))
+        chg = to_float(over.get("fluctuationsRatio"))
+        value = (to_int(over.get("accumulatedTradingValueRaw")) or 0) / 1e8
+        volume = to_int(over.get("accumulatedTradingVolumeRaw")) or 0
+        if not price or value <= 0:
+            continue
+        code = str(d.get("itemCode") or "").strip()
+        if not code:
+            continue
+        exchange = (d.get("stockExchangeType") or {}).get("nameKor") or ""
+        market = "KOSPI" if "코스피" in exchange else ("KOSDAQ" if "코스닥" in exchange else exchange)
+        rows.append([code, d.get("stockName") or code, market, price,
+                     round(chg, 2) if chg is not None else None, value,
+                     industry_map.get(code) or ""])
+    return rows
+
+
+def _pre_stock(row, reasons):
+    """프리장 종목 한 줄 — 화면·캡처가 같이 쓰는 모양."""
+    return {
+        "code": row[0], "name": row[1], "market": row[2],
+        "price": row[3], "priceText": comma(row[3]),
+        "chg": row[4], "valueEok": int(round(row[5])),
+        "valueText": turnover_text(row[5]) or _large_eok(row[5]),
+        "reason": reasons.get(row[0]) or "",
+    }
+
+
+def _pre_news_reason(code, name=""):
+    """종목 최신 뉴스 헤드라인 한 줄 — 그 종목 기사만. 확인 안 되면 빈 문자열.
+
+    네이버 종목 뉴스에는 시황·애프터마켓 리뷰처럼 종목과 무관한 기사도 섞여 온다.
+    제목·요약에 **종목명이 있는 기사**만 사유로 쓰고(제목>요약), 없으면 비워 둔다 —
+    엉뚱한 기사를 재료처럼 붙이지 않기 위한 장치다.
+    """
+    arts = fetch_investor_news(code) or []
+    plain = str(name or "").replace(" ", "")
+    best, best_score = "", 0
+    for a in arts:
+        title = (a.get("title") or "").strip()
+        body = (a.get("body") or "").strip()
+        if len(title) < 8:
+            continue
+        score = 0
+        if plain:
+            if plain in title.replace(" ", ""):
+                score = 3
+            elif plain in body.replace(" ", ""):
+                score = 2
+        if not score:
+            continue
+        if score < best_score:
+            continue
+        best, best_score = title, score
+        if score == 3:
+            break
+    return best[:PRE_REASON_LEN].rstrip()
+
+
+def build_pre_market(now, old_entry):
+    """NXT 프리마켓(08:00~08:50) 수급 요약 — 정규장 블록과 분리 저장할 preMarket 본문.
+
+    · 모수: 전 종목 인덱스(allStocks, 직전 실행분)의 종목코드 + 관찰 5선. 병렬 polling 으로
+      프리마켓 체결분만 골라 담는다(30종목씩 10스레드 — 599종목 ≈ 2초).
+    · 점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 체결 전체 거래대금 (모수는 프리장만)
+    · 등락률은 프리장 체결 종목의 실측값 단순 평균, 거래대금 상위·상승률 상위 각 10종목
+    · 상승 사유는 네이버 종목 뉴스 최신 헤드라인 1줄(수집 실패 종목은 빈칸)
+    """
+    industry_map = {}
+    codes = []
+    for r in (old_entry or {}).get("allStocks") or []:
+        if isinstance(r, list) and r:
+            code = str(r[0])
+            codes.append(code)
+            if len(r) >= 7 and r[6]:
+                industry_map[code] = r[6]
+    for w in (old_entry or {}).get("watchlist") or []:
+        if w.get("ticker"):
+            codes.append(str(w["ticker"]))
+    codes = list(dict.fromkeys(c for c in codes if c))
+    if not codes:
+        log("  · 프리장 모수(전 종목 인덱스)가 없어 프리장 수급을 건너뜁니다")
+        return None
+
+    def chunk_call(chunk):
+        data = get_json(f"{POLL_BASE}/stock/" + ",".join(chunk), tries=2)
+        return (data or {}).get("datas") or []
+
+    datas, chunks = [], [codes[i:i + 30] for i in range(0, len(codes), 30)]
+    with ThreadPoolExecutor(max_workers=PRE_QUOTE_WORKERS) as pool:
+        for got in pool.map(chunk_call, chunks):
+            datas.extend(got or [])
+
+    rows = [r for r in _pre_market_rows(datas, industry_map)
+            if not is_etf(r[1] or "")]
+    if not rows:
+        log("  · NXT 프리마켓 체결 데이터가 없습니다(휴장·장전 아님)")
+        return None
+
+    total = sum(r[5] for r in rows)
+    if total <= 0:
+        return None
+    chgs = [r[4] for r in rows if r[4] is not None]
+
+    # 섹터 점유율 — 실전 테마 우선, 나머지는 네이버 업종
+    groups: dict[str, list] = {}
+    for r in rows:
+        groups.setdefault(theme_of(r[1], r[6]) or "기타", []).append(r)
+    ranked = sorted(groups.items(), key=lambda kv: -sum(x[5] for x in kv[1]))
+
+    value_top = sorted(rows, key=lambda r: -r[5])[:PRE_VALUE_TOP]
+    rise_rows = [r for r in rows if r[5] >= PRE_MIN_VALUE and r[4] is not None]
+    rise_top = sorted(rise_rows, key=lambda r: -(r[4] or 0))[:PRE_RISE_TOP]
+
+    # 상승 사유 — 화면에 노출되는 종목만 (거래대금 상위 → 상승률 상위 순, 중복 제거)
+    reason_codes = []
+    reason_names = {}
+    for r in value_top + rise_top:
+        if r[0] not in reason_codes:
+            reason_codes.append(r[0])
+            reason_names[r[0]] = r[1]
+    for _name, stocks in ranked[:PRE_SECTOR_TOP]:
+        for r in sorted(stocks, key=lambda x: -x[5])[:PRE_SECTOR_STOCKS]:
+            if r[0] not in reason_codes:
+                reason_codes.append(r[0])
+                reason_names[r[0]] = r[1]
+    reason_codes = reason_codes[:PRE_REASON_CODES]
+    reasons = {}
+    if reason_codes:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            got = list(pool.map(_pre_news_reason, reason_codes,
+                                [reason_names.get(c, "") for c in reason_codes]))
+        reasons = {c: t for c, t in zip(reason_codes, got) if t}
+
+    sectors = []
+    for name, stocks in ranked[:PRE_SECTOR_TOP]:
+        block = _dom_block(name, stocks, PRE_SECTOR_STOCKS)
+        block["share"] = round(block["valueEok"] / total * 100, 1)
+        block["stocks"] = [_pre_stock(r, reasons)
+                           for r in sorted(stocks, key=lambda x: -x[5])[:PRE_SECTOR_STOCKS]]
+        sectors.append(block)
+    used = sum(s["share"] for s in sectors)
+    rest = [r for _name, stocks in ranked[PRE_SECTOR_TOP:] for r in stocks]
+    individual = None
+    if rest and (100.0 - used) >= PRE_TAIL_MIN_SHARE:
+        individual = _dom_block("개별이슈", rest, DOM_IND_STOCKS)
+        individual["share"] = round(100.0 - used, 1)
+        individual["stocks"] = [_pre_stock(r, reasons)
+                                for r in sorted(rest, key=lambda x: -x[5])[:DOM_IND_STOCKS]]
+    elif sectors:
+        sectors[-1]["share"] = round(sectors[-1]["share"] + (100.0 - used), 1)
+
+    block = {
+        "asOf": now.strftime("%H:%M"),
+        "collectedAt": now.isoformat(timespec="seconds"),
+        "window": "08:00~08:50",
+        "label": "NXT 프리마켓",
+        "universe": len(rows),
+        "totalEok": int(round(total)),
+        "totalText": _large_eok(total),
+        "riseCount": sum(1 for c in chgs if c > 0),
+        "fallCount": sum(1 for c in chgs if c < 0),
+        "avgChg": round(sum(chgs) / len(chgs), 2) if chgs else None,
+        "sectors": sectors,
+        "individual": individual,
+        "valueTop": [_pre_stock(r, reasons) for r in value_top],
+        "riseTop": [_pre_stock(r, reasons) for r in rise_top],
+        "reasonCount": len(reasons),
+        "basis": f"프리장 체결 {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
+        "rule": "점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 체결 거래대금",
+        "source": "네이버 금융 NXT 프리마켓 시세",
+    }
+    return block
+
+
+def pre_market_update(now):
+    """프리장(08:00~08:50) 전용 갱신 — 오늘 항목의 preMarket 블록만 바꾼다.
+
+    정규장 집계(sessions·sectorDominance·allStocks·watchlist)는 손대지 않는다.
+    개장(09:00) 뒤에 도는 실행은 이 경로로 들어오지 않으므로 정규장 값을 덮어쓸 수 없다.
+    """
+    date_str = now.strftime("%Y-%m-%d")
+    old_data = []
+    if DATA_PATH.exists():
+        try:
+            loaded = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                old_data = loaded
+        except Exception as exc:            # noqa: BLE001
+            warn(f"기존 data.json 파싱 실패({type(exc).__name__}) — 새로 작성합니다.")
+    old_entry = next((d for d in old_data if d.get("date") == date_str), None)
+
+    started = time.time()
+    block = build_pre_market(now, old_entry)
+    if not block:
+        return 0
+
+    if old_entry is None:
+        old_entry = {"date": date_str, "label": now.strftime("%Y-%m-%d"),
+                     "shortLabel": now.strftime("%m/%d"), "sessions": [],
+                     "defaultSession": "pre"}
+        old_data.insert(0, old_entry)
+    old_entry["preMarket"] = block
+    old_entry["updatedAt"] = now.isoformat(timespec="seconds")
+
+    by_date = {d.get("date"): d for d in old_data if d.get("date")}
+    data = [by_date[k] for k in sorted(by_date, reverse=True)][:MAX_DATES]
+    for d in data:
+        if d is not old_entry:
+            d.pop("allStocks", None)
+            d.pop("charts", None)
+    scrub_scan_plaintext(data)
+    changed, _charts_changed, _text = save_data_files(data, load_charts_cache())
+    segs = [f"{s['name']} {s['share']}%" for s in block["sectors"]]
+    if block.get("individual"):
+        segs.append(f"개별이슈 {block['individual']['share']}%")
+    log(f"  · preMarket {block['asOf']} 기준 · 체결 {block['universe']}종목 · "
+        f"{block['totalText']} · 사유 {block['reasonCount']}종목 ({time.time() - started:.1f}초)")
+    log("    프리장 섹터 점유율: " + (" | ".join(segs) or "—"))
+    log(f"    거래대금 1위 {block['valueTop'][0]['name']} "
+        f"{block['valueTop'][0]['valueText']}" if block.get("valueTop") else "    거래대금 상위 없음")
+    if changed:
+        log("    data.json 갱신 완료(정규장 블록은 그대로)")
+    else:
+        log("    data.json 변경 없음")
+    return 0
 
 
 # ---------------------------------------------------------------- 기관·외인 연속매수
@@ -3588,6 +3844,13 @@ def main(argv):
     if not force and not (8 * 60 <= minutes <= 21 * 60):
         log("  · 국내 거래시간(08:00~21:00 KST) 밖 — 갱신하지 않습니다.")
         return 0
+
+    # NXT 프리마켓(08:00~08:50) — 정규장 집계와 분리된 preMarket 블록만 갱신한다.
+    # 이 시간대에는 정규장 데이터가 아직 없어 아래 정규장 경로는 어차피 중단되므로, 먼저 돌린다.
+    if PRE_MARKET_START <= minutes < PRE_MARKET_END and "--regular" not in argv:
+        pre_rc = pre_market_update(now)
+        if not force or "--premarket-only" in argv:
+            return pre_rc
 
     started = time.time()
 

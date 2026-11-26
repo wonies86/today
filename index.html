@@ -2824,6 +2824,82 @@
 #viewSimple .dom{margin-top:9px}
 
 /* ============================================================
+   🌅 NXT 프리마켓 수급 (08:00~08:50) — 장전 탭 전용 카드
+   · data.json `preMarket` — update_market.py 가 08:00~08:50 에만 갱신하는 프리장 전용 블록
+   · 정규장 주도 섹터 점유율(sectorDominance)과 별개 — 점유율 모수도 프리장 거래대금만
+   ============================================================ */
+.pm{margin:2px 0 12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 10px 9px;box-shadow:var(--shadow)}
+.pm[hidden]{display:none !important}
+.pm-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.pm-title{margin:0;min-width:0;font-size:12.5px;font-weight:850;letter-spacing:-.02em;line-height:1.35;color:var(--ink)}
+.pm-title em{display:block;font-style:normal;margin-top:1px;font-size:9.5px;font-weight:700;color:var(--mute);letter-spacing:-.01em}
+.pm-badges{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;margin:7px 0 0;font-size:9.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.pm-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:850;color:#8a4b00;background:var(--amber-soft);border:1px solid #f3d3a2;border-radius:999px;padding:1.5px 7px;letter-spacing:-.02em}
+html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:#5b4527}
+.pm-bar{display:flex;height:26px;border-radius:8px;overflow:hidden;background:var(--line-2);margin-top:8px;box-shadow:inset 0 0 0 1px rgba(16,24,40,.05)}
+.pm-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;padding:0 4px;color:#fff;font-size:10px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden}
+.pm-seg + .pm-seg{box-shadow:inset 2px 0 0 rgba(255,255,255,.75)}
+.pm-seg b{font-weight:820;font-variant-numeric:tabular-nums}
+.pm-seg.dim{color:var(--dom-gray-ink)}
+.pm-legend{display:flex;flex-wrap:wrap;gap:3px 10px;margin:5px 1px 0;font-size:10px;line-height:1.4;color:var(--ink-2)}
+.pm-leg{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pm-leg i{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
+.pm-leg b{font-weight:820;color:var(--ink)}
+.pm-secs{display:grid;gap:5px;margin-top:8px}
+.pm-sec{border:1px solid var(--line-2);border-radius:9px;padding:5px 8px 4px;background:var(--bg-soft);min-width:0}
+.pm-sec-h{display:flex;align-items:center;gap:5px;min-width:0}
+.pm-dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.pm-sec-n{min-width:0;font-size:11px;font-weight:850;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-sec-s{font-size:10px;font-weight:850;color:var(--violet);font-variant-numeric:tabular-nums}
+.pm-sec-c{margin-left:auto;font-size:10px;font-weight:820;font-variant-numeric:tabular-nums}
+.pm-sec-l{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:1px}
+.pm-stk{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:0 6px;align-items:baseline;padding:1.5px 2px;border-radius:5px;font-size:10px;cursor:pointer}
+.pm-stk .n{min-width:0;font-weight:750;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.03em}
+.pm-stk .c{font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pm-stk .v{min-width:44px;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pm-tabs{display:flex;gap:4px;margin:10px 0 0}
+.pm-tab{flex:1 1 0;appearance:none;border:1px solid var(--line);background:var(--bg-soft);color:var(--ink-2);font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:-.02em;padding:5px 4px;border-radius:8px;cursor:pointer}
+.pm-tab[aria-selected="true"]{background:var(--violet-soft);border-color:#d8c9ff;color:var(--violet)}
+html[data-theme="dark"] .pm-tab[aria-selected="true"]{background:#221733;border-color:#4a3570;color:#c9b4ff}
+.pm-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.pm-row{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:0 6px;align-items:center;padding:5px 6px 4px;border:1px solid var(--line-2);border-radius:8px;background:var(--card);cursor:pointer}
+.pm-row:hover{background:var(--bg-soft)}
+.pm-row .rk{font-size:9.5px;font-weight:850;color:var(--mute);text-align:center;font-variant-numeric:tabular-nums}
+.pm-row .nm{min-width:0}
+.pm-row .nm b{display:block;font-size:11px;font-weight:820;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-row .nm em{display:block;margin-top:1px;font-style:normal;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-row .rt{text-align:right;font-variant-numeric:tabular-nums}
+.pm-row .rt b{display:block;font-size:11px;font-weight:850}
+.pm-row .rt s{display:block;margin-top:1px;font-size:9px;text-decoration:none;color:var(--mute)}
+.pm-why{grid-column:1 / -1;margin:3px 0 0;padding:2px 6px;border-radius:5px;background:var(--violet-soft);font-size:9.5px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
+html[data-theme="dark"] .pm-why{background:#1e1729;color:#c3c9d8}
+.pm-foot{margin:7px 1px 0;font-size:9px;line-height:1.5;color:var(--mute)}
+.pm .up{color:var(--up)}
+.pm .dn{color:var(--down)}
+.pm .flat{color:var(--mute)}
+#viewSimple .pm{margin-top:9px}
+
+/* 🌅 프리장 한화면 캡처(.sh-card 안) — 점유율 막대 + 상위 종목 + 사유 */
+.ps-bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:5px 0 0;background:var(--line-2)}
+.ps-seg{display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:-.04em;overflow:hidden;white-space:nowrap}
+.ps-seg.dim{color:var(--dom-gray-ink)}
+.ps-leg{display:flex;flex-wrap:wrap;gap:2px 8px;margin:4px 0 0;font-size:8.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ps-leg span{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.ps-leg i{width:6px;height:6px;border-radius:2px}
+.ps-leg b{font-weight:820;color:var(--ink)}
+.ps-row{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:0 5px;align-items:baseline;padding:2.5px 0;border-top:1px solid var(--line-2)}
+.ps-row .r{font-size:8.5px;font-weight:850;color:var(--mute);text-align:center}
+.ps-row .w{min-width:0}
+.ps-row .w b{display:block;font-size:10.5px;font-weight:820;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-row .w em{display:block;font-style:normal;font-size:8.5px;line-height:1.35;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-row .p{text-align:right;font-variant-numeric:tabular-nums}
+.ps-row .p b{display:block;font-size:10px;font-weight:850}
+.ps-row .p s{display:block;font-size:8px;text-decoration:none;color:var(--mute)}
+.ps-row .up{color:var(--up)}
+.ps-row .dn{color:var(--down)}
+.ps-meta{display:flex;flex-wrap:wrap;gap:2px 6px;margin:3px 0 0;font-size:8.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+
+/* ============================================================
    기관·외인 연속 순매수 배지 (.stbadge)
    · 행 높이를 늘리지 않는 컴팩트 칩 — 이름 옆에 붇고, 이름만 말줄임
    · 색: 쌍끌이(보라) / 기관(반도체청) / 외인(파랑)
@@ -3511,6 +3587,24 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <p class="dom-shift" id="domShift" hidden></p>
         <div class="dom-cards" id="domCards"></div>
         <p class="dom-foot" id="domFoot"></p>
+      </section>
+
+      <!-- 🌅 NXT 프리장 수급 — 장전 탭 전용(data.json preMarket). JS가 보이는 뷰의 자리로 옮긴다 -->
+      <section class="pm" id="preBox" aria-labelledby="pmTitle" hidden>
+        <div class="pm-head">
+          <h2 class="pm-title" id="pmTitle">🌅 NXT 프리장 수급<em>08:00~08:50 · 프리마켓 체결분</em></h2>
+          <button type="button" class="shot-btn" data-shot="pre" aria-haspopup="dialog">📸 한화면 캡처</button>
+        </div>
+        <div class="pm-badges" id="pmBadges"></div>
+        <div class="pm-bar" id="pmBar" role="img" aria-label="프리장 주도 섹터 점유율"></div>
+        <div class="pm-legend" id="pmLegend"></div>
+        <div class="pm-secs" id="pmSecs"></div>
+        <div class="pm-tabs" id="pmTabs" role="tablist" aria-label="프리장 순위 기준">
+          <button type="button" class="pm-tab" role="tab" data-pm="value" aria-selected="true">거래대금 상위</button>
+          <button type="button" class="pm-tab" role="tab" data-pm="rise" aria-selected="false">상승률 상위</button>
+        </div>
+        <ul class="pm-list" id="pmList"></ul>
+        <p class="pm-foot" id="pmFoot"></p>
       </section>
       </div>
 
@@ -6991,7 +7085,8 @@ const REPORT_DATA = [
     if (!dlg || !body) return;
     const rep = findReport(activeDate);
     if (!rep) return;
-    body.innerHTML = shotHTML(rep, sessionOf(rep));
+    body.innerHTML = (opener && opener.getAttribute && opener.getAttribute("data-shot") === "pre")
+      ? pmShotHTML(rep) : shotHTML(rep, sessionOf(rep));
     SHOT.opener = opener || null;
     if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
     else dlg.setAttribute("open", "");
@@ -10412,6 +10507,212 @@ const REPORT_DATA = [
     domLiveTick(report);
   }
 
+  /* ============================================================
+     🌅 NXT 프리장 수급 — 장전 탭 전용 카드 (data.json preMarket)
+     ------------------------------------------------------------
+     · update_market.py 가 08:00~08:50 에만 갱신하는 프리장 블록만 읽는다(정규장 집계와 분리)
+     · 점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 체결 거래대금 — 모수를 화면에 그대로 적는다
+     · 종목 행은 [data-stock] — 어느 뷰에서든 같은 종목 분석 모달이 열린다
+     ============================================================ */
+  const PM = { tab: "value" };
+
+  function pmPct(v) {
+    if (v === null || v === undefined || isNaN(Number(v))) return "—";
+    const n = Number(v);
+    return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+  }
+  function pmDir(v) {
+    if (v === null || v === undefined || isNaN(Number(v))) return "flat";
+    return Number(v) > 0 ? "up" : (Number(v) < 0 ? "dn" : "flat");
+  }
+
+  function pmPlace() {
+    const box = $("#preBox");
+    if (!box) return;
+    const simple = $("#viewSimple");
+    const wantSimple = !!(simple && !simple.hidden);
+    const host = wantSimple ? $("#domHostSimple") : $("#domHostDetail");
+    if (host && box.parentNode !== host) host.appendChild(box);
+  }
+
+  function pmSecHTML(item, i, dim) {
+    const tone = dim ? DOM_GRAY : DOM_TONES[Math.min(i, DOM_TONES.length - 1)];
+    const rows = (item.stocks || []).map((st) =>
+      '<li class="pm-stk" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
+        'aria-label="' + esc(st.name) + ' 차트 분석 보기">' +
+        '<span class="n">' + esc(st.name) + "</span>" +
+        '<span class="c ' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</span>" +
+        '<span class="v">' + esc(st.valueText || "") + "</span></li>").join("");
+    return '<div class="pm-sec">' +
+      '<div class="pm-sec-h">' +
+        '<i class="pm-dot" style="background:' + tone + '"></i>' +
+        '<span class="pm-sec-n">' + esc(item.name) + "</span>" +
+        '<span class="pm-sec-s">' + domShareText(item.share) + "</span>" +
+        '<span class="pm-sec-c ' + pmDir(item.chg) + '">' + pmPct(item.chg) + "</span>" +
+      "</div>" +
+      (rows ? '<ul class="pm-sec-l">' + rows + "</ul>" : "") +
+    "</div>";
+  }
+
+  function pmRowHTML(st, i) {
+    const sub = [st.market, st.priceText ? st.priceText + "원" : ""].filter(Boolean).join(" · ");
+    return '<li class="pm-row" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
+      'aria-label="' + esc(st.name) + ' 차트 분석 보기">' +
+      '<span class="rk">' + (i + 1) + "</span>" +
+      '<span class="nm"><b>' + esc(st.name) + "</b>" + (sub ? "<em>" + esc(sub) + "</em>" : "") + "</span>" +
+      '<span class="rt"><b class="' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</b>" +
+        "<s>" + esc(st.valueText || "") + "</s></span>" +
+      (st.reason ? '<p class="pm-why">📰 ' + esc(st.reason) + "</p>" : "") +
+    "</li>";
+  }
+
+  function renderPreMarket(report) {
+    const box = $("#preBox");
+    if (!box) return;
+    pmPlace();
+    const pm = report && report.preMarket;
+    const key = (sessionOf(report) || {}).key;
+    /* 장전 탭에서만 — 정규장·애프터에서는 프리장 카드를 숨긴다(정규장 점유율과 헷갈리지 않게) */
+    if (!pm || !(pm.sectors || []).length || key !== "pre") { box.hidden = true; return; }
+    box.hidden = false;
+
+    const badges = $("#pmBadges");
+    if (badges) {
+      const bits = [
+        '<span class="pm-badge">⏱ ' + esc(String(pm.asOf || "")) + " 기준 · NXT 프리장</span>",
+        "<span>체결 " + Number(pm.universe || 0).toLocaleString("ko-KR") + "종목 · " + esc(pm.totalText || domEok(pm.totalEok)) + "</span>",
+      ];
+      if (pm.avgChg !== null && pm.avgChg !== undefined)
+        bits.push('<span>평균 <b class="' + pmDir(pm.avgChg) + '">' + pmPct(pm.avgChg) + "</b></span>");
+      if (pm.riseCount || pm.fallCount)
+        bits.push("<span>↑" + Number(pm.riseCount || 0) + " ↓" + Number(pm.fallCount || 0) + "</span>");
+      badges.innerHTML = bits.join("");
+    }
+
+    const items = pm.sectors.map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
+    if (pm.individual) items.push({ item: pm.individual, tone: DOM_GRAY, dim: true });
+    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+
+    const bar = $("#pmBar");
+    if (bar) {
+      const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 330;
+      const textW = (s) => Array.from(String(s || "")).reduce((a, ch) =>
+        a + (/[\u3000-\u9fff\uff00-\uffdc]/.test(ch) ? 10.4 : 6.2), 0);
+      bar.innerHTML = items.map(({ item, tone, dim }) => {
+        const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
+        const share = domShareText(item.share);
+        const px = w / 100 * barPx;
+        const label = px - 12 >= textW(item.name) + 4 + textW(share)
+          ? esc(item.name) + " <b>" + share + "</b>"
+          : px - 8 >= textW(share) ? "<b>" + share + "</b>" : "";
+        return '<span class="pm-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
+          "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
+      }).join("");
+      bar.setAttribute("aria-label", "프리장 주도 섹터 점유율 — " +
+        items.map(({ item }) => item.name + " " + domShareText(item.share)).join(", "));
+    }
+
+    const leg = $("#pmLegend");
+    if (leg) leg.innerHTML = items.map(({ item, tone }) =>
+      '<span class="pm-leg"><i style="background:' + tone + '"></i>' + esc(item.name) +
+        " <b>" + domShareText(item.share) + "</b></span>").join("");
+
+    const secs = $("#pmSecs");
+    if (secs) secs.innerHTML = items.slice(0, 3).map(({ item, tone, dim }, i) => pmSecHTML(item, i, dim)).join("");
+
+    const list = $("#pmList");
+    if (list) {
+      const rows = (PM.tab === "rise" ? pm.riseTop : pm.valueTop) || [];
+      list.innerHTML = rows.length ? rows.map(pmRowHTML).join("") : '<li class="pm-why">수집된 종목이 없습니다.</li>';
+    }
+    const tabs = $("#pmTabs");
+    if (tabs) Array.prototype.forEach.call(tabs.querySelectorAll("[data-pm]"), (b) => {
+      b.setAttribute("aria-selected", b.getAttribute("data-pm") === PM.tab ? "true" : "false");
+    });
+
+    const foot = $("#pmFoot");
+    if (foot) {
+      foot.textContent = (pm.collectedAt ? pm.collectedAt.slice(11, 16) + " 수집 · " : "") +
+        (pm.basis ? pm.basis + " · " : "") + "종목을 누르면 차트 분석 · " +
+        (pm.source || "NXT 프리마켓") + " · 사유는 종목 뉴스 헤드라인 1줄(수집된 종목만)";
+    }
+  }
+
+  /* 프리장 탭(거래대금/상승률) 전환 — 카드 안에서 한 번만 위임 */
+  function wirePreMarket() {
+    const box = $("#preBox");
+    if (!box || box.getAttribute("data-wired") === "1") return;
+    box.setAttribute("data-wired", "1");
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-pm]");
+      if (!b) return;
+      const k = b.getAttribute("data-pm");
+      if (k === PM.tab) return;
+      PM.tab = k;
+      renderPreMarket(findReport(activeDate));
+    });
+  }
+
+  /* 프리장 한화면 캡처 — 점유율 막대 + 상위 종목(등락률·거래대금·사유)
+     · 370px 한 장, 값은 data.json preMarket 실측만. 하단은 '정보 정리용 · 매수 추천 아님'만 */
+  function pmShotHTML(report) {
+    const pm = (report && report.preMarket) || {};
+    const date = shotText(String(report.date || "").replace(/-/g, "."));
+    const dow = dowOfDate(report.date);
+    const items = (pm.sectors || []).map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
+    if (pm.individual) items.push({ item: pm.individual, tone: DOM_GRAY, dim: true });
+    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+    const bar = items.map(({ item, tone, dim }) => {
+      const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
+      const share = domShareText(item.share);
+      const label = w >= 17 ? esc(item.name) + " <b>" + share + "</b>" : w >= 7 ? share : "";
+      return '<span class="ps-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
+        "%;background:" + tone + '">' + label + "</span>";
+    }).join("");
+    const legend = items.map(({ item, tone }) =>
+      '<span><i style="background:' + tone + '"></i>' + esc(item.name) + " <b>" + domShareText(item.share) + "</b></span>").join("");
+
+    /* 상위 종목 — 거래대금 상위 → 상승률 상위 순으로 중복 없이 7종목 */
+    const seen = {};
+    const picks = [];
+    (pm.valueTop || []).forEach((s) => { if (!seen[s.code] && picks.length < 7) { seen[s.code] = 1; picks.push(s); } });
+    (pm.riseTop || []).forEach((s) => { if (!seen[s.code] && picks.length < 7) { seen[s.code] = 1; picks.push(s); } });
+    const rows = picks.map((s, i) =>
+      '<div class="ps-row">' +
+        '<span class="r">' + (i + 1) + "</span>" +
+        '<span class="w"><b>' + esc(s.name) + "</b>" +
+          (s.reason ? "<em>" + esc(shotBrief(s.reason, 34)) + "</em>" : "") + "</span>" +
+        '<span class="p"><b class="' + pmDir(s.chg) + '">' + pmPct(s.chg) + "</b><s>" +
+          esc(s.valueText || "") + "</s></span>" +
+      "</div>").join("");
+
+    const meta = [
+      "⏱ " + shotText(pm.asOf || "") + " 기준 · NXT 프리장",
+      "체결 " + Number(pm.universe || 0).toLocaleString("ko-KR") + "종목 · " + shotText(pm.totalText || ""),
+      pm.avgChg === null || pm.avgChg === undefined ? "" : "평균 " + pmPct(pm.avgChg),
+    ].filter(Boolean);
+
+    return '<article class="sh-card" id="shotCard" data-sess="pre">' +
+      '<div class="sh-head">' +
+        '<div class="sh-top">' +
+          '<span class="sh-eyebrow">🌅 NXT 프리장 수급</span>' +
+          '<span class="sh-date">' + esc(date) + (dow ? " (" + esc(dow) + ")" : "") + "</span>" +
+          '<span class="sh-sess">08:00~08:50</span>' +
+        "</div>" +
+        '<p class="sh-lead">' + esc("프리장 체결 " + Number(pm.universe || 0) + "종목 · " +
+          (pm.totalText || "") + (pm.sectors && pm.sectors.length ? " · 1위 " + pm.sectors[0].name +
+          " " + domShareText(pm.sectors[0].share) : "")) + "</p>" +
+      "</div>" +
+      '<div class="ps-bar">' + bar + "</div>" +
+      '<div class="ps-leg">' + legend + "</div>" +
+      '<div class="ps-meta">' + meta.map((m) => "<span>" + esc(m) + "</span>").join("") + "</div>" +
+      '<div style="margin-top:5px">' + rows + "</div>" +
+      '<div class="sh-foot">' +
+        '<p class="sh-disc"><span>정보 정리용 · 매수 추천 아님</span></p>' +
+      "</div>" +
+    "</article>";
+  }
+
   /* 수급 이동 1줄 — 상위 2개 섹터 집중도 + 가장 강한/급부상 테마.
      data.json sectorDominance 의 점유율·평균 등락률만 쓰고, 새 추정은 하지 않는다. */
   function renderDomShift(report) {
@@ -12470,6 +12771,7 @@ const REPORT_DATA = [
     renderRole(report);
     renderSessBrief(report);
     renderDominance(report);
+    renderPreMarket(report);
     renderSessionBody(report);
     renderContext(report);
     renderWatchlist(report);
@@ -12511,6 +12813,7 @@ const REPORT_DATA = [
   wireTaExpert();
   wireShot();
   wireStockClicks();
+  wirePreMarket();
   wireRefresh();
 
   function start() {
