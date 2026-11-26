@@ -3498,7 +3498,8 @@ def merge_entry(new, old):
     if not old:
         return out
     for key in ("label", "shortLabel", "context", "articles",
-                "disclaimer", "rangeLabels", "axis", "stages", "issue", "threads"):
+                "disclaimer", "rangeLabels", "axis", "stages", "issue", "threads",
+                "preMarket"):
         if key in old:
             out[key] = old[key]
 

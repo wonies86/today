@@ -2853,10 +2853,10 @@ html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:
 .pm-sec-s{font-size:10px;font-weight:850;color:var(--violet);font-variant-numeric:tabular-nums}
 .pm-sec-c{margin-left:auto;font-size:10px;font-weight:820;font-variant-numeric:tabular-nums}
 .pm-sec-l{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:1px}
-.pm-stk{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:0 6px;align-items:baseline;padding:1.5px 2px;border-radius:5px;font-size:10px;cursor:pointer}
-.pm-stk .n{min-width:0;font-weight:750;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.03em}
-.pm-stk .c{font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
-.pm-stk .v{min-width:44px;text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pm-stk{display:grid;grid-template-columns:minmax(0,1fr) 46px 52px;gap:0 6px;align-items:baseline;padding:1.5px 2px;border-radius:5px;font-size:10px;cursor:pointer}
+.pm-stk .pm-sn{min-width:0;font-weight:750;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.03em}
+.pm-stk .pm-sc{text-align:right;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pm-stk .pm-sv{text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pm-tabs{display:flex;gap:4px;margin:10px 0 0}
 .pm-tab{flex:1 1 0;appearance:none;border:1px solid var(--line);background:var(--bg-soft);color:var(--ink-2);font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:-.02em;padding:5px 4px;border-radius:8px;cursor:pointer}
 .pm-tab[aria-selected="true"]{background:var(--violet-soft);border-color:#d8c9ff;color:var(--violet)}
@@ -2864,19 +2864,18 @@ html[data-theme="dark"] .pm-tab[aria-selected="true"]{background:#221733;border-
 .pm-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
 .pm-row{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:0 6px;align-items:center;padding:5px 6px 4px;border:1px solid var(--line-2);border-radius:8px;background:var(--card);cursor:pointer}
 .pm-row:hover{background:var(--bg-soft)}
-.pm-row .rk{font-size:9.5px;font-weight:850;color:var(--mute);text-align:center;font-variant-numeric:tabular-nums}
-.pm-row .nm{min-width:0}
-.pm-row .nm b{display:block;font-size:11px;font-weight:820;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pm-row .nm em{display:block;margin-top:1px;font-style:normal;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pm-row .rt{text-align:right;font-variant-numeric:tabular-nums}
-.pm-row .rt b{display:block;font-size:11px;font-weight:850}
-.pm-row .rt s{display:block;margin-top:1px;font-size:9px;text-decoration:none;color:var(--mute)}
-.pm-why{grid-column:1 / -1;margin:3px 0 0;padding:2px 6px;border-radius:5px;background:var(--violet-soft);font-size:9.5px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
-html[data-theme="dark"] .pm-why{background:#1e1729;color:#c3c9d8}
+.pm-row .pm-rk{font-size:9.5px;font-weight:850;color:var(--mute);text-align:center;font-variant-numeric:tabular-nums;background:none;padding:0;display:block}
+.pm-row .pm-nm{min-width:0}
+.pm-row .pm-nm b{display:block;font-size:11px;font-weight:820;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-row .pm-nm em{display:block;margin-top:1px;font-style:normal;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-row .pm-rt{text-align:right;font-variant-numeric:tabular-nums}
+.pm-row .pm-rt b{display:block;font-size:11px;font-weight:850}
+.pm-row .pm-rt s{display:block;margin-top:1px;font-size:9px;text-decoration:none;color:var(--mute)}
+.pm-why{grid-column:1 / -1;margin:3px 0 0;padding:2px 6px;border-radius:5px;background:var(--line-2);font-size:9.5px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
 .pm-foot{margin:7px 1px 0;font-size:9px;line-height:1.5;color:var(--mute)}
-.pm .up{color:var(--up)}
-.pm .dn{color:var(--down)}
-.pm .flat{color:var(--mute)}
+.pm .pm-up{color:var(--up)}
+.pm .pm-dn{color:var(--down)}
+.pm .pm-flat{color:var(--mute)}
 #viewSimple .pm{margin-top:9px}
 
 /* 🌅 프리장 한화면 캡처(.sh-card 안) — 점유율 막대 + 상위 종목 + 사유 */
@@ -2888,15 +2887,15 @@ html[data-theme="dark"] .pm-why{background:#1e1729;color:#c3c9d8}
 .ps-leg i{width:6px;height:6px;border-radius:2px}
 .ps-leg b{font-weight:820;color:var(--ink)}
 .ps-row{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:0 5px;align-items:baseline;padding:2.5px 0;border-top:1px solid var(--line-2)}
-.ps-row .r{font-size:8.5px;font-weight:850;color:var(--mute);text-align:center}
-.ps-row .w{min-width:0}
-.ps-row .w b{display:block;font-size:10.5px;font-weight:820;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ps-row .w em{display:block;font-style:normal;font-size:8.5px;line-height:1.35;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ps-row .p{text-align:right;font-variant-numeric:tabular-nums}
-.ps-row .p b{display:block;font-size:10px;font-weight:850}
-.ps-row .p s{display:block;font-size:8px;text-decoration:none;color:var(--mute)}
-.ps-row .up{color:var(--up)}
-.ps-row .dn{color:var(--down)}
+.ps-row .ps-rk{font-size:8.5px;font-weight:850;color:var(--mute);text-align:center;background:none;padding:0;display:block}
+.ps-row .ps-nm{min-width:0}
+.ps-row .ps-nm b{display:block;font-size:10.5px;font-weight:820;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-row .ps-nm em{display:block;font-style:normal;font-size:8.5px;line-height:1.35;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-row .ps-rt{text-align:right;font-variant-numeric:tabular-nums}
+.ps-row .ps-rt b{display:block;font-size:10px;font-weight:850}
+.ps-row .ps-rt s{display:block;font-size:8px;text-decoration:none;color:var(--mute)}
+.ps-row .pm-up{color:var(--up)}
+.ps-row .pm-dn{color:var(--down)}
 .ps-meta{display:flex;flex-wrap:wrap;gap:2px 6px;margin:3px 0 0;font-size:8.5px;color:var(--mute);font-variant-numeric:tabular-nums}
 
 /* ============================================================
@@ -7074,7 +7073,8 @@ const REPORT_DATA = [
       k = Math.min(bh / natural, bw / SHOT_W);
       card.style.height = natural + "px";
     } else {
-      card.style.height = Math.min(bh, 820) + "px";
+      /* 프리장 캡처는 행 수가 적어 내용 높이에 딱 맞춘다 — 빈 아래여백을 남기지 않는다 */
+      card.style.height = (card.getAttribute("data-sess") === "pre" ? natural : Math.min(bh, 820)) + "px";
     }
     card.style.transform = "translate(-50%,-50%) scale(" + k.toFixed(4) + ")";
     SHOT.k = k;
@@ -10522,8 +10522,8 @@ const REPORT_DATA = [
     return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
   }
   function pmDir(v) {
-    if (v === null || v === undefined || isNaN(Number(v))) return "flat";
-    return Number(v) > 0 ? "up" : (Number(v) < 0 ? "dn" : "flat");
+    if (v === null || v === undefined || isNaN(Number(v))) return "pm-flat";
+    return Number(v) > 0 ? "pm-up" : (Number(v) < 0 ? "pm-dn" : "pm-flat");
   }
 
   function pmPlace() {
@@ -10540,9 +10540,9 @@ const REPORT_DATA = [
     const rows = (item.stocks || []).map((st) =>
       '<li class="pm-stk" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
         'aria-label="' + esc(st.name) + ' 차트 분석 보기">' +
-        '<span class="n">' + esc(st.name) + "</span>" +
-        '<span class="c ' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</span>" +
-        '<span class="v">' + esc(st.valueText || "") + "</span></li>").join("");
+        '<span class="pm-sn">' + esc(st.name) + "</span>" +
+        '<span class="pm-sc ' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</span>" +
+        '<span class="pm-sv">' + esc(st.valueText || "") + "</span></li>").join("");
     return '<div class="pm-sec">' +
       '<div class="pm-sec-h">' +
         '<i class="pm-dot" style="background:' + tone + '"></i>' +
@@ -10558,9 +10558,9 @@ const REPORT_DATA = [
     const sub = [st.market, st.priceText ? st.priceText + "원" : ""].filter(Boolean).join(" · ");
     return '<li class="pm-row" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
       'aria-label="' + esc(st.name) + ' 차트 분석 보기">' +
-      '<span class="rk">' + (i + 1) + "</span>" +
-      '<span class="nm"><b>' + esc(st.name) + "</b>" + (sub ? "<em>" + esc(sub) + "</em>" : "") + "</span>" +
-      '<span class="rt"><b class="' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</b>" +
+      '<span class="pm-rk">' + (i + 1) + "</span>" +
+      '<span class="pm-nm"><b>' + esc(st.name) + "</b>" + (sub ? "<em>" + esc(sub) + "</em>" : "") + "</span>" +
+      '<span class="pm-rt"><b class="' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</b>" +
         "<s>" + esc(st.valueText || "") + "</s></span>" +
       (st.reason ? '<p class="pm-why">📰 ' + esc(st.reason) + "</p>" : "") +
     "</li>";
@@ -10585,7 +10585,7 @@ const REPORT_DATA = [
       if (pm.avgChg !== null && pm.avgChg !== undefined)
         bits.push('<span>평균 <b class="' + pmDir(pm.avgChg) + '">' + pmPct(pm.avgChg) + "</b></span>");
       if (pm.riseCount || pm.fallCount)
-        bits.push("<span>↑" + Number(pm.riseCount || 0) + " ↓" + Number(pm.fallCount || 0) + "</span>");
+        bits.push("<span>· ↑" + Number(pm.riseCount || 0) + " ↓" + Number(pm.fallCount || 0) + "</span>");
       badges.innerHTML = bits.join("");
     }
 
@@ -10679,10 +10679,10 @@ const REPORT_DATA = [
     (pm.riseTop || []).forEach((s) => { if (!seen[s.code] && picks.length < 7) { seen[s.code] = 1; picks.push(s); } });
     const rows = picks.map((s, i) =>
       '<div class="ps-row">' +
-        '<span class="r">' + (i + 1) + "</span>" +
-        '<span class="w"><b>' + esc(s.name) + "</b>" +
+        '<span class="ps-rk">' + (i + 1) + "</span>" +
+        '<span class="ps-nm"><b>' + esc(s.name) + "</b>" +
           (s.reason ? "<em>" + esc(shotBrief(s.reason, 34)) + "</em>" : "") + "</span>" +
-        '<span class="p"><b class="' + pmDir(s.chg) + '">' + pmPct(s.chg) + "</b><s>" +
+        '<span class="ps-rt"><b class="' + pmDir(s.chg) + '">' + pmPct(s.chg) + "</b><s>" +
           esc(s.valueText || "") + "</s></span>" +
       "</div>").join("");
 
