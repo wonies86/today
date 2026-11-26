@@ -2705,11 +2705,15 @@
 .dom-meta{font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .dom-meta .dot{opacity:.5;margin:0 3px}
 .dom-bar{display:flex;height:31px;border-radius:9px;overflow:hidden;background:var(--line-2);box-shadow:inset 0 0 0 1px rgba(16,24,40,.05)}
-.dom-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;transition:width .4s ease}
+.dom-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;padding:0 5px;box-sizing:border-box;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;transition:width .4s ease}
 .dom-seg + .dom-seg{box-shadow:inset 2px 0 0 rgba(255,255,255,.8)}
 .dom-seg em{font-style:normal;font-weight:750;opacity:.92;margin-right:4px;overflow:hidden;text-overflow:ellipsis}
 .dom-seg b{font-weight:820;font-variant-numeric:tabular-nums}
 .dom-seg.dim{color:#2b3644}
+.dom-legend{display:flex;flex-wrap:wrap;gap:3px 10px;margin:5px 2px 0;font-size:10px;line-height:1.4;color:var(--ink-2)}
+.dom-leg-i{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dom-leg-d{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
+.dom-leg-i b{font-weight:800;color:var(--ink)}
 .dom-basis{margin:5px 2px 0;font-size:9.5px;color:var(--mute);line-height:1.45}
 /* 수급 이동 1줄 — 상위 2개 점유율 집중도 + 급부상 테마 (sectorDominance 실측값만) */
 .dom-shift{display:flex;align-items:baseline;gap:4px;margin:4px 2px 0;font-size:9.5px;font-weight:700;line-height:1.5;color:#4b3a86;background:var(--violet-soft);border-radius:6px;padding:3px 7px}
@@ -3074,6 +3078,7 @@
           <span class="dom-meta" id="domMeta"><span id="domLive"></span><span class="dot">·</span><span id="domAge"></span></span>
         </div>
         <div class="dom-bar" id="domBar" role="img" aria-label="주도 섹터 점유율"></div>
+        <div class="dom-legend" id="domLegend"></div>
         <p class="dom-basis" id="domBasis"></p>
         <p class="dom-shift" id="domShift" hidden></p>
         <div class="dom-cards" id="domCards"></div>
@@ -9880,26 +9885,32 @@ const REPORT_DATA = [
     const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
     const bar = $("#domBar");
     if (bar) {
-      /* 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 구간이 좁으면
-         이름만, 더 좁으면 퍼센트만, 그것도 안 들어가면 비운다(카드에 숫자가 있다) */
-      const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 360;
+      /* 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 패딩 포함 여유가 있을 때만 넣고,
+         좁으면 퍼센트만, 아래 범례(#domLegend)에 모든 섹터·퍼센트를 빠짐없이 표시한다 */
+      const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 340;
       const textW = (s) => Array.from(String(s || "")).reduce((a, ch) =>
-        a + (/[\u3000-\u9fff\uff00-\uffdc]/.test(ch) ? 10.5 : 6.3), 0);
+        a + (/[\u3000-\u9fff\uff00-\uffdc]/.test(ch) ? 11.0 : 6.6), 0);
       bar.innerHTML = items.map(({ item, tone, dim }) => {
         const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
         const share = domShareText(item.share);
         const px = w / 100 * barPx;
         const nameW = textW(item.name);
         const shareW = textW(share);
-        const label = px - 8 >= nameW + 5 + shareW
+        const label = px - 14 >= nameW + 5 + shareW
           ? '<em>' + esc(item.name) + "</em><b>" + share + "</b>"
-          : px - 6 >= nameW ? '<em>' + esc(item.name) + "</em>"
-          : px - 6 >= shareW ? "<b>" + share + "</b>" : "";
+          : px - 10 >= shareW ? "<b>" + share + "</b>" : "";
         return '<span class="dom-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
           "%;background:" + tone + '" title="' + esc(item.name + " " + share) + '">' + label + "</span>";
       }).join("");
       bar.setAttribute("aria-label", "주도 섹터 점유율 — " +
         items.map(({ item }) => item.name + " " + domShareText(item.share)).join(", "));
+    }
+    const leg = $("#domLegend");
+    if (leg) {
+      leg.innerHTML = items.map(({ item, tone }) =>
+        '<span class="dom-leg-i"><i class="dom-leg-d" style="background:' + tone + '"></i>' +
+        esc(item.name) + " <b>" + domShareText(item.share) + "</b></span>"
+      ).join("");
     }
 
     const basis = $("#domBasis");
