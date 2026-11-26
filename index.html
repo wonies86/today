@@ -10207,11 +10207,14 @@ const REPORT_DATA = [
       : "";
     if (!lead && !patRows && !nxt) return "";
 
+    const aftFilled = !!(s && s.issue);
     return '<section class="sb" aria-label="애프터 결산">' +
       '<div class="sb-head"><h3 class="sb-h">🌙 장마감 결산</h3>' +
         '<span class="sb-sub">' + esc(closed ? "정규장 마감 · 당일 수급 결과" : "장중 기준 · 마감 후 갱신") + "</span></div>" +
       lead + patRows + nxt +
-      '<p class="sb-foot">점유율·수급은 정규장 마감 집계, 애프터장 수급은 20:05 리포트에서 채워집니다.</p>' +
+      '<p class="sb-foot">점유율·수급은 정규장 마감 집계, ' +
+        (aftFilled ? "애프터 수급은 20:00 NXT 마감 기준으로 반영했습니다." : "애프터장 수급은 20:05 리포트에서 채워집니다.") +
+      "</p>" +
     "</section>";
   }
 
