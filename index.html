@@ -1819,7 +1819,7 @@
 #viewSimple .core-lead b{
   font-weight:760
 }
-/* ---------------- 스레드 관점 — 4분할 개별 게시용 카드 ---------------- */
+/* ---------------- 스레드 관점 — 5분할 개별 게시용 카드 ---------------- */
 #viewSimple .th-note{
   margin:6px 2px 7px;font-size:10.5px;color:var(--mute);letter-spacing:-.01em
 }
@@ -2722,6 +2722,11 @@
 .dsec-h{display:flex;align-items:center;gap:5px;min-width:0}
 .dsec-r{flex:0 0 15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:#fff;line-height:1}
 .dsec-n{flex:1 1 auto;font-size:11.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 섹터 헤더 🔄 자금 이동 — 전일 대비 점유율 +3%p↑ (이름은 말줄임, 배지는 고정 폭) */
+.dsec-flow{flex:0 0 auto;font-size:8px;font-weight:800;line-height:1.45;letter-spacing:-.04em;
+  padding:0 3px;border-radius:4px;white-space:nowrap;color:#9a3412;background:#fff7ed;
+  border:1px solid #fed7aa;font-variant-numeric:tabular-nums}
+@media (max-width:430px){.dsec-flow{font-size:7.5px;padding:0 2.5px}}
 .dsec-rv{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
 .dsec-c{font-size:10.5px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dsec-rv span{font-size:8.5px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -2733,6 +2738,7 @@
 .dn{grid-area:n;font-size:10.5px;font-weight:750;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .dc{grid-area:c;font-size:10px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dp{grid-area:p;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dp.with-stb{display:flex;align-items:center;gap:3px}
 .dv{grid-area:v;font-size:9px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 .dbar{grid-area:b;position:relative;display:block;height:5px;margin-top:2px;border-radius:3px;background:var(--line-2);overflow:hidden}
 .dbar i{position:absolute;top:0;bottom:0;border-radius:2px;opacity:.85}
@@ -2753,6 +2759,10 @@
 .stb-dual{color:#fff;background:linear-gradient(135deg,#6d28d9,#a855f7);border-color:#7c3aed}
 .stb-inst{color:#0f766e;background:#ecfdf5;border-color:#a7f3d0}
 .stb-frgn{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
+/* 주도 섹터 카드의 방향 배지 — 👑 주도주(금) / 🔄 순환 대장(하늘) / 둘 다 한 덩어리 */
+.stb-lead{color:#78350f;background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#fbbf24}
+.stb-rot{color:#075985;background:#e0f2fe;border-color:#7dd3fc}
+.stb-both{color:#3b2f0b;background:linear-gradient(135deg,#fef3c7,#bae6fd);border-color:#f59e0b}
 /* 배지가 붙은 이름 셀 — 가로 정렬 + 이름만 말줄임 */
 .has-stb{display:flex !important;align-items:center;gap:3px;min-width:0}
 .has-stb .stbnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:inherit;letter-spacing:inherit}
@@ -3094,9 +3104,9 @@
           <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
         </div>
 
-        <!-- 스레드 관점 — 4분할(장전·장중·애프터·내일 생각) 개별 게시용 -->
+        <!-- 스레드 관점 — 5분할(장전·장중 오전·장중 오후·애프터·내일 생각) 개별 게시용 -->
         <div class="panel" id="sPanel-threads" role="tabpanel" hidden>
-          <p class="th-note">구어체 · 팩트 기반 · 주도주 수급 중심 (4분할 개별 게시용)</p>
+          <p class="th-note">구어체 · 팩트 기반 · 주도주 수급 중심 (5분할 개별 게시용)</p>
           <div class="th-list" id="sThreadList"></div>
           <div class="th-toast" id="sThreadToast" role="status" aria-live="polite"></div>
         </div>
@@ -9598,7 +9608,178 @@ const REPORT_DATA = [
     return { p: at(price), prev: sNull(prev) ? null : at(prev), span: span };
   }
 
-  function domStockRow(report, st, tone) {
+  /* ---------------- 주도 섹터 방향 배지 (👑 주도주 · 🔄 순환 대장 · 🔄 자금 이동) ----------------
+     · 재료는 data.json(sectorDominance 종목·allStocks 업종·investorStreak)과 charts.json 당일 봉뿐이다.
+       allStocks 에는 시·고·저가 없으므로 시가·고가·저가는 charts.json 일봉 [시,고,저,종]을 쓴다.
+     · 조건을 만족하는 종목이 없으면 배지를 붙이지 않는다 — 약한 신호를 만들어 붙이지 않는다.
+     · 이력 날짜에는 charts 가 없어 고가 유지력을 확인할 수 없다 → 그때는 👑·🔄 를 붙이지 않고
+       🔄 자금 이동(점유율 비교)만 계산한다.
+     ---------------------------------------------------------------------------------------- */
+  const DOM_MARK = {
+    leadChg: 2.0,     /* 👑 상승 +2% 이상 */
+    leadHold: 0.70,   /* 고가 유지력 (현재가-저가)/(고가-저가) 0.70 이상 — 윗꼬리 짧음 */
+    rotAnchorChg: 1.0, /* 🔄 섹터 거래대금 1위가 +1% 미만(약세·보합)일 때 */
+    rotChg: 4.0,      /* 🔄 바통 받는 종목 +4% 이상 */
+    rotEok: 200,      /* 🔄 최소 거래대금(억) */
+    rotShare: 0.03,   /* 🔄 섹터 거래대금의 3% 이상 */
+    flowPP: 3.0,      /* 🔄 자금 이동: 전일 대비 점유율 +3.0%p 이상 */
+    flowNew: 8.0      /* 전일 상위 목록에 없던 섹터는 오늘 8% 이상일 때만(전일 0%로 단정하지 않기 위해) */
+  };
+
+  /* 그 보고서 날짜의 당일 봉 [시,고,저,종] — 오늘 봉이 없으면 null(다른 날 봉으로 대신하지 않는다) */
+  function domCandleOf(report, code) {
+    const c = chartsOf(report);
+    if (!c || !c.stocks) return null;
+    const bars = c.stocks[String(code)];
+    if (!bars || !bars.length) return null;
+    const dates = c.dates || [];
+    const today = String((report && report.date) || "").replace(/-/g, "");
+    if (dates.length && String(dates[dates.length - 1]) !== today) return null;
+    const b = bars[bars.length - 1];
+    if (!b || b.length < 4) return null;
+    return { o: Number(b[0]), h: Number(b[1]), l: Number(b[2]), c: Number(b[3]) };
+  }
+
+  /* 고가 유지력 0~1 — 고가=저가(상한가 고정 등)면 고가에 붙어 있을 때만 1 */
+  function domHoldOf(price, bar) {
+    if (!bar || sNull(price)) return null;
+    if (!(bar.h > bar.l)) return Number(price) >= bar.h ? 1 : null;
+    return (Number(price) - bar.l) / (bar.h - bar.l);
+  }
+
+  /* 👑 주도주 점수 — 거래대금(최대 10) + 등락률 + 고가 유지력 + 외인/기관 연속매수·쌍끌이 가산 */
+  function domLeadScore(report, st, hold) {
+    const it = streakOf(report, st.name, st.code) || {};
+    const frgn = Number(it.frgnStreak) || 0;
+    const inst = Number(it.instStreak) || 0;
+    const dual = Number(it.dualStreak) || 0;
+    let score = Math.min(Number(st.valueEok) || 0, 5000) / 500 + Math.min(Number(st.chg) || 0, 15) * 0.6;
+    if (hold != null) score += hold;
+    if (dual >= 2) score += 4;
+    else { if (frgn >= 2) score += 2; if (inst >= 2) score += 2; }
+    return score;
+  }
+
+  /* 섹터 카드 안에서 👑 주도주 1종목 — 조건 미달이면 null */
+  function domLeadOf(report, sector) {
+    let best = null;
+    (sector.stocks || []).forEach((st) => {
+      if (!(Number(st.chg) >= DOM_MARK.leadChg)) return;
+      const bar = domCandleOf(report, st.code);
+      if (!bar) return;                                        /* 고가 유지력을 확인할 수 없으면 판정하지 않는다 */
+      if (bar.o > 0 && Number(st.price) < bar.o) return;        /* 시가 위 양봉 */
+      const hold = domHoldOf(st.price, bar);
+      if (hold == null || hold < DOM_MARK.leadHold) return;     /* 고가 부근 유지 */
+      const score = domLeadScore(report, st, hold);
+      if (!best || score > best.score) best = { st: st, score: score, hold: hold };
+    });
+    return best;
+  }
+
+  /* 섹터 거래대금 1위(대형주) — allStocks 업종명으로 찾는다. 테마(로봇·보안·중국·소비)는
+     allStocks 업종과 이름이 달라 특정할 수 없으므로 null(배지를 붙이지 않는다) */
+  function domAnchorOf(report, sector) {
+    const rows = (report && report.allStocks) || [];
+    let top = null;
+    rows.forEach((r) => {
+      if (!r || String(r[6]) !== String(sector.name)) return;
+      if (!top || Number(r[5]) > Number(top[5])) top = r;
+    });
+    return top ? { code: String(top[0]), name: String(top[1]), chg: Number(top[4]), valueEok: Number(top[5]) } : null;
+  }
+
+  /* 🔄 순환 대장 — 섹터 대형주가 약세인데 다른 종목이 +4%↑·고가 유지·유의미한 거래대금이면 그중 최고 */
+  function domRotationOf(report, sector) {
+    const anchor = domAnchorOf(report, sector);
+    if (!anchor || !(anchor.chg < DOM_MARK.rotAnchorChg)) return null;
+    const total = Number(sector.valueEok) || 0;
+    const minEok = Math.max(DOM_MARK.rotEok, total * DOM_MARK.rotShare);
+    let best = null;
+    (sector.stocks || []).forEach((st) => {
+      if (String(st.code) === anchor.code) return;
+      if (!(Number(st.chg) >= DOM_MARK.rotChg)) return;
+      if (!(Number(st.valueEok) >= minEok)) return;
+      const bar = domCandleOf(report, st.code);
+      const hold = domHoldOf(st.price, bar);
+      if (hold == null || hold < DOM_MARK.leadHold) return;
+      const score = Number(st.chg) + Math.min(Number(st.valueEok) || 0, 3000) / 1000 + hold;
+      if (!best || score > best.score) best = { st: st, hold: hold, anchor: anchor, score: score };
+    });
+    return best;
+  }
+
+  /* 직전 거래일 항목 — sectorDominance 가 있는 가장 가까운 이전 날짜(data.json 은 최신순) */
+  function domPrevReport(report) {
+    const day = String((report && report.date) || "");
+    let prev = null;
+    (REPORT_DATA || []).forEach((x) => {
+      if (!x || !x.date || x.date >= day) return;
+      const s = x.sectorDominance;
+      if (!s || !(s.sectors || []).length) return;
+      if (!prev || x.date > prev.date) prev = x;
+    });
+    return prev;
+  }
+
+  /* 🔄 자금 이동 — 전일 같은 이름 섹터의 점유율보다 +3.0%p 이상 늘었을 때 */
+  function domFlowOf(report, sector) {
+    const prev = domPrevReport(report);
+    if (!prev) return null;
+    const before = (prev.sectorDominance.sectors || []).filter((s) => s.name === sector.name)[0];
+    const cur = Number(sector.share) || 0;
+    const base = before ? Number(before.share) || 0 : null;
+    const delta = cur - (base == null ? 0 : base);
+    if (!(delta >= DOM_MARK.flowPP)) return null;
+    if (base == null && cur < DOM_MARK.flowNew) return null;
+    return { cur: cur, base: base, delta: delta, prevDate: prev.date };
+  }
+
+  /* 섹터 하나의 배지 묶음 — dim(개별이슈)에는 쓰지 않는다 */
+  function domMarksOf(report, sector) {
+    return {
+      sector: sector.name,
+      lead: domLeadOf(report, sector),
+      rot: domRotationOf(report, sector),
+      flow: domFlowOf(report, sector)
+    };
+  }
+
+  /* 종목 행 배지 — 👑 · 🔄 가 겹치면 한 덩어리(👑🔄 주도·순환)로 줄이 깨지지 않게 */
+  function domRowMark(st, marks) {
+    if (!marks || !st) return null;
+    const lead = marks.lead && String(marks.lead.st.code) === String(st.code) ? marks.lead : null;
+    const rot = marks.rot && String(marks.rot.st.code) === String(st.code) ? marks.rot : null;
+    if (!lead && !rot) return null;
+    const pct = (v) => (Number(v) >= 0 ? "+" : "") + Number(v).toFixed(1) + "%";
+    const tips = [];
+    let cls = "stb-lead";
+    let text = "👑 주도주";
+    let label = "주도주";
+    if (lead) tips.push(marks.sector + " 주도주 — " + pct(st.chg) + " · 고가 유지 " + Math.round(lead.hold * 100) + "%");
+    if (rot) tips.push("순환 대장 — 대형주 " + rot.anchor.name + " " + pct(rot.anchor.chg) +
+      " 약세 속 " + pct(st.chg) + " · 고가 유지 " + Math.round(rot.hold * 100) + "%");
+    if (lead && rot) {
+      cls = "stb-lead stb-both"; text = "👑🔄 주도·순환"; label = "주도주이자 순환 대장";
+    } else if (rot) {
+      cls = "stb-rot"; text = "🔄 순환 대장"; label = "순환 대장";
+    }
+    return {
+      html: '<span class="stbadge ' + cls + '" title="' + esc(tips.join(" · ")) + '">' + text + "</span>",
+      label: label
+    };
+  }
+
+  /* 섹터 헤더 🔄 자금 이동 — title 에 전일→오늘 점유율을 그대로 적는다 */
+  function domFlowChip(flow) {
+    const d = (s) => String(s || "").slice(5).replace("-", "/");
+    const tip = flow.base == null
+      ? "전일(" + d(flow.prevDate) + ") 상위 섹터 아님 → 오늘 " + domShareText(flow.cur)
+      : "전일(" + d(flow.prevDate) + ") " + domShareText(flow.base) + " → 오늘 " + domShareText(flow.cur) +
+        " · +" + (Math.round(flow.delta * 10) / 10).toFixed(1) + "%p";
+    return '<span class="dsec-flow" title="' + esc(tip) + '">🔄 자금 이동</span>';
+  }
+
+  function domStockRow(report, st, tone, mark) {
     const range = domRange(report, st.code, st.price);
     let bar = '<span class="dbar" aria-hidden="true"></span>';
     if (range) {
@@ -9612,17 +9793,24 @@ const REPORT_DATA = [
       "</span>";
     }
     return '<li class="drow" data-stock="' + esc(st.name) + '" role="button" tabindex="0" ' +
-      'aria-label="' + esc(st.name) + " " + sPct(st.chg) + " · 차트 분석 보기" +
+      'aria-label="' + esc(st.name) + " " + sPct(st.chg) + (mark ? " · " + esc(mark.label) : "") +
+      " · 차트 분석 보기" +
       (range ? " · " + range.span + " 범위 내 " + Math.round(range.p) + "% 지점" : "") + '">' +
-      streakNameHTML("span", "dn", st.name, report, st.code, 1) +
+      (mark
+        ? '<span class="dn has-stb"><b class="stbnm">' + esc(st.name) + "</b>" + mark.html + "</span>"
+        : streakNameHTML("span", "dn", st.name, report, st.code, 1)) +
       '<span class="dc ' + sDir(st.chg) + '">' + sPct(st.chg) + "</span>" +
-      '<span class="dp">' + (sNull(st.price) ? "—" : Number(st.price).toLocaleString("ko-KR")) + "</span>" +
+      '<span class="dp' + (mark ? " with-stb" : "") + '">' +
+        (sNull(st.price) ? "—" : Number(st.price).toLocaleString("ko-KR")) +
+        /* 방향 배지가 이름 옆을 차지하면 수급 배지는 가격 줄로 내린다 — 이름이 잘리지 않게 */
+        (mark ? streakBadgeHTML(report, st.name, st.code, 1) : "") +
+      "</span>" +
       '<span class="dv">' + (sNull(st.valueEok) ? "—" : domEok(st.valueEok)) + "</span>" +
       bar +
     "</li>";
   }
 
-  function domCard(item, idx, tone, report, dim, note) {
+  function domCard(item, idx, tone, report, dim, note, marks) {
     /* 모수는 +2% 이상 상승 종목뿐이라 하락(▼)은 표기하지 않는다 — 0을 붙이면 없는 혼동만 만든다 */
     const counts = item.rise == null ? []
       : item.fall ? ["▲" + item.rise + " ▼" + item.fall] : ["▲" + item.rise];
@@ -9632,6 +9820,7 @@ const REPORT_DATA = [
         (dim ? "" : '<span class="dsec-r" style="background:' + tone + '" aria-hidden="true">' +
           (idx + 1) + "</span>") +
         '<span class="dsec-n">' + esc(item.name) + "</span>" +
+        (marks && marks.flow ? domFlowChip(marks.flow) : "") +
         '<span class="dsec-rv">' +
           '<b class="dsec-c ' + sDir(item.chg) + '">' + sPct(item.chg) + "</b>" +
           "<span>" + esc(domEok(item.valueEok)) + "</span>" +
@@ -9640,7 +9829,7 @@ const REPORT_DATA = [
       '<p class="dsec-m">' + esc(meta) + "</p>" +
       (note ? '<p class="dsec-x">' + esc(note) + "</p>" : "") +
       '<ul class="dsec-l">' +
-        (item.stocks || []).map((st) => domStockRow(report, st, tone)).join("") +
+        (item.stocks || []).map((st) => domStockRow(report, st, tone, domRowMark(st, marks))).join("") +
       "</ul>" +
     "</article>";
   }
@@ -9717,11 +9906,24 @@ const REPORT_DATA = [
     if (basis) basis.textContent = dom.basis || "";
     renderDomShift(report);
     const cards = $("#domCards");
-    if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
-      domCard(item, i, tone, report, dim, dim ? "" : domNoteFor(report, item))).join("");
+    /* 카드마다 배지(👑·🔄)를 한 번만 계산하고, 붙은 배지가 있으면 아래 설명 줄에 뜻을 덧붙인다 */
+    let nLead = 0, nRot = 0, nFlow = 0;
+    if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) => {
+      const marks = dim ? null : domMarksOf(report, item);
+      if (marks && marks.lead) nLead += 1;
+      if (marks && marks.rot) nRot += 1;
+      if (marks && marks.flow) nFlow += 1;
+      return domCard(item, i, tone, report, dim, dim ? "" : domNoteFor(report, item), marks);
+    }).join("");
     const foot = $("#domFoot");
-    if (foot) foot.textContent = "막대 = +2%↑ 종목 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
-      " · 종목을 누르면 차트 분석";
+    if (foot) {
+      const legend = [];
+      if (nLead) legend.push("👑 주도주 = +2%↑·시가 위·고가 유지 70%↑ 최고점");
+      if (nRot) legend.push("🔄 순환 대장 = 대형주 약세 속 +4%↑ 중소형");
+      if (nFlow) legend.push("🔄 자금 이동 = 전일 대비 점유율 +3.0%p↑");
+      foot.textContent = "막대 = +2%↑ 종목 거래대금 점유율 · 종목 막대 = 당일 고·저 중 현재가 위치" +
+        " · 종목을 누르면 차트 분석" + (legend.length ? " · " + legend.join(" · ") : "");
+    }
     domLiveTick(report);
   }
 
@@ -10131,12 +10333,15 @@ const REPORT_DATA = [
     box.innerHTML = h;
   }
 
-  /* ---------------- 스레드 관점 (4분할 개별 게시용) ---------------- */
+  /* ---------------- 스레드 관점 (5분할 개별 게시용) ----------------
+     2026-11-26: 2. 장중 → 2. 장중 오전(threads.krxAm) · 3. 장중 오후(threads.krxPm)로 분리.
+     krxAm 이 비어 있으면 옛 통합 글(threads.krx)을 fallback 으로 보여준다(지난 날짜도 그대로 읽힌다). */
   const THREAD_PARTS = [
     { key: "pre", no: "1", label: "장전", hint: "07:00" },
-    { key: "krx", no: "2", label: "장중", hint: "09:05 · 15:35" },
-    { key: "aft", no: "3", label: "애프터", hint: "20:05 NXT" },
-    { key: "next", no: "4", label: "내일 생각", hint: "20:05 NXT" }
+    { key: "krxAm", no: "2", label: "장중 오전", hint: "09:05", legacy: "krx" },
+    { key: "krxPm", no: "3", label: "장중 오후", hint: "15:35" },
+    { key: "aft", no: "4", label: "애프터", hint: "20:05 NXT" },
+    { key: "next", no: "5", label: "내일 생각", hint: "20:05 NXT" }
   ];
 
   /* strings 또는 줄 배열 모두 받는다 — 스레드는 줄바꿈을 그대로 살려 읽힌다 */
@@ -10145,12 +10350,21 @@ const REPORT_DATA = [
     return typeof v === "string" ? v : "";
   }
 
+  /* 구간 하나의 글 — 새 키가 비어 있고 옛 키(legacy)가 있으며 새 키 자체가 없을 때만 대체분을 쓴다 */
+  function threadPartText(threads, part) {
+    const th = threads || {};
+    const own = threadText(th[part.key]).replace(/\s+$/, "");
+    if (own) return own;
+    if (part.legacy && th[part.key] == null) return threadText(th[part.legacy]).replace(/\s+$/, "");
+    return "";
+  }
+
   function renderSimpleThreads(report) {
     const box = $("#sThreadList");
     if (!box) return;
     const th = (report && report.threads) || {};
     box.innerHTML = THREAD_PARTS.map((p) => {
-      const text = threadText(th[p.key]).replace(/\s+$/, "");
+      const text = threadPartText(th, p);
       const ready = !!text;
       return '<section class="th-card' + (ready ? "" : " wait") + '" data-thread="' + p.key + '">' +
         '<div class="th-head">' +
@@ -10425,9 +10639,10 @@ const REPORT_DATA = [
       if (!btn || btn.disabled) return;
       const key = btn.getAttribute("data-copy-thread");
       const report = findReport(activeDate);
-      const text = threadText(((report && report.threads) || {})[key]).replace(/\s+$/, "");
-      if (!text) return;
       const part = THREAD_PARTS.filter((p) => p.key === key)[0];
+      if (!part) return;
+      const text = threadPartText((report && report.threads) || {}, part);
+      if (!text) return;
       copyPlainText(text).then((ok) => threadCopyFeedback(btn, part, ok));
     });
   }
