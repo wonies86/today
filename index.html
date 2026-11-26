@@ -1073,6 +1073,36 @@
   .ta-pat-line .ta-pat-when{font-size:9px;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums}
 
   /* ============================================================
+     📖 대응 시나리오 (공부용) — 모달 안, 실측값 자동 계산
+     · 390px 한 줄: 라벨(종류) + 핵심 가격, 근거는 아래 줄로
+     · 색: 지금 자리(보라) / 돌파(빨강) / 눌림(회색) / 이탈(파랑)
+     ============================================================ */
+  .tsn-sec{margin-bottom:13px;padding:10px 10px 9px;border:1px solid #e5dcf7;border-radius:12px;
+    background:linear-gradient(180deg,#fbf8ff,#fff)}
+  .tsn-top{display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap}
+  .tsn-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:850;letter-spacing:-.02em;
+    line-height:1.15;color:#fff;background:linear-gradient(135deg,#5b21b6,#8b5cf6);border-radius:7px;padding:3px 8px;
+    box-shadow:0 4px 10px -6px rgba(91,33,182,.9)}
+  .tsn-now{margin-left:auto;display:inline-flex;align-items:baseline;gap:4px;font-size:10.5px;font-weight:850;
+    color:var(--ink);font-variant-numeric:tabular-nums}
+  .tsn-now .chg{font-size:10px;font-weight:850}
+  .tsn-rows{display:flex;flex-direction:column;gap:5px}
+  .tsn-row{padding:7px 8px 6px;background:#fff;border:1px solid var(--line-2);border-radius:9px;min-width:0}
+  .tsn-h{display:flex;align-items:baseline;gap:6px;margin-bottom:2px;flex-wrap:wrap}
+  .tsn-k{font-size:9.5px;font-weight:850;letter-spacing:-.02em;color:var(--violet)}
+  .tsn-p{margin-left:auto;font-size:10.5px;font-weight:850;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tsn-l{margin:0;font-size:9.5px;line-height:1.5;font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .tsn-l + .tsn-l{margin-top:1px}
+  .tsn-l b{font-weight:850;color:var(--ink)}
+  .tsn-l .up{color:#e11d48}
+  .tsn-l .down{color:#2563eb}
+  .tsn-row.is-up{border-color:#fbd9e1;background:#fff7f9}
+  .tsn-row.is-up .tsn-k{color:#be123c}
+  .tsn-row.is-dn{border-color:#d5e3fd;background:#f7faff}
+  .tsn-row.is-dn .tsn-k{color:#1e40af}
+  .tsn-note{margin:7px 0 0;font-size:9px;line-height:1.5;color:var(--mute);font-weight:600}
+
+  /* ============================================================
      🔍 수급·하락 4체크 (모달 안) — 강한데 빠질 때
      · ①②③④ 잔은 2줄 그리드, 390px 에서도 한 잔씩 읽힌다
      · 색: 악재(빨강) / 수급 이동(보라) / 상대강도(빨강·파랑) / 수급표
@@ -6869,11 +6899,11 @@ const REPORT_DATA = [
   }
 
   function taTextHTML(w, report, pack) {
-    return w.hasManual ? taManualTextHTML(w, report) : taAutoTextHTML(w, report, pack);
+    return w.hasManual ? taManualTextHTML(w, report, pack) : taAutoTextHTML(w, report, pack);
   }
 
   /* ---- 관찰 5선: 손으로 쓴 분석 (기존 화면 그대로) ---- */
-  function taManualTextHTML(w, report) {
+  function taManualTextHTML(w, report, pack) {
     const priceBasis = report.priceBasis || "NXT 애프터마켓 20:00 마감 기준";
     const indicatorBasis = report.indicatorBasis || "";
     const t = w.technical || {};
@@ -6901,6 +6931,7 @@ const REPORT_DATA = [
       "</div>" +
       rangeBar(w.day, report.rangeLabels) +
       taChecksHTML(w, report) +
+      taScenarioHTML(w, report, pack) +
       scanBlockHTML(scanOf(report, w), report) +
       (pat ? taPatternHTML(pat, report) : "") +
       '<div class="ta-sec">' +
@@ -7128,6 +7159,257 @@ const REPORT_DATA = [
     "</div>";
   }
 
+  /* ---- 📖 대응 시나리오 (공부용) ----
+     모달에 이미 있는 실측값만 쓴다:
+       · technical.signals (20·60일선·RSI·%B·ATR) · technical.support / resistance 문장
+       · charts.json 일봉 120개 — 5일선·20거래일 고저·최근 5일 등락·ATR(없을 때만)
+       · 당일 시·고·저·종, 지수 등락률(지수 대비 상대강도), investorStreak(외인·기관 연속)
+     계산할 수 없는 항목은 값을 만들지 않고 '대기'로 적는다. 매매 추천이 아닌 공부용 프레임. */
+
+  /* "773,000원(오늘 저가) · 742,000원(60일 최저)" → [{v,label}, ...] (같은 자리는 한 번만) */
+  function taLevelList(str) {
+    const out = [];
+    const re = /([\d,]{3,})\s*원\s*(?:\(([^)]{1,40})\))?/g;
+    let m;
+    while ((m = re.exec(String(str || "")))) {
+      const v = Number(String(m[1]).replace(/,/g, ""));
+      if (!v || isNaN(v)) continue;
+      if (out.some((x) => Math.abs(x.v - v) / v < 0.003)) continue;
+      out.push({ v: v, label: String(m[2] || "").trim() });
+    }
+    return out;
+  }
+
+  /* 지표 스냅샷 한 줄 뽑기 — 가격(큰 수)과 지수(작은 수)를 구분한다 */
+  function taSigPick(w, keys, small) {
+    const sigs = ((w.technical || {}).signals) || [];
+    for (let i = 0; i < sigs.length; i += 1) {
+      const k = String(sigs[i].k || "");
+      if (!keys.some((key) => k.indexOf(key) >= 0)) continue;
+      const nums = String(sigs[i].v || "").match(/-?\d[\d,]*(?:\.\d+)?/g) || [];
+      for (let j = 0; j < nums.length; j += 1) {
+        const n = Number(String(nums[j]).replace(/,/g, ""));
+        if (!isFinite(n)) continue;
+        if (small ? (n > 0 && n < 100) : n >= 100) return n;
+      }
+    }
+    return null;
+  }
+
+  /* 일봉 120개 — 기술 스냅샷이 없을 때만 채우는 값(실측 종가·고저만 사용) */
+  function taBarsCalc(pack) {
+    if (!pack || !pack.bars || pack.bars.length < 21) return null;
+    const bars = pack.bars, n = bars.length, cl = bars.map((b) => b[3]);
+    const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    const ma = (k) => (n >= k ? avg(cl.slice(-k)) : null);
+    let ag = 0, al = 0, tr = 0;
+    for (let i = n - 14; i < n; i += 1) {
+      const d = cl[i] - cl[i - 1];
+      if (d > 0) ag += d; else al -= d;
+      const pc = cl[i - 1], h = bars[i][1], l = bars[i][2];
+      tr += Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+    }
+    const m20 = ma(20);
+    const sd = m20 ? Math.sqrt(avg(cl.slice(-20).map((c) => (c - m20) * (c - m20)))) : null;
+    return {
+      ma5: ma(5), ma20: m20, ma60: ma(60),
+      rsi: (ag + al) ? Math.round(ag / (ag + al) * 1000) / 10 : null,
+      atr: Math.round(tr / 14 / cl[n - 1] * 1000) / 10,
+      atrWon: Math.round(tr / 14),
+      pb: sd ? Math.round((cl[n - 1] - (m20 - 2 * sd)) / (4 * sd) * 100) : null,
+      hi20: Math.max.apply(null, bars.slice(-20).map((b) => b[1])),
+      lo20: Math.min.apply(null, bars.slice(-20).map((b) => b[2])),
+      ret5: n > 5 ? (cl[n - 1] / cl[n - 6] - 1) * 100 : null
+    };
+  }
+
+  /* 모달 종목 1개 → 시나리오 재료 (값이 없으면 그 항목은 null) */
+  function taScenario(w, report, pack) {
+    if (!w) return null;
+    const bc = taBarsCalc(pack);
+    const bars = pack && pack.bars && pack.bars.length ? pack.bars : null;
+    const last = bars ? bars[bars.length - 1] : null;
+    const price = taNum(w.price) != null ? taNum(w.price) : (last ? last[3] : null);
+    if (!price) return null;
+    const day = (w.day && w.day.high)
+      ? { open: w.day.open, high: Number(w.day.high), low: Number(w.day.low), close: Number(w.day.close) }
+      : (last ? { open: last[0], high: last[1], low: last[2], close: last[3] } : null);
+    const prev = taNum(w.prevClose) != null ? taNum(w.prevClose)
+      : (w.krxClose ? taNum(w.krxClose) : (bars && bars.length > 1 ? bars[bars.length - 2][3] : null));
+
+    const row = taStockRow(report, w.ticker, w.name);
+    const chg = w.chg != null && !isNaN(Number(w.chg)) ? Number(w.chg) : (row ? taNum(row[4]) : null);
+
+    /* 이동평균·지표 — 손으로 기록한 스냅샷이 있으면 그 값을 먼저 쓴다(같은 모달 안 숫자 일치) */
+    const sp20 = taSigPick(w, ["20일선"], false);
+    const sp60 = taSigPick(w, ["60일선"], false);
+    const ma5 = bc ? bc.ma5 : null;
+    const ma20 = sp20 != null ? sp20 : (bc ? bc.ma20 : null);
+    const ma60 = sp60 != null ? sp60 : (bc ? bc.ma60 : null);
+    const rsi = taSigPick(w, ["RSI"], true) != null ? taSigPick(w, ["RSI"], true) : (bc ? bc.rsi : null);
+    const pb = taSigPick(w, ["볼린저"], true) != null ? taSigPick(w, ["볼린저"], true) : (bc ? bc.pb : null);
+    const atrPct = taSigPick(w, ["ATR"], true) != null ? taSigPick(w, ["ATR"], true) : (bc ? bc.atr : null);
+
+    const t = w.technical || {};
+    const kl = t.keyLevels || {};
+    let sup = taLevelList(t.support || kl.support).filter((x) => x.v < price * 0.999).sort((a, b) => b.v - a.v);
+    let res = taLevelList(t.resistance || kl.resistance).filter((x) => x.v > price * 1.001).sort((a, b) => a.v - b.v);
+    if (bc) {
+      const add = (arr, v, label) => {
+        if (!v || isNaN(v)) return;
+        if (arr.some((x) => Math.abs(x.v - v) / v < 0.003)) return;
+        arr.push({ v: Math.round(v), label: label });
+      };
+      if (bc.lo20 && bc.lo20 < price * 0.999) add(sup, bc.lo20, "20거래일 저가");
+      if (ma20 && ma20 < price * 0.999) add(sup, ma20, "20일선");
+      if (bc.hi20 && bc.hi20 > price * 1.001) add(res, bc.hi20, "20거래일 고가");
+      if (ma20 && ma20 > price * 1.001) add(res, ma20, "20일선");
+      sup.sort((a, b) => b.v - a.v);
+      res.sort((a, b) => a.v - b.v);
+    }
+
+    /* 지수 대비 상대강도 · 외인·기관 연속 */
+    const mk = (w.market || (row ? row[2] : "")) === "KOSDAQ" ? "코스닥" : "코스피";
+    const idx = ((report && report.indices) || []).find((x) => x.name === mk) || null;
+    const idxChg = idx && !sNull(idx.chg) ? Number(idx.chg) : null;
+    const s = streakOf(report, w.name, w.ticker ? String(w.ticker) : "");
+
+    const gap20 = ma20 ? (price / ma20 - 1) * 100 : null;
+    const gap60 = ma60 ? (price / ma60 - 1) * 100 : null;
+    const fromHigh = day && day.high ? (price / day.high - 1) * 100 : null;
+    const stack = (ma5 && ma20 && ma60)
+      ? (ma5 > ma20 && ma20 > ma60 ? "up" : (ma5 < ma20 && ma20 < ma60 ? "down" : "mix")) : null;
+
+    /* 지금 자리 — 확인된 배치(이동평균 배열·20일선 괴리·최근 5일)만으로 고른다 */
+    let label;
+    if (bc && bc.ret5 != null && bc.ret5 >= 8 && fromHigh != null && fromHigh <= -1.5) label = "급등 뒤 차익실현 눌림";
+    else if (stack === "up" && gap20 != null && gap20 >= 0) label = (bc && bc.hi20 && price >= bc.hi20 * 0.995) ? "정배열 · 20일 고가 돌파 시도" : "정배열 상승 추세";
+    else if (stack === "up") label = "정배열 꺾임 · 20일선 이탈";
+    else if (stack === "down" && chg != null && chg > 0 && ma5 && price >= ma5) label = "역배열 반등 시도 · 5일선 회복";
+    else if (stack === "down") label = "역배열 이탈 지속";
+    else if (gap20 != null) label = Math.abs(gap20) <= 2 ? "20일선 공방" : (gap20 > 0 ? "20일선 위 강세" : "20일선 아래 조정");
+    else label = chg != null && chg > 0 ? "상승 출발" : (chg != null && chg < 0 ? "하락 출발" : "보합");
+
+    return {
+      price: price, chg: chg, day: day, prev: prev,
+      ma5: ma5, ma20: ma20, ma60: ma60, gap20: gap20, gap60: gap60,
+      rsi: rsi, pb: pb, atrPct: atrPct, atrWon: atrPct != null ? price * atrPct / 100 : null,
+      hi20: bc ? bc.hi20 : null, lo20: bc ? bc.lo20 : null, ret5: bc ? bc.ret5 : null,
+      indexName: mk, indexChg: idxChg, rs: (chg != null && idxChg != null) ? chg - idxChg : null,
+      frgn: s ? Number(s.frgnStreak) || 0 : null, inst: s ? Number(s.instStreak) || 0 : null,
+      sup: sup, res: res, turnover: w.turnover || "", label: label
+    };
+  }
+
+  /* 시나리오 → 화면 (390px에서 라벨+가격 한 줄, 근거는 아래 줄) */
+  function taScenarioHTML(w, report, pack) {
+    const S = taScenario(w, report, pack);
+    if (!S) return "";
+    const won = (v) => (v == null || isNaN(v) ? "—" : Number(Math.round(v)).toLocaleString("ko-KR") + "원");
+    const pcT = (v) => (v == null || isNaN(v) ? "—" : (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(v).toFixed(1) + "%");
+    const boldT = (v) => '<b>' + pcT(v) + "</b>";
+    const lvT = (x) => "<b>" + won(x.v) + "</b>" + (x.label ? "(" + esc(x.label) + ")" : "");
+    const sup1 = S.sup[0] || null, res1 = S.res[0] || null, res2 = S.res[1] || null;
+
+    /* 1) 지금 자리 */
+    const l1 = [];
+    if (S.ma20 != null && S.gap20 != null) l1.push("20일선 " + won(S.ma20) + " " + boldT(S.gap20));
+    if (S.ma60 != null && S.gap60 != null) l1.push("60일선 " + won(S.ma60) + " " + boldT(S.gap60));
+    if (S.ma5 != null) l1.push("5일선 " + won(S.ma5) + (S.price >= S.ma5 ? " 위" : " 아래"));
+    const l2 = [];
+    if (S.rs != null) {
+      l2.push(esc(S.indexName) + " " + pcT(S.indexChg) + " 대비 <b class=\"" + (S.rs >= 0 ? "up" : "down") + "\">" +
+        (S.rs > 0 ? "+" : "") + S.rs.toFixed(2) + "%p " + (S.rs >= 0 ? "강세" : "약세") + "</b>");
+    }
+    if (S.rsi != null) l2.push("RSI " + Number(S.rsi).toFixed(1) + (S.rsi >= 70 ? " 과열" : S.rsi <= 30 ? " 과매도" : " 중립"));
+    if (S.pb != null) l2.push("%B " + Math.round(S.pb) + (S.pb >= 70 ? " 밴드 상단" : S.pb <= 30 ? " 밴드 하단" : " 밴드 중간"));
+    const streakTxt = (v) => (v > 0 ? v + "일 연속 순매수" : v < 0 ? Math.abs(v) + "일 연속 순매도" : "연속 없음");
+    if (S.frgn != null || S.inst != null) {
+      l2.push("외국인 " + streakTxt(S.frgn || 0) + " · 기관 " + streakTxt(S.inst || 0));
+    }
+    const r1 = '<div class="tsn-row is-now">' +
+        '<div class="tsn-h"><span class="tsn-k">① 지금 자리</span><span class="tsn-p">' + esc(S.label) + "</span></div>" +
+        (l1.length ? '<p class="tsn-l">' + l1.join(" · ") + "</p>" : "") +
+        (l2.length ? '<p class="tsn-l">' + l2.join(" · ") + "</p>" : "") +
+      "</div>";
+
+    /* 2) 돌파 시나리오 — 1차 저항은 당일 고가가 있으면 그쪽이 먼저 */
+    let r2;
+    if (!res1) {
+      r2 = '<div class="tsn-row is-up">' +
+          '<div class="tsn-h"><span class="tsn-k">② 돌파 시</span><span class="tsn-p">대기</span></div>' +
+          '<p class="tsn-l">위쪽 저항 값이 기록에 없습니다 — 20거래일 고가·전고점이 확인되면 채웁니다.</p></div>';
+    } else {
+      const cond = S.turnover ? "거래대금 " + esc(S.turnover) + " 이상 유지" : "거래량 동반";
+      const nxt = res2 ? "다음 " + lvT(res2) : (S.hi20 && S.hi20 > res1.v ? "다음 " + lvT({ v: S.hi20, label: "20거래일 고가" }) : "위쪽에 기록된 다음 저항 없음");
+      r2 = '<div class="tsn-row is-up">' +
+          '<div class="tsn-h"><span class="tsn-k">② 돌파 시</span><span class="tsn-p">' + won(res1.v) + "</span></div>" +
+          '<p class="tsn-l">1차 ' + lvT(res1) + " 넘고 " + cond + " → " + nxt + "</p>" +
+          (S.day && S.day.high ? '<p class="tsn-l">지금 당일 고가 대비 ' + boldT((S.price / S.day.high - 1) * 100) +
+            (S.price >= S.day.high ? " — 고가권 유지" : " — 고가 돌파 전") + "</p>" : "") +
+        "</div>";
+    }
+
+    /* 3) 눌림·대기 — 5일선 → 1차 지지 순서 */
+    let r3;
+    {
+      const near = [];
+      if (S.ma5 != null && S.ma5 < S.price * 0.999) near.push("5일선 " + won(S.ma5));
+      if (sup1) near.push("1차 지지 " + lvT(sup1));
+      const back = (S.ma20 != null && S.ma20 > S.price * 1.001) ? "20일선 " + won(S.ma20) + "은 위 — 회복 전엔 반등으로만 보는 자리"
+        : (res1 ? "1차 저항 " + won(res1.v) + "까지 재도전" : "");
+      r3 = '<div class="tsn-row">' +
+          '<div class="tsn-h"><span class="tsn-k">③ 눌림·대기</span><span class="tsn-p">' + (sup1 ? won(sup1.v) : (S.ma5 ? won(S.ma5) : "대기")) + "</span></div>" +
+          (near.length
+            ? '<p class="tsn-l">' + near.join(" → ") + " 지지 확인 뒤 접근" + (back ? " · " + back : "") + "</p>"
+            : '<p class="tsn-l">지지선 값이 기록에 없습니다 — 일봉 20거래일 저가가 확인되면 채웁니다.</p>') +
+        "</div>";
+    }
+
+    /* 4) 이탈·손절 기준선 — 가장 가까운 아래 선(당일 저가·전일 종가·1차 지지) */
+    let r4;
+    {
+      const cand = [];
+      if (S.day && S.day.low && S.day.low < S.price) cand.push({ v: S.day.low, label: "당일 저가" });
+      if (S.prev && S.prev < S.price) cand.push({ v: S.prev, label: "전일 종가" });
+      if (sup1) cand.push({ v: sup1.v, label: sup1.label || "1차 지지" });
+      cand.sort((a, b) => b.v - a.v);
+      const stop = cand[0] || null;
+      const lines = [];
+      if (stop) {
+        lines.push("<b>" + won(stop.v) + "</b>(" + esc(stop.label) + ") 이탈 시 단기 수급 종료");
+      } else {
+        lines.push("아래 지지·전일 종가 값이 기록에 없습니다 — 대기");
+      }
+      if (S.atrPct != null) {
+        lines.push("ATR " + Number(S.atrPct).toFixed(2) + "% ≈ ±" + (S.atrWon != null ? won(S.atrWon) : "—") +
+          " — 이 폭 넘는 음봉이면 기준선 재확인");
+      }
+      const sup2 = S.sup[1] || null;
+      if (stop && sup1 && sup2 && sup2.v < stop.v && Math.abs(sup1.v - stop.v) / sup1.v < 0.003) {
+        lines.push("그 아래 <b>" + won(sup2.v) + "</b>" + (sup2.label ? "(" + esc(sup2.label) + ")" : "") + "까지 지지 공백");
+      }
+      if (S.ma20 != null && S.ma20 < S.price * 0.999 && Math.abs(S.ma20 - (stop ? stop.v : 0)) / S.ma20 > 0.01) {
+        lines.push("20일선 " + won(S.ma20) + " 이탈이면 추세 자체 훼손");
+      }
+      r4 = '<div class="tsn-row is-dn">' +
+          '<div class="tsn-h"><span class="tsn-k">④ 이탈·손절</span><span class="tsn-p">' + (stop ? won(stop.v) : "대기") + "</span></div>" +
+          lines.map((x) => '<p class="tsn-l">' + x + "</p>").join("") +
+        "</div>";
+    }
+
+    return '<div class="tsn-sec">' +
+        '<div class="tsn-top">' +
+          '<span class="tsn-badge">📖 대응 시나리오 (공부용)</span>' +
+          '<span class="tsn-now">' + esc(w.price ? String(w.price).replace(/원$/, "") + "원" : won(S.price)) +
+            (S.chg == null ? "" : '<span class="chg ' + dir(S.chg) + '">' + pct(S.chg) + "</span>") + "</span>" +
+        "</div>" +
+        '<div class="tsn-rows">' + r1 + r2 + r3 + r4 + "</div>" +
+        '<p class="tsn-note">모달의 실측값(지표 스냅샷 · 지지·저항 · 일봉 120개 · 지수 등락)만으로 계산한 공부용 프레임입니다. ' +
+          "기록이 없는 값은 추정하지 않고 대기로 둡니다. 매수·매도 추천 아닙니다.</p>" +
+      "</div>";
+  }
+
   /* ---- 그 밖 종목: data.json 실측값 + 일봉 자동 계산 ---- */
   function taAutoTextHTML(w, report, pack) {
     const st = pack ? barsStats(pack) : null;
@@ -7148,6 +7430,7 @@ const REPORT_DATA = [
         { title: barDate(st.lastDate) + " 일봉 범위", close: "종가" });
     }
     h += taChecksHTML(w, report);
+    h += taScenarioHTML(w, report, pack);
     h += scanBlockHTML(scanOf(report, w), report);
 
     h += '<div class="ta-sec">' +
