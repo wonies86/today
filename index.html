@@ -2580,6 +2580,9 @@
   #viewSimple .scan-count, #viewDetail .scan-count{font-size:10px;padding:2px 6px}
 }
 
+/* 심플·상세 뷰 하단의 조건식(스캐너) 패널은 상단 `조건식` 탭으로 일원화 — 2026-11-27 중복 제거 */
+#scanPanel,#scanHostSimple,#scanHostDetail{display:none !important}
+
 /* ============================================================
    조건식 관리 페이지 (#viewScanner) — 상단 `조건식` 탭
    · data.json scanners[] (없으면 conditionHits/conditionScan 으로 폴백)
