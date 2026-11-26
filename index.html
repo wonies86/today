@@ -7456,7 +7456,9 @@ const REPORT_DATA = [
         body += '<p class="tsn-l">' + (pool
           ? "수집 대상(" + pool + "종목) 외 — 아래 ‘종목 바로묻기’ 또는 네이버 뉴스에서 확인"
           : "이 날짜에는 종목 뉴스 수집 기록이 없습니다 — 네이버 뉴스에서 확인") + "</p>";
-        if (navUrl) body += '<a class="tsn-link" href="' + esc(navUrl) +
+      }
+      if (!items.length && navUrl) {
+        body += '<a class="tsn-link" href="' + esc(navUrl) +
           '" target="_blank" rel="noopener noreferrer">네이버 금융 뉴스 열기 ↗</a>';
       }
       r5 = '<div class="tsn-row is-why">' +
