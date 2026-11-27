@@ -3902,7 +3902,7 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
     <button type="button" class="ta-x" id="scRawClose" aria-label="원본 조건식 닫기">✕</button>
   </div>
   <div class="raw-scroll" id="scRawBody"></div>
-  <div class="raw-foot">영웅문 원문 그대로입니다 · 대시보드 계산은 같은 조건을 일봉 120거래일 실측값으로 재현합니다.</div>
+  <div class="raw-foot" id="scRawFoot">영웅문 원문 그대로입니다 · 대시보드 계산은 같은 조건을 일봉 120거래일 실측값으로 재현합니다.</div>
 </dialog>
 
 <!-- ======================= 날짜 선택 달력 (상단 날짜 버튼) ======================= -->
@@ -12577,7 +12577,7 @@ const REPORT_DATA = [
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🎯 주도돌파 100점</h4>' +
         '<span class="ta-tag">' + esc(item.scoreDetail || "") + '</span></div>' +
       '<div class="ta-score-top"><span class="num">' + Math.round(item.score) +
-        '<i>점</i><b>/100</b></span><span class="cap">정배열 상승 추세 · 지수 대비 강세를<br>' +
+        '<i>점</i><b>/100</b></span><span class="cap">정배열 상승 추세 · 지수 대비 강세를 <br>' +
         '세부 배점으로 나눈 점수입니다</span></div>' +
       '<div class="ta-blocks">' + rows.join("") + "</div>" +
       '<p class="ta-note">점수는 일봉 실측값만으로 계산합니다(추정·보정 없음). D+1 승률은 이 종목의 ' +
@@ -13016,6 +13016,13 @@ const REPORT_DATA = [
     const raw = scannerRawOf(cur);
     if (title) title.textContent = (cur && cur.name) || "조건식";
     if (src) src.textContent = raw.source;
+    /* 하단 문구 — 영웅문 원문인지 시루 자체 조건식인지에 따라 다르다 */
+    const foot = $("#scRawFoot");
+    if (foot) {
+      foot.textContent = /시루/.test(raw.source)
+        ? "시루 자체 조건식입니다 · 대시보드 계산은 같은 조건을 일봉 실측값으로 재현합니다(점수는 100점 만점)."
+        : "영웅문 원문 그대로입니다 · 대시보드 계산은 같은 조건을 일봉 120거래일 실측값으로 재현합니다.";
+    }
     if (!body) return;
     if (!(raw.rules || []).length && !raw.formula) {
       body.innerHTML = '<p class="raw-note">이 기록에는 원본 조건식 문구가 없습니다. ' +
