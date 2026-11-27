@@ -9,7 +9,7 @@
   try {
     var m = localStorage.getItem("kr_dash_mode");
     document.documentElement.setAttribute("data-mode",
-      m === "detail" || m === "scanner" ? m : "simple");
+      m === "detail" || m === "scanner" || m === "portfolio" ? m : "simple");
   } catch (e) {
     document.documentElement.setAttribute("data-mode", "simple");
   }
@@ -3484,6 +3484,213 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   .theme-btn .ic-moon{display:block}
   html[data-theme="dark"] .theme-btn .ic-sun{display:block}
   html[data-theme="dark"] .theme-btn .ic-moon{display:none}
+
+  /* ============================================================
+     내 종목 (portfolio) — 개인 매매 기록 · 수익 인증
+     · 저장은 이 브라우저 localStorage 에만 — 서버·GitHub 전송 없음
+     · 색은 토큰만 쓴다 (라이트·다크 공통)
+     ============================================================ */
+  html[data-mode="portfolio"] #viewSimple,
+  html[data-mode="portfolio"] #viewDetail,
+  html[data-mode="portfolio"] #viewScanner{display:none !important}
+  html[data-mode="simple"] #viewPortfolio,
+  html[data-mode="detail"] #viewPortfolio,
+  html[data-mode="scanner"] #viewPortfolio{display:none !important}
+  #viewPortfolio[hidden]{display:none !important}
+  html[data-mode="portfolio"] #issueBar{display:none !important}
+  body.mode-portfolio .topbar .tabs,
+  body.mode-portfolio .datenav{display:none}
+  body.mode-portfolio .wrap{padding-bottom:28px}
+
+  #viewPortfolio{display:block;max-width:600px;margin:0 auto;padding:14px 0 4px}
+  .pf-head{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:0 2px 11px}
+  .pf-head-main{flex:1 1 150px;min-width:0}
+  .pf-eyebrow{display:inline-block;font-size:9.5px;font-weight:850;letter-spacing:.04em;
+    color:var(--violet);background:var(--violet-soft);border-radius:5px;padding:2px 6px}
+  .pf-h1{margin:6px 0 0;font-size:17px;font-weight:850;letter-spacing:-.035em;line-height:1.25}
+  .pf-sub{margin:4px 0 0;font-size:10.5px;font-weight:600;color:var(--mute);line-height:1.45}
+  .pf-head-sub{margin:-4px 2px 11px;font-size:10px}
+  .pf-sub b{color:var(--ink-2);font-weight:800}
+  .pf-tools{display:flex;gap:5px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;padding-top:1px}
+  .pf-btn{appearance:none;display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;
+    letter-spacing:-.01em;color:var(--ink-2);background:var(--card);border:1px solid var(--line-3);
+    border-radius:999px;padding:5px 10px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;
+    transition:background .15s ease,color .15s ease,border-color .15s ease}
+  .pf-btn:hover{color:var(--ink);border-color:var(--mute)}
+  .pf-btn[aria-pressed="true"]{background:var(--violet-soft);border-color:var(--violet);color:var(--violet)}
+  .pf-btn-key{color:var(--violet);background:var(--violet-soft);border-color:var(--violet-soft)}
+  .pf-btn-key:hover{color:var(--violet-2);border-color:var(--violet)}
+  .pf-btn:focus-visible,.pf-tool:focus-visible,.pf-inp:focus-visible,.pf-primary:focus-visible,
+  .pf-ghost:focus-visible,.pf-addbtn:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+
+  .pf-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:12px;margin-bottom:10px}
+  .pf-sum-main{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap}
+  .pf-sum-label{font-size:10px;font-weight:800;color:var(--mute);letter-spacing:.01em;padding-bottom:3px}
+  .pf-sum-big{font-size:26px;font-weight:900;letter-spacing:-.045em;line-height:1.05;
+    font-variant-numeric:tabular-nums}
+  .pf-sum-pct{font-size:13px;font-weight:850;font-variant-numeric:tabular-nums;padding-bottom:3px}
+  .pf-sum-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:11px;
+    padding-top:10px;border-top:1px solid var(--line-2)}
+  .pf-cell{min-width:0}
+  .pf-cell .k{display:block;font-size:9.5px;font-weight:750;color:var(--mute);white-space:nowrap}
+  .pf-cell .v{display:block;margin-top:2px;font-size:12px;font-weight:800;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pf-sum-jr{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line-2);
+    font-size:10.5px;font-weight:650;color:var(--ink-2);line-height:1.55}
+  .pf-sum-jr b{font-weight:850;color:var(--ink)}
+  .pf-sum-jr .t{font-size:10px;font-weight:800;color:var(--mute);margin-right:4px}
+
+  .pf-sec{margin-top:14px}
+  .pf-sechead{display:flex;align-items:center;gap:7px;margin:0 2px 7px;flex-wrap:wrap}
+  .pf-sechead h2{margin:0;font-size:13px;font-weight:850;letter-spacing:-.03em}
+  .pf-sechead .n{font-size:10px;font-weight:800;color:var(--mute);background:var(--slate-soft);
+    border-radius:999px;padding:1px 7px}
+  .pf-headtools{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  .pf-tool{appearance:none;font-size:9.5px;font-weight:800;color:var(--ink-2);background:var(--card);
+    border:1px solid var(--line);border-radius:999px;padding:4px 8px;cursor:pointer;white-space:nowrap;
+    -webkit-tap-highlight-color:transparent}
+  .pf-tool:hover{border-color:var(--line-3);color:var(--ink)}
+  .pf-tool.danger{color:var(--rose);border-color:var(--rose-soft)}
+
+  .pf-row{background:var(--card);border:1px solid var(--line);border-radius:13px;
+    box-shadow:var(--shadow);padding:11px 12px;margin-bottom:8px}
+  .pf-row-top{display:flex;align-items:flex-start;gap:8px}
+  .pf-name{appearance:none;flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;
+    background:transparent;border:0;padding:0;text-align:left;cursor:pointer;color:var(--ink);
+    font-size:13.5px;font-weight:850;letter-spacing:-.02em;line-height:1.3}
+  .pf-name em{font-style:normal;font-size:9.5px;font-weight:700;color:var(--mute);letter-spacing:0}
+  .pf-name:hover{color:var(--violet)}
+  .pf-ret{flex:0 0 auto;text-align:right;font-size:15px;font-weight:900;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;line-height:1.2}
+  .pf-ret small{display:block;font-size:9.5px;font-weight:750;color:var(--mute);letter-spacing:0;margin-top:1px}
+  .pf-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px}
+  .pf-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:850;
+    border-radius:999px;padding:2px 7px;border:1px solid transparent}
+  .pf-badge.hit{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-soft)}
+  .pf-badge.cut{color:var(--down);background:var(--down-soft);border-color:var(--down-soft)}
+  .pf-badge.quiet{color:var(--ink-2);background:var(--slate-soft);border-color:var(--slate-soft)}
+  .pf-nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin-top:8px}
+  .pf-nums span{display:flex;justify-content:space-between;gap:6px;min-width:0;
+    font-size:10.5px;font-weight:750;color:var(--ink-2);line-height:1.45}
+  .pf-nums span b{flex:0 0 auto;font-weight:700;color:var(--mute)}
+  .pf-nums span i{font-style:normal;font-variant-numeric:tabular-nums;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .pf-track{position:relative;height:5px;margin:10px 0 6px;border-radius:999px;background:var(--line-2)}
+  .pf-track .mid{position:absolute;top:-2px;bottom:-2px;left:50%;width:2px;margin-left:-1px;
+    border-radius:1px;background:var(--line-3)}
+  .pf-track .dot{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
+    background:var(--violet);box-shadow:0 0 0 2px var(--card)}
+  .pf-ticks{display:flex;justify-content:space-between;gap:6px;font-size:9.5px;font-weight:750;color:var(--mute)}
+  .pf-ticks i{font-style:normal;font-variant-numeric:tabular-nums}
+  .pf-ticks .r{text-align:right}
+  .pf-row-foot{display:flex;align-items:center;gap:6px;margin-top:9px;padding-top:8px;
+    border-top:1px solid var(--line-2);flex-wrap:wrap}
+  .pf-reason{flex:1 1 90px;min-width:0;font-size:10px;font-weight:650;color:var(--mute);line-height:1.45;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .pf-row-btns{display:flex;gap:4px;flex:0 0 auto;margin-left:auto}
+  .pf-act{appearance:none;font-size:9.5px;font-weight:800;color:var(--ink-2);background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:8px;padding:4px 8px;cursor:pointer;white-space:nowrap}
+  .pf-act:hover{color:var(--violet);border-color:var(--violet-soft);background:var(--violet-soft)}
+  .pf-act.danger:hover{color:var(--rose);border-color:var(--rose-soft);background:var(--rose-soft)}
+
+  .pf-inline{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-2)}
+  .pf-inline-head{font-size:10px;font-weight:850;color:var(--ink-2);margin-bottom:6px}
+  .pf-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .pf-field{display:flex;flex-direction:column;gap:3px;min-width:0;position:relative}
+  .pf-field>span{font-size:9.5px;font-weight:800;color:var(--mute)}
+  .pf-field>span em{font-style:normal;font-weight:700;opacity:.75}
+  .pf-field-wide{grid-column:1 / -1}
+  .pf-inp{appearance:none;width:100%;min-width:0;font-family:inherit;font-size:12px;font-weight:750;
+    color:var(--ink);background:var(--bg-soft);border:1px solid var(--line);border-radius:9px;
+    padding:7px 9px;line-height:1.3;-webkit-appearance:none}
+  .pf-inp::placeholder{color:var(--mute);font-weight:600}
+  .pf-inp:focus{border-color:var(--violet)}
+  .pf-preview{margin:7px 0 0;font-size:10px;font-weight:700;color:var(--ink-2);line-height:1.5}
+  .pf-preview b{font-weight:850;color:var(--ink);font-variant-numeric:tabular-nums}
+  .pf-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .pf-primary{appearance:none;font-family:inherit;font-size:11.5px;font-weight:850;color:#fff;
+    background:var(--violet);border:1px solid var(--violet);border-radius:9px;padding:7px 13px;cursor:pointer}
+  html[data-theme="dark"] .pf-primary{color:#141022}
+  .pf-primary:hover{filter:brightness(1.06)}
+  .pf-ghost{appearance:none;font-family:inherit;font-size:11.5px;font-weight:800;color:var(--ink-2);
+    background:transparent;border:1px solid var(--line-3);border-radius:9px;padding:7px 11px;cursor:pointer}
+  .pf-ghost:hover{color:var(--ink);border-color:var(--mute)}
+  .pf-err{margin:7px 0 0;font-size:10.5px;font-weight:750;color:var(--rose);line-height:1.45}
+  .pf-hint{margin:6px 0 0;font-size:9.5px;font-weight:650;color:var(--mute);line-height:1.5}
+
+  .pf-addbtn{appearance:none;width:100%;text-align:left;background:transparent;border:0;padding:2px 0;
+    color:var(--violet);font-family:inherit;font-size:12px;font-weight:850;cursor:pointer}
+  .pf-addbtn:hover{color:var(--violet-2)}
+  .pf-form{margin-top:10px;display:grid;gap:7px}
+  .pf-form[hidden]{display:none}
+  .pf-sug{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:8;background:var(--card);
+    border:1px solid var(--line-3);border-radius:10px;box-shadow:var(--shadow-2);max-height:184px;overflow:auto}
+  .pf-sug[hidden]{display:none}
+  .pf-sug button{display:flex;align-items:baseline;gap:6px;width:100%;text-align:left;background:transparent;
+    border:0;border-top:1px solid var(--line-2);padding:7px 9px;font-family:inherit;font-size:11.5px;
+    font-weight:800;color:var(--ink);cursor:pointer}
+  .pf-sug button:first-child{border-top:0}
+  .pf-sug button:hover,.pf-sug button:focus{background:var(--violet-soft)}
+  .pf-sug button em{font-style:normal;margin-left:auto;font-size:9.5px;font-weight:700;color:var(--mute);white-space:nowrap}
+  .pf-fee-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pf-check{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:750;color:var(--ink-2);cursor:pointer}
+  .pf-check input{appearance:none;width:15px;height:15px;flex:0 0 auto;margin:0;border:1px solid var(--line-3);
+    border-radius:4px;background:var(--bg-soft);cursor:pointer;position:relative}
+  .pf-check input:checked{background:var(--violet);border-color:var(--violet)}
+  .pf-check input:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:900;color:#fff}
+  html[data-theme="dark"] .pf-check input:checked::after{color:#141022}
+  .pf-cfgbtn{appearance:none;margin-left:auto;font-size:9.5px;font-weight:800;color:var(--mute);
+    background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 8px;cursor:pointer}
+  .pf-cfgbtn:hover{color:var(--ink);border-color:var(--line-3)}
+  .pf-cfg{margin-top:2px;padding:9px;border:1px solid var(--line-2);border-radius:11px;background:var(--bg-soft);
+    display:grid;gap:6px}
+  .pf-cfg[hidden]{display:none}
+
+  .pf-jrow{display:flex;align-items:flex-start;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:10px 11px;margin-bottom:7px;box-shadow:var(--shadow)}
+  .pf-jmain{flex:1 1 auto;min-width:0}
+  .pf-jname{font-size:12px;font-weight:850;letter-spacing:-.02em;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .pf-jname em{font-style:normal;font-size:9px;font-weight:800;color:var(--teal);background:var(--teal-soft);
+    border-radius:4px;padding:1px 5px}
+  .pf-jline{margin-top:3px;font-size:10px;font-weight:700;color:var(--ink-2);line-height:1.5}
+  .pf-jline b{font-weight:850;color:var(--ink);font-variant-numeric:tabular-nums}
+  .pf-jpct{flex:0 0 auto;text-align:right;font-size:12.5px;font-weight:900;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;line-height:1.25}
+  .pf-jpct small{display:block;font-size:9.5px;font-weight:750;color:var(--mute);margin-top:1px}
+  .pf-jdel{appearance:none;flex:0 0 auto;background:transparent;border:0;color:var(--mute);
+    font-size:11px;padding:2px 4px;cursor:pointer;line-height:1}
+  .pf-jdel:hover{color:var(--rose)}
+  .pf-empty{padding:14px 10px;text-align:center;font-size:11px;font-weight:650;color:var(--mute);
+    line-height:1.6;background:var(--bg-soft);border:1px dashed var(--line);border-radius:12px}
+  .pf-fine{margin:12px 0 0;font-size:9.5px;font-weight:600;color:var(--mute);line-height:1.55;text-align:center}
+
+  .pf-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:70;max-width:calc(100vw - 32px);
+    background:var(--ink);color:var(--bg);font-size:11.5px;font-weight:800;line-height:1.4;
+    padding:8px 14px;border-radius:999px;box-shadow:var(--shadow-2);text-align:center}
+  .pf-toast[hidden]{display:none}
+
+  .pf-shotdlg{width:min(420px,calc(100vw - 20px));max-height:94vh;padding:0;border:1px solid var(--line-3);
+    border-radius:18px;background:var(--card);color:var(--ink);overflow:hidden}
+  .pf-shotdlg::backdrop{background:rgba(4,7,12,.78)}
+  .pf-shotbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .pf-shotbar b{font-size:12px;font-weight:850;letter-spacing:-.02em}
+  .pf-shotx{appearance:none;margin-left:auto;width:26px;height:26px;display:inline-flex;align-items:center;
+    justify-content:center;background:var(--bg-soft);color:var(--ink-2);border:1px solid var(--line);
+    border-radius:999px;font-size:12px;cursor:pointer}
+  .pf-shotbody{padding:10px;background:var(--bg-soft);max-height:calc(94vh - 116px);overflow:auto}
+  .pf-shotbody img{display:block;width:100%;height:auto;border-radius:12px;box-shadow:var(--shadow)}
+  .pf-shotfoot{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .pf-shotfoot span{font-size:9.5px;font-weight:650;color:var(--mute);line-height:1.4}
+
+  @media (max-width:640px){
+    /* 내 종목 탭이 하나 늘어도 상단 줄이 넘치지 않게 */
+    .mode-toggle button{padding:4px 6px;font-size:10px}
+    .pf-tools{gap:4px}
+    .pf-btn{padding:5px 8px;font-size:10px}
+    .pf-sum-big{font-size:24px}
+  }
 </style>
 </head>
 <body>
@@ -3500,6 +3707,7 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <button type="button" role="tab" data-mode="simple" aria-selected="true">심플</button>
         <button type="button" role="tab" data-mode="detail" aria-selected="false">상세</button>
         <button type="button" role="tab" data-mode="scanner" aria-selected="false">조건식</button>
+        <button type="button" role="tab" data-mode="portfolio" aria-selected="false">내 종목</button>
       </div>
       <div class="datenav">
         <button type="button" class="datearrow" id="datePrev" aria-label="이전 기록 날짜" title="이전 기록 날짜">‹</button>
@@ -3821,7 +4029,120 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
     </div>
   </main>
 
+  <!-- ======================= 내 종목 (개인 매매 기록 · 수익 인증) =======================
+       · 보유·매매 일지·수수료 설정은 이 브라우저 localStorage 에만 저장한다(GitHub 전송 없음)
+       · 현재가는 data.json 최신 기록(allStocks)의 실제 시세만 쓴다 — 추정가 없음
+       · `금액 가림`을 켜면 수량·금액(원)을 지우고 수익률·단가·날짜·근거만 남긴다
+       =================================================================================== -->
+  <main id="viewPortfolio" aria-label="내 종목 관리" hidden>
+    <div class="pf-head">
+      <div class="pf-head-main">
+        <span class="pf-eyebrow">내 종목</span>
+        <h1 class="pf-h1">매매 기록과 수익 인증</h1>
+      </div>
+      <div class="pf-tools">
+        <button type="button" class="pf-btn" id="pfMaskBtn" aria-pressed="false"
+                title="수량·금액을 숨기고 수익률만 남깁니다">👁️ 금액 가림</button>
+        <button type="button" class="pf-btn pf-btn-key" id="pfShotBtn"
+                title="금액 가림 상태 그대로 인증 카드 PNG를 만듭니다">📸 인증 캡처</button>
+      </div>
+    </div>
+    <p class="pf-sub pf-head-sub">기록은 이 브라우저에만 저장 · 시세 <b id="pfStamp">—</b></p>
+
+    <!-- 요약 (보유 + 매매 일지) -->
+    <section class="pf-card" id="pfSummary" aria-label="내 종목 요약"></section>
+
+    <!-- 매수 기록 추가 -->
+    <section class="pf-card" aria-label="매수 기록 추가">
+      <button type="button" class="pf-addbtn" id="pfAddToggle" aria-expanded="false">＋ 매수 기록 추가</button>
+      <form class="pf-form" id="pfAddForm" autocomplete="off" novalidate hidden>
+        <label class="pf-field pf-field-wide">
+          <span>종목명 / 코드</span>
+          <input class="pf-inp" id="pfName" type="text" placeholder="예: 삼성전자 또는 005930"
+                 enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="pfSug">
+          <div class="pf-sug" id="pfSug" role="listbox" hidden></div>
+        </label>
+        <div class="pf-grid2">
+          <label class="pf-field"><span>매수가</span>
+            <input class="pf-inp" id="pfBuy" type="text" inputmode="decimal" placeholder="0"></label>
+          <label class="pf-field"><span>수량</span>
+            <input class="pf-inp" id="pfQty" type="text" inputmode="numeric" placeholder="0"></label>
+          <label class="pf-field"><span>목표가 <em>선택</em></span>
+            <input class="pf-inp" id="pfTarget" type="text" inputmode="decimal" placeholder="—"></label>
+          <label class="pf-field"><span>손절가 <em>선택</em></span>
+            <input class="pf-inp" id="pfStop" type="text" inputmode="decimal" placeholder="—"></label>
+        </div>
+        <label class="pf-field"><span>매수 근거 <em>선택</em></span>
+          <input class="pf-inp" id="pfReason" type="text" placeholder="예: 주도돌파 78점"></label>
+        <div class="pf-fee-row">
+          <label class="pf-check"><input type="checkbox" id="pfAuto" checked><span>키움 수수료·세금 자동 반영</span></label>
+          <button type="button" class="pf-cfgbtn" id="pfCfgToggle" aria-expanded="false">⚙ 수수료 설정</button>
+        </div>
+        <div class="pf-cfg" id="pfCfg" hidden>
+          <div class="pf-grid2">
+            <label class="pf-field"><span>매수 수수료 %</span>
+              <input class="pf-inp" id="pfFeeBuy" type="text" inputmode="decimal"></label>
+            <label class="pf-field"><span>매도 수수료 %</span>
+              <input class="pf-inp" id="pfFeeSell" type="text" inputmode="decimal"></label>
+            <label class="pf-field"><span>거래세 KOSPI %</span>
+              <input class="pf-inp" id="pfTaxKospi" type="text" inputmode="decimal"></label>
+            <label class="pf-field"><span>거래세 KOSDAQ %</span>
+              <input class="pf-inp" id="pfTaxKosdaq" type="text" inputmode="decimal"></label>
+          </div>
+          <p class="pf-hint" id="pfCfgHint">거래세 0.20%는 키움 실현손익(안랩 20주 160,800→165,600 → 88,427원)과 맞춘 값입니다. 수수료는 계좌 등급마다 달라서 실제 값으로 고쳐 쓰세요.</p>
+        </div>
+        <p class="pf-err" id="pfErr" role="alert" hidden></p>
+        <div class="pf-actions">
+          <button type="submit" class="pf-primary">기록 추가</button>
+          <button type="button" class="pf-ghost" id="pfAddCancel">취소</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 보유 종목 -->
+    <section class="pf-sec" aria-labelledby="pfHoldTitle">
+      <div class="pf-sechead">
+        <h2 id="pfHoldTitle">보유 종목</h2><span class="n" id="pfHoldCount">0</span>
+        <div class="pf-headtools">
+          <button type="button" class="pf-tool" id="pfSample">🧪 예시 채우기</button>
+          <button type="button" class="pf-tool" id="pfBackup">JSON 백업</button>
+          <label class="pf-tool" for="pfRestore" role="button" tabindex="0">불러오기</label>
+          <input type="file" id="pfRestore" accept="application/json,.json" hidden>
+          <button type="button" class="pf-tool danger" id="pfClear">🗑️ 전체 비우기</button>
+        </div>
+      </div>
+      <div class="pf-list" id="pfList"></div>
+    </section>
+
+    <!-- 매매 일지 -->
+    <section class="pf-sec" aria-labelledby="pfJrTitle">
+      <div class="pf-sechead">
+        <h2 id="pfJrTitle">📒 매매 일지</h2><span class="n" id="pfJrCount">0</span>
+      </div>
+      <div class="pf-jlist" id="pfJournal"></div>
+    </section>
+
+    <p class="pf-fine">기록·설정은 이 브라우저(localStorage)에만 남습니다 · 다른 기기와 동기화되지 않습니다<br>
+      매도 시 수수료·거래세는 설정값으로 계산한 예상치입니다 (실제 체결 내역이 아닙니다)</p>
+  </main>
+
 </div>
+
+<!-- ======================= 📸 내 종목 수익 인증 카드 (PNG) ======================= -->
+<dialog class="pf-shotdlg" id="pfShotDlg" aria-label="내 종목 수익 인증 카드">
+  <div class="pf-shotbar">
+    <b>📸 수익 인증 카드</b>
+    <button type="button" class="pf-shotx" id="pfShotClose" aria-label="인증 카드 닫기">✕</button>
+  </div>
+  <div class="pf-shotbody"><img id="pfShotImg" alt="내 종목 수익 인증 카드 이미지"></div>
+  <div class="pf-shotfoot">
+    <button type="button" class="pf-primary" id="pfShotSave">이미지 저장</button>
+    <span>금액 가림 상태가 그대로 담깁니다 · 길게 눌러 저장도 됩니다</span>
+  </div>
+</dialog>
+
+<div class="pf-toast" id="pfToast" role="status" aria-live="polite" hidden></div>
 
 <!-- ======================= 차트 기술적 분석 모달 ======================= -->
 <dialog class="ta-dialog" id="taDialog" aria-labelledby="taTitle">
@@ -11649,8 +11970,8 @@ const REPORT_DATA = [
     syncSimplePanels();
   }
 
-  /* ---------------- 보기 전환 (심플 ↔ 상세 ↔ 조건식) ---------------- */
-  const MODE_ORDER = ["simple", "detail", "scanner"];
+  /* ---------------- 보기 전환 (심플 ↔ 상세 ↔ 조건식 ↔ 내 종목) ---------------- */
+  const MODE_ORDER = ["simple", "detail", "scanner", "portfolio"];
 
   function normMode(mode) {
     return MODE_ORDER.indexOf(mode) >= 0 ? mode : "simple";
@@ -11669,15 +11990,19 @@ const REPORT_DATA = [
     const simple = dashMode === "simple";
     const detail = dashMode === "detail";
     const scanner = dashMode === "scanner";
+    const portfolio = dashMode === "portfolio";
     document.documentElement.setAttribute("data-mode", dashMode);
     document.body.classList.toggle("mode-simple", simple);
     document.body.classList.toggle("mode-scanner", scanner);
+    document.body.classList.toggle("mode-portfolio", portfolio);
     const vs = $("#viewSimple");
     const vd = $("#viewDetail");
     const vc = $("#viewScanner");
+    const vp = $("#viewPortfolio");
     if (vs) vs.hidden = !simple;
     if (vd) vd.hidden = !detail;
     if (vc) vc.hidden = !scanner;
+    if (vp) vp.hidden = !portfolio;
     const t = $("#modeToggle");
     if (t) Array.prototype.forEach.call(t.children, (b) => {
       b.setAttribute("aria-selected", String(b.getAttribute("data-mode") === dashMode));
@@ -13311,6 +13636,7 @@ const REPORT_DATA = [
     renderScan(report);
     renderScanner(report);
     qaRender(report);
+    renderPortfolio(true);
     syncSums(document);
     /* 달력이 열려 있으면 선택·날짜가 바뀐 뒤에도 그리드를 최신 상태로 유지한다 */
     if (calIsOpen()) {
@@ -13337,6 +13663,1041 @@ const REPORT_DATA = [
     });
   }
 
+  /* ============================================================================
+     내 종목 (portfolio) — 개인 매매 기록 · 매매 일지 · 수익 인증 카드
+     ----------------------------------------------------------------------------
+     · 저장은 이 브라우저 localStorage 3키뿐 — 서버·GitHub 로 아무것도 보내지 않는다
+         siru_today_portfolio_v1  {v, positions:[…]}
+         siru_today_journal_v1    {v, trades:[…]}
+         siru_today_pf_cfg_v1     {auto, buyFee, sellFee, taxKospi, taxKosdaq, mask}
+     · 현재가는 data.json 최신 기록(REPORT_DATA[0].allStocks)의 실제 시세만 쓴다
+     · 수수료·세금 기본값 — 매수 0.015% · 매도 0.015% · 거래세 KOSPI/KOSDAQ 0.20%
+       (키움 실현손익 안랩 20주 160,800→165,600 = 총 96,000 − 세금 6,624 − 수수료 ~950 = 88,427 과 맞춘 값)
+     · 금액 가림: 수량·금액을 숨기고 수익률·단가·날짜·근거만 남긴다(스레드 인증용)
+     ========================================================================== */
+  const PF = {
+    K_POS: "siru_today_portfolio_v1",
+    K_JR: "siru_today_journal_v1",
+    K_CFG: "siru_today_pf_cfg_v1",
+    cfg: null, pos: [], jr: [], open: null, pick: null, sug: [], loaded: false, url: ""
+  };
+  const PF_DEF = { auto: true, buyFee: 0.015, sellFee: 0.015, taxKospi: 0.2, taxKosdaq: 0.2, mask: false };
+  const PF_FONT = "'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic','Segoe UI',sans-serif";
+  const PF_C = { bg: "#131926", ink: "#e9eef8", ink2: "#b6c1d5", mute: "#8b97ac", line: "#28303f",
+                 up: "#ff5f7a", down: "#5c9dff", v: "#a78bfa", vsoft: "#211b36", soft: "#1a2130" };
+  let pfToastTimer = 0;
+
+  function pfNum(v) {
+    const n = Number(String(v == null ? "" : v).replace(/[^0-9.\-]/g, ""));
+    return isFinite(n) ? n : 0;
+  }
+  const pfMoney = (n) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
+  const pfSigned = (n) => (n > 0 ? "+" : n < 0 ? "-" : "") + pfMoney(Math.abs(n));
+  const pfId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  function pfPad(n) { return String(n).padStart(2, "0"); }
+  function pfToday(offset) {
+    const d = new Date();
+    if (offset) d.setDate(d.getDate() + offset);
+    return d.getFullYear() + "-" + pfPad(d.getMonth() + 1) + "-" + pfPad(d.getDate());
+  }
+  function pfDateShort(s) {
+    const m = String(s || "").match(/^\d{4}-(\d{2})-(\d{2})$/);
+    return m ? m[1] + "." + m[2] : String(s || "");
+  }
+  function pfFullDate(s) {
+    const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return String(s || "");
+    const dow = dowOfDate(s);
+    return m[1] + "." + m[2] + "." + m[3] + (dow ? " (" + dow + ")" : "");
+  }
+  function pfClamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function pfRate(v, d) {
+    const n = Number(v);
+    return isFinite(n) && n >= 0 && n <= 5 ? Math.round(n * 10000) / 10000 : d;
+  }
+  function pfCfgNorm(raw) {
+    const o = Object.assign({}, PF_DEF, raw && typeof raw === "object" ? raw : {});
+    return {
+      auto: o.auto !== false,
+      buyFee: pfRate(o.buyFee, PF_DEF.buyFee),
+      sellFee: pfRate(o.sellFee, PF_DEF.sellFee),
+      taxKospi: pfRate(o.taxKospi, PF_DEF.taxKospi),
+      taxKosdaq: pfRate(o.taxKosdaq, PF_DEF.taxKosdaq),
+      mask: o.mask === true
+    };
+  }
+  function pfReadJSON(key, fb) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fb;
+    } catch (e) { return fb; }
+  }
+  function pfWriteJSON(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (e) { pfToast("저장공간이 부족해 저장하지 못했습니다"); return false; }
+  }
+  function pfValidPos(p) {
+    return !!(p && String(p.name || "").trim() && pfNum(p.buyPrice) > 0 && pfNum(p.qty) > 0);
+  }
+  function pfPosNorm(p) {
+    return {
+      id: String(p.id || pfId()),
+      name: String(p.name || "").trim().slice(0, 40),
+      code: String(p.code || "").trim().slice(0, 12),
+      market: String(p.market || "").trim().toUpperCase().slice(0, 8),
+      buyPrice: pfNum(p.buyPrice),
+      qty: pfNum(p.qty),
+      target: pfNum(p.target) || 0,
+      stop: pfNum(p.stop) || 0,
+      reason: String(p.reason || "").trim().slice(0, 90),
+      buyDate: /^\d{4}-\d{2}-\d{2}$/.test(String(p.buyDate || "")) ? p.buyDate : pfToday()
+    };
+  }
+  function pfTradeNorm(t) {
+    return {
+      id: String(t.id || pfId()),
+      name: String(t.name || "").trim().slice(0, 40),
+      code: String(t.code || "").trim().slice(0, 12),
+      market: String(t.market || "").trim().toUpperCase().slice(0, 8),
+      buyPrice: pfNum(t.buyPrice),
+      sellPrice: pfNum(t.sellPrice),
+      qty: pfNum(t.qty),
+      buyDate: String(t.buyDate || ""),
+      sellDate: String(t.sellDate || ""),
+      reason: String(t.reason || "").trim().slice(0, 90),
+      feeTax: Math.max(0, pfNum(t.feeTax)),
+      net: Number(t.net) || 0,
+      netPct: Number(t.netPct) || 0
+    };
+  }
+
+  function pfLoad() {
+    PF.cfg = pfCfgNorm(pfReadJSON(PF.K_CFG, null));
+    const p = pfReadJSON(PF.K_POS, null);
+    PF.pos = (p && Array.isArray(p.positions) ? p.positions : []).filter(pfValidPos).map(pfPosNorm);
+    const j = pfReadJSON(PF.K_JR, null);
+    const trades = j && Array.isArray(j.trades) ? j.trades : [];
+    PF.jr = trades.filter(pfValidPos).map(pfTradeNorm);
+    PF.loaded = true;
+  }
+  function pfSavePos() { pfWriteJSON(PF.K_POS, { v: 1, positions: PF.pos }); }
+  function pfSaveJr() { pfWriteJSON(PF.K_JR, { v: 1, trades: PF.jr }); }
+  function pfSaveCfg() { pfWriteJSON(PF.K_CFG, PF.cfg); }
+  function pfSaveAll() { pfSavePos(); pfSaveJr(); pfSaveCfg(); }
+
+  function pfLatestReport() {
+    return REPORT_DATA && REPORT_DATA.length ? REPORT_DATA[0] : null;
+  }
+  /* 최신 기록의 전 종목 시세 인덱스 — 이 화면의 현재가는 여기서만 가져온다 */
+  function pfQuoteIndex() {
+    const rep = pfLatestReport();
+    const byCode = new Map(), byName = new Map();
+    ((rep && rep.allStocks) || []).forEach((r) => {
+      const price = Number(r[3]);
+      if (!isFinite(price) || price <= 0) return;
+      const q = { price: price, chg: r[4] == null ? null : Number(r[4]),
+                  code: String(r[0] || ""), market: String(r[2] || ""), name: String(r[1] || "") };
+      if (q.code) byCode.set(q.code, q);
+      if (q.name) byName.set(q.name, q);
+    });
+    return { byCode: byCode, byName: byName, rep: rep };
+  }
+  function pfFindQuote(p, idx) {
+    if (!p) return null;
+    const code = String(p.code || "").trim();
+    const name = String(p.name || "").trim();
+    return (code && idx.byCode.get(code)) || (name && idx.byName.get(name)) || null;
+  }
+  function pfTaxRate(market) {
+    return String(market || "").toUpperCase() === "KOSDAQ" ? PF.cfg.taxKosdaq : PF.cfg.taxKospi;
+  }
+
+  /* 보유 종목 — 현재가·평가금·세후 손익(매수+매도 수수료와 거래세 반영) */
+  function pfPosCalc(p, idx) {
+    const q = pfFindQuote(p, idx);
+    const cur = q ? q.price : p.buyPrice;
+    const cost = p.buyPrice * p.qty;
+    const evalAmt = cur * p.qty;
+    const auto = PF.cfg.auto;
+    const buyFee = auto ? cost * PF.cfg.buyFee / 100 : 0;
+    const sellFee = auto ? evalAmt * PF.cfg.sellFee / 100 : 0;
+    const tax = auto ? evalAmt * pfTaxRate(p.market) / 100 : 0;
+    const gross = evalAmt - cost;
+    const feeTax = buyFee + sellFee + tax;
+    const net = gross - feeTax;
+    return {
+      p: p, q: q, cur: cur, hasQuote: !!q, cost: cost, evalAmt: evalAmt,
+      buyFee: buyFee, sellFee: sellFee, tax: tax, feeTax: feeTax,
+      gross: gross, net: net, netPct: cost > 0 ? net / cost * 100 : 0
+    };
+  }
+  /* 청산 1건 — 매수·매도 수수료와 거래세를 뺀 순손익 */
+  function pfTradeCalc(t) {
+    const basis = pfNum(t.buyPrice) * pfNum(t.qty);
+    const proceeds = pfNum(t.sellPrice) * pfNum(t.qty);
+    const gross = proceeds - basis;
+    const manual = t.cost != null && isFinite(Number(t.cost)) && Number(t.cost) >= 0;
+    let buyFee = 0, sellFee = 0, tax = 0;
+    if (manual) {
+      buyFee = 0; sellFee = 0; tax = Number(t.cost);   /* 직접 넣은 비용은 수수료+세금 합계로 본다 */
+    } else if (t.auto !== false) {
+      buyFee = basis * (t.buyFee != null ? pfRate(t.buyFee, PF.cfg.buyFee) : PF.cfg.buyFee) / 100;
+      sellFee = proceeds * (t.sellFee != null ? pfRate(t.sellFee, PF.cfg.sellFee) : PF.cfg.sellFee) / 100;
+      tax = proceeds * (t.taxRate != null ? pfRate(t.taxRate, pfTaxRate(t.market)) : pfTaxRate(t.market)) / 100;
+    }
+    const feeTax = buyFee + sellFee + tax;
+    const net = gross - feeTax;
+    return { basis: basis, proceeds: proceeds, gross: gross, buyFee: buyFee, sellFee: sellFee,
+             tax: tax, feeTax: feeTax, net: net, netPct: basis > 0 ? net / basis * 100 : 0 };
+  }
+
+  function pfToast(msg) {
+    const t = $("#pfToast");
+    if (!t) return;
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(pfToastTimer);
+    pfToastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  }
+
+  /* ---------------- 요약 ---------------- */
+  function pfRenderSummary(idx) {
+    const box = $("#pfSummary");
+    if (!box) return;
+    const rows = PF.pos.map((p) => pfPosCalc(p, idx));
+    const cost = rows.reduce((a, r) => a + r.cost, 0);
+    const evalAmt = rows.reduce((a, r) => a + r.evalAmt, 0);
+    const net = rows.reduce((a, r) => a + r.net, 0);
+    const feeTax = rows.reduce((a, r) => a + r.feeTax, 0);
+    const netPct = cost > 0 ? net / cost * 100 : 0;
+    const mask = PF.cfg.mask;
+
+    const jr = PF.jr;
+    const wins = jr.filter((t) => t.net > 0).length;
+    const winRate = jr.length ? wins / jr.length * 100 : 0;
+    const avgPct = jr.length ? jr.reduce((a, t) => a + t.netPct, 0) / jr.length : 0;
+    const realized = jr.reduce((a, t) => a + t.net, 0);
+
+    const big = mask ? pct(netPct) : pfSigned(net) + "원";
+    const bigDir = dir(net);
+    const sub = mask
+      ? "보유 " + rows.length + "종목 · 금액 가림"
+      : pct(netPct) + " · 보유 " + rows.length + "종목";
+
+    let html = '<div class="pf-sum-main">' +
+        '<span class="pf-sum-label">' + (mask ? "총 평가수익률" : "총 평가손익(세후)") + "</span>" +
+        '<span class="pf-sum-big ' + bigDir + '">' + big + "</span>" +
+        '<span class="pf-sum-pct ' + bigDir + '">' + (mask ? "" : pct(netPct)) + "</span>" +
+      "</div>" +
+      '<p class="pf-sub" style="margin-top:5px">' + sub +
+        (mask ? "" : " · 세금·수수료 " + pfMoney(feeTax) + "원 반영") + "</p>" +
+      (mask ? "" :
+      '<div class="pf-sum-grid">' +
+        '<div class="pf-cell"><span class="k">보유 종목</span><span class="v">' + rows.length + "종목</span></div>" +
+        '<div class="pf-cell"><span class="k">총 매입금</span><span class="v">' + pfMoney(cost) + "원</span></div>" +
+        '<div class="pf-cell"><span class="k">총 평가금</span><span class="v">' + pfMoney(evalAmt) + "원</span></div>" +
+      "</div>") +
+      '<div class="pf-sum-jr">' +
+        (jr.length
+          ? '<span class="t">📒 매매 일지</span>청산 <b>' + jr.length + "건</b> · 승률 <b>" + Math.round(winRate) +
+            "%</b> · 평균 <b class='" + dir(avgPct) + "'>" + pct(avgPct) + "</b>" +
+            (mask ? "" : " · 누적 실현 <b class='" + dir(realized) + "'>" + pfSigned(realized) + "원</b>")
+          : '<span class="t">📒 매매 일지</span>아직 없음 · 매도 기록을 남기면 승률·평균 수익률이 쌓입니다') +
+      "</div>";
+    if (!rows.length) {
+      html = '<div class="pf-sum-main"><span class="pf-sum-label">기록된 종목</span>' +
+        '<span class="pf-sum-big flat">0종목</span></div>' +
+        '<p class="pf-sub" style="margin-top:5px">매수 기록을 넣으면 현재가·수익률·손익이 바로 계산됩니다</p>' +
+        (jr.length ? '<div class="pf-sum-jr"><span class="t">📒 매매 일지</span>청산 <b>' + jr.length +
+          "건</b> · 승률 <b>" + Math.round(winRate) + "%</b> · 평균 <b class='" + dir(avgPct) + "'>" + pct(avgPct) + "</b>" +
+          (mask ? "" : " · 누적 실현 <b class='" + dir(realized) + "'>" + pfSigned(realized) + "원</b>") + "</div>" : "");
+    }
+    box.innerHTML = html;
+  }
+
+  /* ---------------- 보유 종목 카드 ---------------- */
+  function pfTrackHTML(p, c) {
+    let lo = 0, hi = 0, loK = "", hiK = "";
+    if (p.target > 0 && p.stop > 0 && p.target > p.stop) {
+      lo = p.stop; hi = p.target; loK = "손절"; hiK = "목표";
+    } else if (p.target > p.buyPrice) {
+      lo = p.buyPrice; hi = p.target; loK = "매수"; hiK = "목표";
+    } else if (p.stop > 0 && p.stop < p.buyPrice) {
+      lo = p.stop; hi = p.buyPrice; loK = "손절"; hiK = "매수";
+    }
+    if (!(hi > lo)) return "";
+    const at = pfClamp((c.cur - lo) / (hi - lo) * 100, 0, 100);
+    const mid = pfClamp((p.buyPrice - lo) / (hi - lo) * 100, 0, 100);
+    return '<div class="pf-track" aria-hidden="true"><span class="mid" style="left:' + mid.toFixed(1) +
+        '%"></span><span class="dot" style="left:' + at.toFixed(1) + '%"></span></div>' +
+      '<div class="pf-ticks"><span>' + loK + " <i>" + pfMoney(lo) + "</i></span>" +
+        '<span class="r">' + hiK + " <i>" + pfMoney(hi) + "</i></span></div>";
+  }
+
+  function pfRowHTML(p, idx) {
+    const c = pfPosCalc(p, idx);
+    const mask = PF.cfg.mask;
+    const meta = [p.code, p.market, pfDateShort(p.buyDate) + " 매수"].filter(Boolean).join(" · ");
+    const badges = [];
+    if (!c.hasQuote) badges.push('<span class="pf-badge quiet">시세 없음 · 매수가 기준</span>');
+    if (p.target > 0 && c.cur >= p.target) badges.push('<span class="pf-badge hit">🎯 목표가 도달</span>');
+    if (p.stop > 0 && c.cur <= p.stop) badges.push('<span class="pf-badge cut">⚠️ 손절선 이탈</span>');
+    if (p.target > 0 && c.cur < p.target && c.cur > 0) {
+      badges.push('<span class="pf-badge quiet">목표까지 ' + pct((p.target / c.cur - 1) * 100) + "</span>");
+    }
+    const nums = '<div class="pf-nums">' +
+      '<span><b>현재가</b><i>' + pfMoney(c.cur) + "</i></span>" +
+      '<span><b>매수가</b><i>' + pfMoney(p.buyPrice) + "</i></span>" +
+      (mask ? "" :
+        '<span><b>수량</b><i>' + pfMoney(p.qty) + "주</i></span>" +
+        '<span><b>평가금</b><i>' + pfMoney(c.evalAmt) + "</i></span>" +
+        '<span><b>세후 손익</b><i class="' + dir(c.net) + '">' + pfSigned(c.net) + "</i></span>" +
+        '<span><b>수수료·세금</b><i>' + pfMoney(c.feeTax) + "</i></span>") +
+      "</div>";
+    const panel = PF.open && PF.open.id === p.id ? pfPanelHTML(p, idx, PF.open.mode) : "";
+    return '<article class="pf-row" data-pf-row data-id="' + esc(p.id) + '">' +
+        '<div class="pf-row-top">' +
+          '<button type="button" class="pf-name" data-pf-name="' + esc(p.name) + '" title="종목 분석·차트 열기">' +
+            esc(p.name) + "<em>" + esc(meta) + "</em></button>" +
+          '<span class="pf-ret ' + dir(c.net) + '">' + pct(c.netPct) +
+            (mask ? "" : "<small>" + pfSigned(c.net) + "원</small>") + "</span>" +
+        "</div>" +
+        (badges.length ? '<div class="pf-badges">' + badges.join("") + "</div>" : "") +
+        nums + pfTrackHTML(p, c) +
+        '<div class="pf-row-foot">' +
+          '<span class="pf-reason">' + (p.reason ? esc(p.reason) : "매수 근거 없음") + "</span>" +
+          '<div class="pf-row-btns">' +
+            '<button type="button" class="pf-act" data-act="add" data-id="' + esc(p.id) + '">추매</button>' +
+            '<button type="button" class="pf-act" data-act="sell" data-id="' + esc(p.id) + '">매도</button>' +
+            '<button type="button" class="pf-act danger" data-act="del" data-id="' + esc(p.id) + '">삭제</button>' +
+          "</div>" +
+        "</div>" + panel +
+      "</article>";
+  }
+
+  /* 추매 · 매도 입력줄 — 미리보기는 입력할 때마다 다시 계산한다 */
+  function pfPanelHTML(p, idx, mode) {
+    if (mode === "add") {
+      return '<div class="pf-inline" data-pf-inline data-mode="add">' +
+        '<div class="pf-inline-head">추매 · 평균 단가를 다시 계산합니다</div>' +
+        '<div class="pf-grid2">' +
+          '<label class="pf-field"><span>추가 매수가</span>' +
+            '<input class="pf-inp" type="text" inputmode="decimal" data-f="price" placeholder="' + esc(String(p.buyPrice)) + '"></label>' +
+          '<label class="pf-field"><span>추가 수량</span>' +
+            '<input class="pf-inp" type="text" inputmode="numeric" data-f="qty" placeholder="0"></label>' +
+        "</div>" +
+        '<p class="pf-preview" data-pf-preview>' + pfPreviewHTML(p, "add", "", "") + "</p>" +
+        '<div class="pf-actions"><button type="button" class="pf-primary" data-act="addGo" data-id="' + esc(p.id) + '">추매 반영</button>' +
+          '<button type="button" class="pf-ghost" data-act="cancel" data-id="' + esc(p.id) + '">취소</button></div>' +
+      "</div>";
+    }
+    const c = pfPosCalc(p, idx);
+    return '<div class="pf-inline" data-pf-inline data-mode="sell">' +
+      '<div class="pf-inline-head">매도 기록 · 매매 일지로 옮김</div>' +
+      '<div class="pf-grid2">' +
+        '<label class="pf-field"><span>매도가</span>' +
+          '<input class="pf-inp" type="text" inputmode="decimal" data-f="price" value="' + esc(String(Math.round(c.cur))) + '"></label>' +
+        '<label class="pf-field"><span>매도 수량</span>' +
+          '<input class="pf-inp" type="text" inputmode="numeric" data-f="qty" value="' + esc(String(p.qty)) + '"></label>' +
+      "</div>" +
+      '<label class="pf-field" style="margin-top:6px"><span>실제 수수료+세금 <em>선택 · 넣으면 그 값을 그대로 씁니다</em></span>' +
+        '<input class="pf-inp" type="text" inputmode="decimal" data-f="cost" placeholder="' + esc(String(Math.round(c.feeTax))) + '"></label>' +
+      '<p class="pf-preview" data-pf-preview>' + pfPreviewHTML(p, "sell", String(Math.round(c.cur)), String(p.qty)) + "</p>" +
+      '<div class="pf-actions"><button type="button" class="pf-primary" data-act="sellGo" data-id="' + esc(p.id) + '">매도 기록</button>' +
+        '<button type="button" class="pf-ghost" data-act="cancel" data-id="' + esc(p.id) + '">취소</button></div>' +
+    "</div>";
+  }
+
+  function pfPreviewHTML(p, mode, priceStr, qtyStr, costStr) {
+    if (mode === "add") {
+      const price = pfNum(priceStr), qty = pfNum(qtyStr);
+      if (!(price > 0 && qty > 0)) {
+        return "현재 " + pfMoney(p.qty) + "주 · 평균 " + pfMoney(p.buyPrice) + "원";
+      }
+      const nq = p.qty + qty;
+      const avg = (p.buyPrice * p.qty + price * qty) / nq;
+      return "추매 후 <b>" + pfMoney(nq) + "주</b> · 평균 <b>" + pfMoney(avg) + "원</b>" +
+        (price < p.buyPrice ? " · <b class=\"down\">" + pfMoney(p.buyPrice - avg) + "원</b> 낮아짐"
+                            : " · <b class=\"up\">" + pfMoney(avg - p.buyPrice) + "원</b> 높아짐");
+    }
+    const price = pfNum(priceStr), qty = pfNum(qtyStr);
+    const costIn = costStr == null || String(costStr).trim() === "" ? null : pfNum(costStr);
+    if (!(price > 0 && qty > 0)) return "매도가와 수량을 넣으면 순수익이 계산됩니다";
+    const t = pfTradeCalc({ buyPrice: p.buyPrice, sellPrice: price, qty: qty, market: p.market,
+                            cost: costIn, auto: PF.cfg.auto });
+    const left = p.qty - qty;
+    return "순수익 <b class=\"" + dir(t.net) + "\">" + pfSigned(t.net) + "원</b> (" + pct(t.netPct) + ")" +
+      " · 비용 <b>" + pfMoney(t.feeTax) + "원</b>" +
+      (left > 0 ? " · 잔여 <b>" + pfMoney(left) + "주</b>" : " · 전량 청산");
+  }
+
+  function pfRenderList(idx, force) {
+    const box = $("#pfList");
+    const cnt = $("#pfHoldCount");
+    if (cnt) cnt.textContent = String(PF.pos.length);
+    if (!box) return;
+    if (!force && box.contains(document.activeElement)) return;
+    if (!PF.pos.length) {
+      box.innerHTML = '<div class="pf-empty">아직 기록한 종목이 없습니다<br>' +
+        "위 <b>＋ 매수 기록 추가</b>로 첫 종목을 넣거나 <b>🧪 예시 채우기</b>로 먼저 둘러볼 수 있습니다</div>";
+      return;
+    }
+    box.innerHTML = PF.pos.map((p) => pfRowHTML(p, idx)).join("");
+  }
+
+  /* ---------------- 매매 일지 ---------------- */
+  function pfRenderJournal() {
+    const box = $("#pfJournal");
+    const cnt = $("#pfJrCount");
+    if (cnt) cnt.textContent = String(PF.jr.length);
+    if (!box) return;
+    if (!PF.jr.length) {
+      box.innerHTML = '<div class="pf-empty">청산한 기록이 없습니다<br>보유 카드의 <b>매도</b>를 누르면 실현손익이 여기로 옮겨집니다</div>';
+      return;
+    }
+    const mask = PF.cfg.mask;
+    const list = PF.jr.slice().sort((a, b) => String(b.sellDate).localeCompare(String(a.sellDate)));
+    box.innerHTML = list.map((t) => {
+      const dates = pfDateShort(t.buyDate) + " → " + pfDateShort(t.sellDate);
+      const prices = pfMoney(t.buyPrice) + " → " + pfMoney(t.sellPrice);
+      return '<article class="pf-jrow" data-jr-id="' + esc(t.id) + '">' +
+          '<div class="pf-jmain">' +
+            '<div class="pf-jname">' + esc(t.name) +
+              (t.market ? "<em>" + esc(t.market) + "</em>" : "") + "</div>" +
+            '<div class="pf-jline">' + esc(dates) + " · <b>" + esc(prices) + "</b>" +
+              (mask ? "" : " · " + pfMoney(t.qty) + "주") + "</div>" +
+            (t.reason ? '<div class="pf-jline">' + esc(t.reason) + "</div>" : "") +
+          "</div>" +
+          '<span class="pf-jpct ' + dir(t.net) + '">' + pct(t.netPct) +
+            (mask ? "" : "<small>" + pfSigned(t.net) + "원</small>") + "</span>" +
+          '<button type="button" class="pf-jdel" data-jdel="' + esc(t.id) + '" aria-label="일지에서 지우기">✕</button>' +
+        "</article>";
+    }).join("");
+  }
+
+  function renderPortfolio(force) {
+    const root = $("#viewPortfolio");
+    if (!root) return;
+    if (!PF.loaded) pfLoad();
+    const rep = pfLatestReport();
+    const stamp = $("#pfStamp");
+    if (stamp) stamp.textContent = (rep && (rep.stamp || rep.asOf)) || "갱신 전";
+    const btn = $("#pfMaskBtn");
+    if (btn) btn.setAttribute("aria-pressed", String(PF.cfg.mask));
+    const idx = pfQuoteIndex();
+    pfRenderSummary(idx);
+    pfRenderList(idx, force !== false);
+    pfRenderJournal();
+  }
+
+  /* ---------------- 매수 기록 폼 ---------------- */
+  function pfSyncCfgInputs() {
+    const set = (id, v) => { const e = $(id); if (e) e.value = String(v); };
+    set("#pfFeeBuy", PF.cfg.buyFee);
+    set("#pfFeeSell", PF.cfg.sellFee);
+    set("#pfTaxKospi", PF.cfg.taxKospi);
+    set("#pfTaxKosdaq", PF.cfg.taxKosdaq);
+    const a = $("#pfAuto");
+    if (a) a.checked = !!PF.cfg.auto;
+  }
+  function pfErr(msg) {
+    const e = $("#pfErr");
+    if (!e) return;
+    e.textContent = msg || "";
+    e.hidden = !msg;
+  }
+  function pfToggleAdd(show) {
+    const f = $("#pfAddForm"), b = $("#pfAddToggle");
+    if (!f || !b) return;
+    const next = show == null ? f.hidden : !!show;
+    f.hidden = !next;
+    b.setAttribute("aria-expanded", String(next));
+    if (next) {
+      pfSyncCfgInputs();
+      pfErr("");
+      const n = $("#pfName");
+      if (n) setTimeout(() => n.focus(), 30);
+    } else {
+      pfSugHide();
+    }
+  }
+  function pfResetForm() {
+    ["#pfName", "#pfBuy", "#pfQty", "#pfTarget", "#pfStop", "#pfReason"].forEach((id) => {
+      const e = $(id); if (e) e.value = "";
+    });
+    PF.pick = null;
+    pfSugHide();
+    pfErr("");
+  }
+  function pfSugHide() {
+    const b = $("#pfSug"), n = $("#pfName");
+    if (b) { b.hidden = true; b.innerHTML = ""; }
+    if (n) n.setAttribute("aria-expanded", "false");
+  }
+  function pfSuggest() {
+    const inp = $("#pfName"), box = $("#pfSug");
+    if (!inp || !box) return;
+    const raw = inp.value.trim();
+    if (!raw) { PF.sug = []; pfSugHide(); return; }
+    const rep = pfLatestReport();
+    const rows = (rep && rep.allStocks) || [];
+    const q = raw.replace(/\s+/g, "").toUpperCase();
+    const hit = [];
+    for (let i = 0; i < rows.length && hit.length < 30; i++) {
+      const name = String(rows[i][1] || ""), code = String(rows[i][0] || "");
+      if (name.replace(/\s+/g, "").toUpperCase().indexOf(q) >= 0 || code.indexOf(q) === 0) {
+        hit.push({ name: name, code: code, market: String(rows[i][2] || ""), price: Number(rows[i][3]) || 0 });
+      }
+    }
+    hit.sort((a, b) => (a.name.indexOf(raw) === 0 ? 0 : 1) - (b.name.indexOf(raw) === 0 ? 0 : 1));
+    PF.sug = hit.slice(0, 6);
+    if (!PF.sug.length) { pfSugHide(); return; }
+    box.innerHTML = PF.sug.map((s, i) => '<button type="button" role="option" data-sug="' + i + '">' + esc(s.name) +
+      "<em>" + esc([s.code, s.market, s.price ? pfMoney(s.price) + "원" : ""].filter(Boolean).join(" · ")) + "</em></button>").join("");
+    box.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+  function pfPickSug(i) {
+    const s = PF.sug[i];
+    if (!s) return;
+    PF.pick = s;
+    const n = $("#pfName"), b = $("#pfBuy");
+    if (n) n.value = s.name;
+    if (b && !pfNum(b.value) && s.price) b.value = String(s.price);
+    pfErr("");
+    pfSugHide();
+    const q = $("#pfQty");
+    if (q) setTimeout(() => q.focus(), 20);
+  }
+  function pfSubmitAdd(e) {
+    e.preventDefault();
+    const name = String(($("#pfName") || {}).value || "").trim();
+    const buy = pfNum(($("#pfBuy") || {}).value);
+    const qty = pfNum(($("#pfQty") || {}).value);
+    if (!name) { pfErr("종목명을 넣어 주세요"); return; }
+    if (!(buy > 0)) { pfErr("매수가를 숫자로 넣어 주세요"); return; }
+    if (!(qty > 0)) { pfErr("수량을 1주 이상 넣어 주세요"); return; }
+    const idx = pfQuoteIndex();
+    const q = PF.pick && PF.pick.name === name ? PF.pick : (idx.byName.get(name) || null);
+    PF.pos.unshift(pfPosNorm({
+      id: pfId(), name: name,
+      code: q ? q.code : "", market: q ? q.market : "",
+      buyPrice: buy, qty: qty,
+      target: pfNum(($("#pfTarget") || {}).value),
+      stop: pfNum(($("#pfStop") || {}).value),
+      reason: ($("#pfReason") || {}).value,
+      buyDate: pfToday()
+    }));
+    pfSavePos();
+    PF.open = null;
+    pfResetForm();
+    pfToggleAdd(false);
+    renderPortfolio(true);
+    pfToast(name + " " + pfMoney(qty) + "주를 기록했습니다");
+  }
+
+  /* ---------------- 카드 액션 ---------------- */
+  function pfFindPos(id) { return PF.pos.find((p) => p.id === id) || null; }
+  function pfRowInputs(row) {
+    const get = (f) => { const e = row.querySelector('[data-f="' + f + '"]'); return e ? e.value : ""; };
+    return { price: pfNum(get("price")), qty: pfNum(get("qty")), cost: String(get("cost")).trim() };
+  }
+  function pfLivePreview(row) {
+    const wrap = row.querySelector("[data-pf-inline]");
+    const prev = row.querySelector("[data-pf-preview]");
+    if (!wrap || !prev) return;
+    const p = pfFindPos(row.getAttribute("data-id"));
+    if (!p) return;
+    const v = pfRowInputs(row);
+    prev.innerHTML = pfPreviewHTML(p, wrap.getAttribute("data-mode"), String(v.price || ""), String(v.qty || ""), v.cost);
+  }
+  function pfAddGo(row) {
+    const p = pfFindPos(row.getAttribute("data-id"));
+    if (!p) return;
+    const v = pfRowInputs(row);
+    if (!(v.price > 0 && v.qty > 0)) { pfToast("추가 매수가와 수량을 넣어 주세요"); return; }
+    const nq = p.qty + v.qty;
+    p.buyPrice = (p.buyPrice * p.qty + v.price * v.qty) / nq;
+    p.qty = nq;
+    pfSavePos();
+    PF.open = null;
+    renderPortfolio(true);
+    pfToast("추매 반영 · " + pfMoney(p.qty) + "주 · 평균 " + pfMoney(p.buyPrice) + "원");
+  }
+  function pfSellGo(row) {
+    const p = pfFindPos(row.getAttribute("data-id"));
+    if (!p) return;
+    const v = pfRowInputs(row);
+    if (!(v.price > 0)) { pfToast("매도가를 넣어 주세요"); return; }
+    if (!(v.qty > 0)) { pfToast("매도 수량을 1주 이상 넣어 주세요"); return; }
+    if (v.qty > p.qty) { pfToast("보유 수량(" + pfMoney(p.qty) + "주)보다 많습니다"); return; }
+    const calc = pfTradeCalc({
+      buyPrice: p.buyPrice, sellPrice: v.price, qty: v.qty, market: p.market,
+      cost: v.cost === "" ? null : pfNum(v.cost), auto: PF.cfg.auto
+    });
+    PF.jr.unshift(pfTradeNorm({
+      id: pfId(), name: p.name, code: p.code, market: p.market,
+      buyPrice: p.buyPrice, sellPrice: v.price, qty: v.qty,
+      buyDate: p.buyDate, sellDate: pfToday(), reason: p.reason,
+      feeTax: calc.feeTax, net: calc.net, netPct: calc.netPct
+    }));
+    if (v.qty >= p.qty) {
+      PF.pos = PF.pos.filter((x) => x.id !== p.id);
+    } else {
+      p.qty = p.qty - v.qty;
+    }
+    pfSavePos();
+    pfSaveJr();
+    PF.open = null;
+    renderPortfolio(true);
+    pfToast("매매 일지에 기록 · 실현 " + pfSigned(calc.net) + "원 (" + pct(calc.netPct) + ")");
+  }
+
+  function pfListClick(e) {
+    const act = e.target.closest("[data-act]");
+    if (act) {
+      const row = act.closest("[data-pf-row]");
+      const id = act.getAttribute("data-id");
+      const a = act.getAttribute("data-act");
+      e.preventDefault();
+      if (!row && a !== "cancel") return;
+      if (a === "add" || a === "sell") {
+        PF.open = PF.open && PF.open.id === id && PF.open.mode === a ? null : { id: id, mode: a };
+        renderPortfolio(true);
+        return;
+      }
+      if (a === "cancel") { PF.open = null; renderPortfolio(true); return; }
+      if (a === "addGo") { pfAddGo(row); return; }
+      if (a === "sellGo") { pfSellGo(row); return; }
+      if (a === "del") {
+        const p = pfFindPos(id);
+        if (!p) return;
+        if (!window.confirm("‘" + p.name + "’ 보유 기록을 지울까요? (매매 일지는 그대로 남습니다)")) return;
+        PF.pos = PF.pos.filter((x) => x.id !== id);
+        PF.open = null;
+        pfSavePos();
+        renderPortfolio(true);
+        pfToast(p.name + " 기록을 지웠습니다");
+        return;
+      }
+      return;
+    }
+    const nm = e.target.closest("[data-pf-name]");
+    if (nm) {
+      e.preventDefault();
+      e.stopPropagation();
+      openAnalysis(nm.getAttribute("data-pf-name"), nm, pfLatestReport());
+    }
+  }
+  function pfJournalClick(e) {
+    const b = e.target.closest("[data-jdel]");
+    if (!b) return;
+    const id = b.getAttribute("data-jdel");
+    const t = PF.jr.find((x) => x.id === id);
+    if (!t) return;
+    if (!window.confirm("‘" + t.name + "’ 매매 일지 1건을 지울까요?")) return;
+    PF.jr = PF.jr.filter((x) => x.id !== id);
+    pfSaveJr();
+    renderPortfolio(true);
+    pfToast("일지 1건을 지웠습니다");
+  }
+
+  /* ---------------- 예시 · 비우기 · 백업 ---------------- */
+  function pfSampleFill() {
+    const idx = pfQuoteIndex();
+    const px = (n) => { const q = idx.byName.get(n); return q ? q.price : 0; };
+    const r100 = (n) => Math.max(100, Math.round(n / 100) * 100);
+    const sam = px("삼성전자"), han = px("한미반도체");
+    const today = pfToday(), yest = pfToday(-1);
+    PF.pos = [
+      pfPosNorm({ id: pfId(), name: "삼성전자", code: "005930", market: "KOSPI",
+        buyPrice: sam ? r100(sam * 0.935) : 168000, qty: 20,
+        target: sam ? r100(sam * 1.09) : 195000, stop: sam ? r100(sam * 0.88) : 158000,
+        reason: "주도돌파 82점 · 외인 3일 연속 순매수", buyDate: yest }),
+      pfPosNorm({ id: pfId(), name: "한미반도체", code: "042700", market: "KOSPI",
+        buyPrice: han ? r100(han * 1.062) : 171000, qty: 5,
+        target: han ? r100(han * 1.24) : 200000, stop: han ? r100(han * 0.93) : 150000,
+        reason: "추세지속주 · 20일선 정배열", buyDate: today })
+    ];
+    const calc = pfTradeCalc({ buyPrice: 160800, sellPrice: 165600, qty: 20, market: "KOSDAQ", auto: PF.cfg.auto });
+    PF.jr = [pfTradeNorm({ id: pfId(), name: "안랩", code: "053800", market: "KOSDAQ",
+      buyPrice: 160800, sellPrice: 165600, qty: 20, buyDate: yest, sellDate: today,
+      reason: "세력꿈틀이 · 거래대금 급증", feeTax: calc.feeTax, net: calc.net, netPct: calc.netPct })];
+    pfSaveAll();
+    PF.open = null;
+    renderPortfolio(true);
+    pfToast("예시 2종목 + 청산 1건을 채웠습니다");
+  }
+  function pfClearAll() {
+    if (!PF.pos.length && !PF.jr.length) { pfToast("지울 기록이 없습니다"); return; }
+    if (!window.confirm("보유 " + PF.pos.length + "종목 · 일지 " + PF.jr.length +
+      "건을 모두 지울까요?\n(수수료 설정과 금액 가림 상태는 그대로 둡니다)")) return;
+    PF.pos = []; PF.jr = []; PF.open = null;
+    pfSavePos(); pfSaveJr();
+    renderPortfolio(true);
+    pfToast("기록을 모두 비웠습니다");
+  }
+  function pfBackup() {
+    const d = { app: "today-portfolio", v: 1, exportedAt: new Date().toISOString(),
+                positions: PF.pos, journal: PF.jr, cfg: PF.cfg };
+    try {
+      const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "내종목_백업_" + pfToday() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      pfToast("JSON 백업 파일을 내려받았습니다");
+    } catch (e) { pfToast("백업 파일을 만들지 못했습니다"); }
+  }
+  function pfRestore(e) {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(String(r.result || ""));
+        const pos = Array.isArray(d.positions) ? d.positions : null;
+        if (!pos) throw new Error("positions 없음");
+        const jr = Array.isArray(d.journal) ? d.journal : [];
+        if (!window.confirm("불러온 파일로 지금 기록(" + PF.pos.length + "종목 · 일지 " + PF.jr.length +
+          "건)을 바꿉니다. 계속할까요?")) return;
+        PF.pos = pos.filter(pfValidPos).map(pfPosNorm);
+        PF.jr = jr.filter(pfValidPos).map(pfTradeNorm);
+        if (d.cfg) PF.cfg = pfCfgNorm(d.cfg);
+        pfSaveAll();
+        pfSyncCfgInputs();
+        PF.open = null;
+        renderPortfolio(true);
+        pfToast("백업을 불러왔습니다 · " + PF.pos.length + "종목 · 일지 " + PF.jr.length + "건");
+      } catch (err) {
+        pfToast("불러오지 못했습니다 · JSON 백업 파일인지 확인하세요");
+      }
+    };
+    r.readAsText(f);
+    e.target.value = "";
+  }
+
+  /* ---------------- 인증 카드 (PNG) ---------------- */
+  function pfProofModel() {
+    const idx = pfQuoteIndex();
+    const rows = PF.pos.map((p) => pfPosCalc(p, idx));
+    const cost = rows.reduce((a, r) => a + r.cost, 0);
+    const evalAmt = rows.reduce((a, r) => a + r.evalAmt, 0);
+    const net = rows.reduce((a, r) => a + r.net, 0);
+    const jr = PF.jr;
+    const wins = jr.filter((t) => t.net > 0).length;
+    const realized = jr.reduce((a, t) => a + t.net, 0);
+    const rep = pfLatestReport();
+    return {
+      rows: rows, count: rows.length, cost: cost, evalAmt: evalAmt, net: net,
+      netPct: cost > 0 ? net / cost * 100 : 0,
+      jrCount: jr.length,
+      winRate: jr.length ? wins / jr.length * 100 : 0,
+      avgPct: jr.length ? jr.reduce((a, t) => a + t.netPct, 0) / jr.length : 0,
+      realized: realized,
+      date: (rep && rep.date) || pfToday(),
+      stamp: (rep && (rep.stamp || rep.asOf)) || ""
+    };
+  }
+  function pfPaintProof(g, m) {
+    const W = 390, PAD = 20, CW = W - PAD * 2;
+    const F = (size, weight) => (weight || 700) + " " + size + "px " + PF_FONT;
+    const mask = PF.cfg.mask;
+    g.fillStyle = PF_C.bg;
+    g.fillRect(0, 0, W, 2000);
+    g.textBaseline = "alphabetic";
+    let y = PAD + 10;
+
+    /* 머리 — 배지 + 날짜 */
+    g.font = F(10, 800);
+    const bw = g.measureText("내 종목").width + 14;
+    g.fillStyle = PF_C.vsoft;
+    pfRound(g, PAD, y - 12, bw, 20, 6);
+    g.fillStyle = PF_C.v;
+    g.fillText("내 종목", PAD + 7, y + 2);
+    g.font = F(10, 700);
+    g.fillStyle = PF_C.mute;
+    g.textAlign = "right";
+    g.fillText(pfFullDate(m.date), W - PAD, y + 2);
+    g.textAlign = "left";
+    y += 30;
+
+    /* 큰 수치 */
+    g.font = F(10, 750);
+    g.fillStyle = PF_C.mute;
+    g.fillText(mask ? "총 평가수익률" : "총 평가손익 (세후)", PAD, y + 9);
+    y += 18;
+    const hero = mask ? (m.count ? pct(m.netPct) : "—") : (m.count ? pfSigned(m.net) + "원" : "기록 없음");
+    g.font = F(31, 900);
+    g.fillStyle = m.count ? (m.net > 0 ? PF_C.up : m.net < 0 ? PF_C.down : PF_C.ink) : PF_C.ink2;
+    g.fillText(hero, PAD, y + 24);
+    y += 40;
+    g.font = F(10, 750);
+    g.fillStyle = PF_C.ink2;
+    const lines = mask
+      ? ["보유 " + m.count + "종목 · 금액 가림"]
+      : [pct(m.netPct) + " · 보유 " + m.count + "종목",
+         "매입 " + pfMoney(m.cost) + "원 → 평가 " + pfMoney(m.evalAmt) + "원"];
+    lines.forEach((t) => { g.fillText(t, PAD, y + 9); y += 16; });
+    y += 10;
+
+    /* 구분선 */
+    g.fillStyle = PF_C.line;
+    g.fillRect(PAD, y, CW, 1);
+    y += 18;
+
+    /* 보유 종목 */
+    g.font = F(9.5, 800);
+    g.fillStyle = PF_C.mute;
+    g.fillText("보유 종목", PAD, y);
+    y += 14;
+    if (!m.rows.length) {
+      g.font = F(11, 700);
+      g.fillStyle = PF_C.ink2;
+      g.fillText("기록된 종목이 없습니다", PAD, y + 6);
+      y += 22;
+    }
+    m.rows.forEach((r) => {
+      g.font = F(12.5, 800);
+      g.fillStyle = PF_C.ink;
+      g.textAlign = "left";
+      g.fillText(r.p.name, PAD, y + 8);
+      g.font = F(12.5, 850);
+      g.fillStyle = r.net > 0 ? PF_C.up : r.net < 0 ? PF_C.down : PF_C.ink2;
+      g.textAlign = "right";
+      g.fillText(pct(r.netPct), W - PAD, y + 8);
+      g.textAlign = "left";
+      y += 15;
+      g.font = F(9.5, 700);
+      g.fillStyle = PF_C.mute;
+      const meta = [r.p.code, r.p.market, pfDateShort(r.p.buyDate) + " 매수"].filter(Boolean).join(" · ");
+      g.fillText(meta, PAD, y + 6);
+      g.textAlign = "right";
+      g.fillText("매수 " + pfMoney(r.p.buyPrice) + " → 현재 " + pfMoney(r.cur), W - PAD, y + 6);
+      g.textAlign = "left";
+      y += 20;
+    });
+    y += 2;
+    g.fillStyle = PF_C.line;
+    g.fillRect(PAD, y, CW, 1);
+    y += 18;
+
+    /* 매매 일지 요약 */
+    g.font = F(10, 750);
+    g.fillStyle = PF_C.mute;
+    g.fillText("📒 매매 일지", PAD, y + 8);
+    y += 18;
+    if (m.jrCount) {
+      const head = "청산 " + m.jrCount + "건 · 승률 " + Math.round(m.winRate) + "% · 평균 ";
+      g.font = F(11, 800);
+      g.fillStyle = PF_C.ink2;
+      g.fillText(head, PAD, y + 8);
+      const hw = g.measureText(head).width;
+      g.fillStyle = m.avgPct > 0 ? PF_C.up : m.avgPct < 0 ? PF_C.down : PF_C.ink2;
+      g.fillText(pct(m.avgPct), PAD + hw, y + 8);
+      y += 18;
+      if (!mask) {
+        g.font = F(10, 750);
+        g.fillStyle = PF_C.mute;
+        g.fillText("누적 실현", PAD, y + 7);
+        g.font = F(11, 850);
+        g.fillStyle = m.realized > 0 ? PF_C.up : m.realized < 0 ? PF_C.down : PF_C.ink2;
+        g.fillText(pfSigned(m.realized) + "원", PAD + 48, y + 7);
+        y += 18;
+      }
+    } else {
+      g.font = F(11, 700);
+      g.fillStyle = PF_C.ink2;
+      g.fillText("아직 청산 기록이 없습니다", PAD, y + 8);
+      y += 20;
+    }
+
+    y += 6;
+    g.fillStyle = PF_C.line;
+    g.fillRect(PAD, y, CW, 1);
+    y += 16;
+    g.font = F(9, 700);
+    g.fillStyle = PF_C.mute;
+    g.fillText(mask ? "금액 가림 모드 · 수익률만 표시" : "수량·금액 포함", PAD, y + 6);
+    g.textAlign = "right";
+    g.fillText("국내 증시 수급 대시보드", W - PAD, y + 6);
+    g.textAlign = "left";
+    y += 15;
+    g.font = F(8.5, 650);
+    g.fillStyle = PF_C.mute;
+    g.fillText("정보 정리용 · 투자 권유 아님 · 수수료·세금 반영 수익률", PAD, y + 6);
+    y += PAD + 6;
+    return y;
+  }
+  function pfRound(g, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    g.beginPath();
+    g.moveTo(x + rr, y);
+    g.lineTo(x + w - rr, y);
+    g.quadraticCurveTo(x + w, y, x + w, y + rr);
+    g.lineTo(x + w, y + h - rr);
+    g.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    g.lineTo(x + rr, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - rr);
+    g.lineTo(x, y + rr);
+    g.quadraticCurveTo(x, y, x + rr, y);
+    g.closePath();
+    g.fill();
+  }
+  function pfProofCanvas() {
+    const m = pfProofModel();
+    const W = 390, S = 2;
+    const tmp = document.createElement("canvas");
+    tmp.width = W * S; tmp.height = 1600 * S;
+    const g = tmp.getContext("2d");
+    g.scale(S, S);
+    const h = Math.ceil(pfPaintProof(g, m));
+    const out = document.createElement("canvas");
+    out.width = W * S; out.height = h * S;
+    const g2 = out.getContext("2d");
+    g2.scale(S, S);
+    pfPaintProof(g2, m);
+    return out;
+  }
+  function pfOpenShot() {
+    const dlg = $("#pfShotDlg"), img = $("#pfShotImg");
+    if (!dlg || !img) return;
+    try {
+      PF.url = pfProofCanvas().toDataURL("image/png");
+      img.src = PF.url;
+    } catch (e) {
+      pfToast("인증 카드를 만들지 못했습니다");
+      return;
+    }
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
+    else dlg.setAttribute("open", "");
+  }
+  function pfCloseShot() {
+    const dlg = $("#pfShotDlg");
+    if (!dlg) return;
+    if (typeof dlg.close === "function" && dlg.open) dlg.close();
+    else dlg.removeAttribute("open");
+  }
+  function pfSavePng() {
+    if (!PF.url) return;
+    const a = document.createElement("a");
+    a.href = PF.url;
+    a.download = "내종목_수익인증_" + pfToday().replace(/-/g, "") + ".png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    pfToast("인증 카드 PNG를 저장했습니다");
+  }
+
+  /* ---------------- 배선 ---------------- */
+  function pfToggleMask() {
+    PF.cfg.mask = !PF.cfg.mask;
+    pfSaveCfg();
+    renderPortfolio(true);
+    pfToast(PF.cfg.mask ? "금액 가림 켬 · 수익률만 보입니다" : "금액 가림 끔 · 금액이 보입니다");
+  }
+  function pfSaveRates() {
+    const read = (id, d) => pfRate(($(id) || {}).value, d);
+    PF.cfg.buyFee = read("#pfFeeBuy", PF_DEF.buyFee);
+    PF.cfg.sellFee = read("#pfFeeSell", PF_DEF.sellFee);
+    PF.cfg.taxKospi = read("#pfTaxKospi", PF_DEF.taxKospi);
+    PF.cfg.taxKosdaq = read("#pfTaxKosdaq", PF_DEF.taxKosdaq);
+    pfSaveCfg();
+    pfSyncCfgInputs();
+    renderPortfolio(true);
+    pfToast("수수료·세금 설정 저장 · 매도 " + PF.cfg.sellFee + "% · 거래세 " + PF.cfg.taxKospi + "%");
+  }
+  function pfInitPortfolio() {
+    const root = $("#viewPortfolio");
+    if (!root) return;
+    pfLoad();
+    pfSyncCfgInputs();
+
+    const maskBtn = $("#pfMaskBtn");
+    if (maskBtn) maskBtn.addEventListener("click", pfToggleMask);
+    const shotBtn = $("#pfShotBtn");
+    if (shotBtn) shotBtn.addEventListener("click", pfOpenShot);
+    const shotClose = $("#pfShotClose");
+    if (shotClose) shotClose.addEventListener("click", pfCloseShot);
+    const shotSave = $("#pfShotSave");
+    if (shotSave) shotSave.addEventListener("click", pfSavePng);
+    const shotDlg = $("#pfShotDlg");
+    if (shotDlg) shotDlg.addEventListener("click", (e) => { if (e.target === shotDlg) pfCloseShot(); });
+
+    const addToggle = $("#pfAddToggle");
+    if (addToggle) addToggle.addEventListener("click", () => pfToggleAdd());
+    const addCancel = $("#pfAddCancel");
+    if (addCancel) addCancel.addEventListener("click", () => { pfResetForm(); pfToggleAdd(false); });
+    const form = $("#pfAddForm");
+    if (form) form.addEventListener("submit", pfSubmitAdd);
+
+    const name = $("#pfName");
+    if (name) {
+      name.addEventListener("input", () => { PF.pick = null; pfSuggest(); });
+      name.addEventListener("focus", pfSuggest);
+      name.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { pfSugHide(); return; }
+        if (e.key === "Enter" && PF.sug.length) { e.preventDefault(); pfPickSug(0); }
+      });
+      name.addEventListener("blur", () => setTimeout(pfSugHide, 150));
+    }
+    const sug = $("#pfSug");
+    if (sug) sug.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-sug]");
+      if (!b) return;
+      e.preventDefault();
+      pfPickSug(Number(b.getAttribute("data-sug")));
+    });
+
+    const cfgToggle = $("#pfCfgToggle");
+    if (cfgToggle) cfgToggle.addEventListener("click", () => {
+      const c = $("#pfCfg");
+      if (!c) return;
+      c.hidden = !c.hidden;
+      cfgToggle.setAttribute("aria-expanded", String(!c.hidden));
+    });
+    const auto = $("#pfAuto");
+    if (auto) auto.addEventListener("change", () => {
+      PF.cfg.auto = !!auto.checked;
+      pfSaveCfg();
+      renderPortfolio(true);
+      pfToast(PF.cfg.auto ? "수수료·세금 자동 반영 켬" : "수수료·세금 자동 반영 끔 (단가 차이만)");
+    });
+    ["#pfFeeBuy", "#pfFeeSell", "#pfTaxKospi", "#pfTaxKosdaq"].forEach((id) => {
+      const e = $(id);
+      if (e) e.addEventListener("change", pfSaveRates);
+    });
+
+    const list = $("#pfList");
+    if (list) {
+      list.addEventListener("click", pfListClick);
+      list.addEventListener("input", (e) => {
+        const row = e.target.closest("[data-pf-row]");
+        if (row) pfLivePreview(row);
+      });
+    }
+    const jr = $("#pfJournal");
+    if (jr) jr.addEventListener("click", pfJournalClick);
+
+    const sample = $("#pfSample");
+    if (sample) sample.addEventListener("click", pfSampleFill);
+    const clear = $("#pfClear");
+    if (clear) clear.addEventListener("click", pfClearAll);
+    const backup = $("#pfBackup");
+    if (backup) backup.addEventListener("click", pfBackup);
+    const restore = $("#pfRestore");
+    if (restore) restore.addEventListener("change", pfRestore);
+    const restoreLabel = document.querySelector('label[for="pfRestore"]');
+    if (restoreLabel) restoreLabel.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (restore) restore.click(); }
+    });
+
+    renderPortfolio(true);
+  }
+
   wireTechnicalDialog();
   wireTaFull();
   wireTaExpert();
@@ -13356,6 +14717,7 @@ const REPORT_DATA = [
     wireScanner();
     wireScannerRaw();
     wireScannerLock();
+    pfInitPortfolio();                  /* 내 종목 — localStorage 매매 기록 */
     scanRestore();                     /* 이 탭 세션에서 이미 풀어 둔 잠금 복원 */
     /* 오늘 기록이면 지금 시각의 구간(장전/정규장/애프터)을 기본으로 연다 */
     const first = findReport(activeDate);
