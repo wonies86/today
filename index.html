@@ -14304,6 +14304,9 @@ const REPORT_DATA = [
 
   /* ---------------- 예시 · 비우기 · 백업 ---------------- */
   function pfSampleFill() {
+    if ((PF.pos.length || PF.jr.length) &&
+        !window.confirm("지금 기록(보유 " + PF.pos.length + "종목 · 일지 " + PF.jr.length +
+          "건)을 예시 2종목 + 청산 1건으로 바꿉니다. 계속할까요?\n(먼저 JSON 백업을 받아 두면 되돌릴 수 있습니다)")) return;
     const idx = pfQuoteIndex();
     const px = (n) => { const q = idx.byName.get(n); return q ? q.price : 0; };
     const r100 = (n) => Math.max(100, Math.round(n / 100) * 100);
