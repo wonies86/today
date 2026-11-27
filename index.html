@@ -12573,10 +12573,6 @@ const REPORT_DATA = [
         (item.winRule ? " · " + esc(item.winRule) + " 기준" : "") +
         (item.winN != null ? " (" + item.winN + "회 표본)" : "") + "</span></div>"
     ];
-    if (item.relPct != null) {
-      rows.push('<div class="ta-block"><span class="k">지수 대비 초과</span><span class="v">' +
-        (item.relPct > 0 ? "+" : "") + Number(item.relPct).toFixed(2) + "%p</span></div>");
-    }
     return '<div class="ta-sec ta-scan-sec ta-score-sec">' +
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🎯 주도돌파 100점</h4>' +
         '<span class="ta-tag">' + esc(item.scoreDetail || "") + '</span></div>' +
@@ -12602,7 +12598,8 @@ const REPORT_DATA = [
     const bt = item.backtest || {};
     const gap = item.gap == null ? "—" : Number(item.gap).toFixed(2) + "%";
     /* 조건식마다 보여줄 '수급·이격'이 다르다 — 점수·종가베팅은 지수 대비, 나머지는 20·60 이격 */
-    const supply = (scored || edge) ? (item.line2 || "지수 대비 —") : ("20·60 이격 " + gap);
+    const supply = scored ? (scoreRelText(item) || "—")
+      : ((edge ? (item.line2 || "지수 대비 —") : ("20·60 이격 " + gap)));
     const verdict = item.passed
       ? "교집합 통과 " + (item.valueText || "")
       : "교집합 미통과 · 조건 참고용";
@@ -13122,13 +13119,17 @@ const REPORT_DATA = [
       '<div class="sc-parts-txt">' + txt + rule + "</div>";
   }
 
+  /* 지수 대비는 아래 한 줄(line2)이 맡는다 — 여기서 또 쓰면 같은 값이 두 번 보인다 */
+  function scoreRelText(h) {
+    if (!h || h.relPct == null) return "";
+    return "지수 대비 " + (h.relPct > 0 ? "+" : "") + Number(h.relPct).toFixed(1) + "%p";
+  }
+
   function scoreLineHTML(h) {
     if (!h || h.score == null) return "";
     return '<div class="sc-scoreline">' + scoreBadgeHTML(h) +
       '<span class="sc-wr">D+1 승률 <b>' + esc(h.winRate || "표본 없음") + "</b> · 평균 <b>" +
-      esc(h.avgD1 || "—") + "</b>" +
-      (h.relPct != null ? " · 지수 대비 <b>" + (h.relPct > 0 ? "+" : "") +
-        Number(h.relPct).toFixed(1) + "p</b>" : "") + "</span></div>";
+      esc(h.avgD1 || "—") + "</b></span></div>";
   }
 
   function scannerRowHTML(h, i, report, scannerId, cur) {
@@ -13138,8 +13139,9 @@ const REPORT_DATA = [
        없으면 세력꿈틀이의 20·60 이격으로 채운다. 종가베팅은 줄이 길어 과거 반응을 줄인다 */
     const edge = scannerId === "closing-edge" || !!h.pending;
     const score = isScoreScanner(cur, h);
-    const line2 = h.line2 || (score ? "" : ((edge ? "" : "20·60 이격 " + gap) +
-      (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음")));
+    const line2 = score ? scoreRelText(h)
+      : (h.line2 || ((edge ? "" : "20·60 이격 " + gap) +
+        (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음")));
     const mk = h.market === "KOSDAQ" ? "KQ" : (h.market === "KOSPI" ? "KP" : "");
     return '<div class="sc-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
       'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
