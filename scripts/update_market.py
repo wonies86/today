@@ -257,6 +257,19 @@ PM_END_MIN = 15 * 60 + 30       # 정규장 마감 15:30
 PM_SHARE_MIN = 30.0       # '오후장 유입' 기준 — 13:00 이후 거래대금 비중(%)
 PM_MAX_FETCH = 24         # 한 실행에서 분봉을 받을 최대 종목 수
 SCAN_REFRESH_MIN = 25     # 오후장 판정 중 스캔을 다시 계산하는 간격(분)
+
+# ── 주도돌파 100점 (2026-11-27) — 승률·기대수익이 높은 쪽을 100점으로 채점 ──────
+#   2026-11-27 사용자 요청: "승률 기대수익이 높은쪽으루볼수있는 조건식쪽에 추가해주고
+#   100점만점 으로 해서 몇점정도 될지도 표시해줘" — 같은 날 120거래일 D+1 백테스트에서
+#   정배열 + 강한 상승(레인보우로보틱스 정배열 +8%↑ → D+1 62.5% · 평균 +2.30%)이
+#   반도체 단순 반등(50% · -1.33%)·눌림(30%)보다 나왔던 결과를 조건식으로 옮긴다.
+BREAKOUT_MIN_VALUE = 300  # 당일 거래대금 교집합(억 원)
+BREAKOUT_TOP = 15         # 점수 내림차순 상위 종목 수
+BREAKOUT_WIN_BARS = 120   # D+1 승률 백테스트 창(거래일)
+BREAKOUT_STRONG = 5.0     # 1차 유사 강세일 — 정배열 + 당일 +5% 이상
+BREAKOUT_STRONG_WIDE = 3.0  # 표본이 모자랄 때 2차 기준 — 정배열 + 당일 +3% 이상
+BREAKOUT_MIN_SAMPLES = 3  # 이보다 적으면 더 넓은 기준으로 다시 센다
+BREAKOUT_CAP = {"trend": 30, "lead": 25, "win": 25, "flow": 20}   # 100점 배분
 MINUTE_URL = FCHART + "?symbol={code}&timeframe=minute&count=400&requestType=0"
 
 # 조건식(scanners) 잠금 — data.json 에는 암호문만 남기고 평문 키는 저장하지 않는다.
@@ -2221,6 +2234,194 @@ def closing_edge_scan(rows, ctx):
     }
 
 
+# ---------------------------------------------------------------- 주도돌파 100점
+def _cap(value, hi):
+    """0~hi 사이로 자른다(점수 계산용 — 음수는 0)."""
+    if value is None:
+        return 0.0
+    return max(0.0, min(float(value), float(hi)))
+
+
+def d1_signal_days(rows, strong=None, window=BREAKOUT_WIN_BARS):
+    """정배열 + 강한 상승일 → (신호일 index, 그날 등락률, 다음날 종가 수익률) 목록.
+
+    · 신호일 i: 그 시점의 20·60이평이 정배열(종가 > 20이평 > 60이평)이고
+      종가 등락률이 strong% 이상(strong=None 이면 등락률 조건 없이 정배열만)
+    · D+1 = 바로 다음 거래일 종가 수익률((다음 종가 ÷ 신호일 종가 − 1)×100)
+    · 창: 최근 window 거래일 — 마지막 봉은 다음 봉이 없어 신호에서 빠진다
+    · 각 날의 이평은 그 시점 값으로 계산한다(미래 참조 없음)
+    """
+    closes = [r["c"] for r in rows or []]
+    n = len(closes)
+    if n < 62:
+        return []
+    start = max(60, n - window - 1)
+    out = []
+    for i in range(start, n - 1):
+        ma20 = _mean(closes[i - 19:i + 1])
+        ma60 = _mean(closes[i - 59:i + 1])
+        if not ma20 or not ma60 or not (closes[i] > ma20 > ma60):
+            continue
+        prev = closes[i - 1]
+        if not prev:
+            continue
+        chg = (closes[i] / prev - 1) * 100
+        if strong is not None and chg < strong:
+            continue
+        nxt = closes[i + 1]
+        if not nxt:
+            continue
+        out.append((i, round(chg, 2), round((nxt / closes[i] - 1) * 100, 2)))
+    return out
+
+
+def d1_winrate(rows, window=BREAKOUT_WIN_BARS):
+    """유사 강세일 D+1 승률·평균 수익률 — 표본이 적으면 기준을 넓혀 다시 센다.
+
+    정배열 +5%↑ → (3건 미만이면) 정배열 +3%↑ → (그래도 3건 미만이면) 정배열 상승일.
+    n·m·rate·avg 는 실측값만, 어느 기준으로 셌는지(rule)를 함께 돌려준다.
+    """
+    tiers = ((BREAKOUT_STRONG, f"정배열 +{BREAKOUT_STRONG:.0f}%↑"),
+             (BREAKOUT_STRONG_WIDE, f"정배열 +{BREAKOUT_STRONG_WIDE:.0f}%↑"),
+             (None, "정배열 상승일"))
+    for strong, label in tiers:
+        sigs = d1_signal_days(rows, strong, window) or []
+        if len(sigs) >= BREAKOUT_MIN_SAMPLES or strong is None:
+            gains = [g for _i, _c, g in sigs]
+            n = len(gains)
+            up = sum(1 for g in gains if g > 0)
+            avg = _mean(gains) if gains else None
+            return {
+                "n": n, "m": up,
+                "rate": round(up / n * 100, 1) if n else None,
+                "avg": round(avg, 2) if avg is not None else None,
+                "rule": label,
+            }
+    return {"n": 0, "m": 0, "rate": None, "avg": None, "rule": "표본 없음"}
+
+
+def breakout_score_scan(rows, ctx):
+    """주도돌파 100점 — 정배열 상승 추세 + 지수 대비 강세 종목을 100점으로 채점한다.
+
+    A [일] 0봉전 종가 > 20이평 > 60이평 (정배열 상승 추세)
+    B [당일] 종목 등락률 > 소속 지수 등락률 (지수 대비 초과 강세)
+    C [당일] 종목 등락률 > 0% (상승)
+    조건식: A and B and C — 당일 거래대금 300억↑ 교집합(SCANNER_DEFS.minValue)
+
+    점수(총 100) = 정배열·이평 돌파 30 + 주도 섹터·지수 초과 25
+                 + 유사 강세일 D+1 승률·기대수익 25 + 거래대금·회전율 20
+    """
+    ctx = ctx or {}
+    closes = [r["c"] for r in rows or []]
+    n = len(closes)
+    if n < 61:                                # 60이평 + 당일 봉
+        return None
+    ma20 = _mean(closes[-20:])
+    ma60 = _mean(closes[-60:])
+    ma120 = _mean(closes[-120:]) if n >= 120 else None
+    if not ma20 or not ma60:
+        return None
+    close = closes[-1]
+    chg = ctx.get("chg")
+    index_chg = ctx.get("index_chg")
+    rel = (chg - index_chg) if (chg is not None and index_chg is not None) else None
+    cond = {
+        "A": bool(close > ma20 > ma60),
+        "B": bool(rel is not None and rel > 0),
+        "C": bool(chg is not None and chg > 0),
+    }
+    passed = cond["A"] and cond["B"] and cond["C"]
+
+    # ── 1) 정배열·이평 돌파 (30) ─────────────────────────────────────────────
+    trend = 0
+    if close > ma20:
+        trend += 6
+    if ma20 > ma60:
+        trend += 8
+    if ma120 and ma60 > ma120:
+        trend += 8
+    if ma120 and close >= ma120:
+        trend += 4
+    fresh = False                              # 최근 5봉 안 20·60이평 상향 돌파
+    for i in range(max(60, n - 5), n):
+        if i < 61:
+            continue
+        prev20 = _mean(closes[i - 21:i])
+        cur20 = _mean(closes[i - 20:i + 1])
+        prev60 = _mean(closes[i - 61:i])
+        cur60 = _mean(closes[i - 60:i + 1])
+        if not (prev20 and cur20 and prev60 and cur60):
+            continue
+        if (closes[i - 1] <= prev20 and closes[i] > cur20) or \
+           (closes[i - 1] <= prev60 and closes[i] > cur60):
+            fresh = True
+            break
+    if fresh:
+        trend += 4
+    trend = int(_cap(trend, BREAKOUT_CAP["trend"]))
+
+    # ── 2) 주도 섹터·지수 초과 강도 (25) ─────────────────────────────────────
+    lead = 0.0
+    if rel is not None:
+        lead += 10 * _cap(rel / 8.0, 1)                     # 지수 대비 +8%p = 만점
+    rank = ctx.get("sector_rank")
+    if rank and rank <= (ctx.get("dominance_top") or 0):
+        lead += 7                                           # 주도 섹터(상위 3~4) 소속
+    share = ctx.get("sector_share")
+    if share:
+        lead += 5 * _cap(share / 20.0, 1)                   # 섹터 점유율 20% = 만점
+    if chg is not None:
+        lead += 3 * _cap(chg / 5.0, 1)                      # 당일 상승 강도(+5% = 만점)
+    lead = int(round(_cap(lead, BREAKOUT_CAP["lead"])))
+
+    # ── 3) 유사 강세일 D+1 실측 승률·기대수익 (25) ───────────────────────────
+    wr = d1_winrate(rows)
+    nn, mm = int(wr.get("n") or 0), int(wr.get("m") or 0)
+    conf = nn / (nn + 4.0)                                  # 표본 신뢰도(1건 0.2 · 7건 0.64)
+    adjusted = (mm + 2.0) / (nn + 4.0) if nn else 0.5       # 표본 적으면 50%로 수축
+    win = 15 * _cap((adjusted - 0.40) / 0.40, 1)            # 승률 40%→0 · 80%→15
+    if wr.get("avg") is not None:
+        win += 10 * _cap((wr["avg"] + 1.0) / 5.0, 1) * conf  # 평균 +4%→만점 · -1%→0
+    win = int(round(_cap(win, BREAKOUT_CAP["win"])))
+
+    # ── 4) 거래대금·시총 대비 회전율 (20) ────────────────────────────────────
+    value_eok = float(ctx.get("value_eok") or 0)
+    flow = 0.0
+    if value_eok > BREAKOUT_MIN_VALUE:
+        flow += 12 * _cap(math.log(value_eok / BREAKOUT_MIN_VALUE)
+                          / math.log(2000 / BREAKOUT_MIN_VALUE), 1)
+    turn = ctx.get("turn")
+    if turn:
+        flow += 8 * _cap(float(turn) / 5.0, 1)              # 회전율 5% = 만점
+    flow = int(round(_cap(flow, BREAKOUT_CAP["flow"])))
+
+    parts = {"trend": trend, "lead": lead, "win": win, "flow": flow}
+    score = min(100, sum(parts.values()))
+    rate_text = (f"{wr['rate']:.1f}% ({mm}/{nn})" if wr.get("rate") is not None
+                 else "표본 없음")
+    avg_text = (f"{wr['avg']:+.2f}%" if wr.get("avg") is not None else "—")
+    detail = (f"정배열 {trend} · 주도 {lead} · 승률 {win} · 수급 {flow}")
+    bits = []
+    if rel is not None:
+        bits.append(f"지수 대비 {rel:+.1f}%p")
+    bits.append(f"D+1 승률 {rate_text}")
+    bits.append(f"평균 {avg_text}")
+    return {
+        "gap": round(rel, 2) if rel is not None else 0.0,
+        "conditions": cond,
+        "pass": bool(passed),
+        "line2": " · ".join(bits),
+        "score": score,
+        "scoreParts": parts,
+        "scoreDetail": detail,
+        "winRate": rate_text,
+        "avgD1": avg_text,
+        "winN": nn,
+        "winM": mm,
+        "winRule": wr.get("rule") or "",
+        "relPct": round(rel, 2) if rel is not None else None,
+    }
+
 
 # ---------------------------------------------------------------- 조건식 정의
 #  등록된 조건식 — 여기에 항목 하나만 더하면 data.json·대시보드에 자동으로 늘어난다.
@@ -2329,6 +2530,50 @@ SCANNER_DEFS = [
         "rawNote": "D(오후장 수급)는 13:00부터 분봉으로 실측합니다. 그 전에는 판정하지 않고 "
                    "'오전장 진행 중'으로 표시하며, A·B·C를 통과한 종목을 대기 상태로 보여줍니다.",
         "evaluate": closing_edge_scan,
+        "pick": lambda scan: bool(scan["pass"]),
+    },
+    {
+        "id": "breakout-100",
+        "name": "주도돌파 100점",
+        "summary": "종가 > 20이평 > 60이평 정배열 상승 추세 + 소속 지수 대비 초과 상승(당일 +)"
+                   " — 정배열·지수 초과·최근 120거래일 D+1 실측 승률·기대수익·거래대금으로 "
+                   "100점 만점 채점(점수 상위 15종목)",
+        "formula": "A and B and C",
+        "minValue": BREAKOUT_MIN_VALUE,
+        "deep": True,
+        "ctx": True,
+        "sortBy": "score",
+        "limit": BREAKOUT_TOP,
+        "rules": [
+            {"key": "A", "label": "종가 > 20 > 60이평",
+             "detail": "0봉전 종가 > 20이평 > 60이평(정배열 상승 추세)"},
+            {"key": "B", "label": "지수 대비 초과 상승",
+             "detail": "당일 등락률 − 소속 지수(코스피·코스닥) 등락률 > 0%p"},
+            {"key": "C", "label": "당일 상승", "detail": "당일 등락률 > 0%"},
+        ],
+        "intersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ · 점수 상위 {BREAKOUT_TOP}종목",
+        "rawSource": "시루 자체 조건식 (일봉 250거래일 실측 · 100점 채점)",
+        "rawTarget": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억 이상 종목(250거래일 일봉 보유분)",
+        "rawRules": [
+            {"key": "A", "text": "[일]0봉전 종가 > 20이평 > 60이평 (정배열 상승 추세)"},
+            {"key": "B", "text": "[당일] 등락률 − 소속 지수 등락률 > 0%p (지수 대비 초과 강세)"},
+            {"key": "C", "text": "[당일] 등락률 > 0% (상승 마감)"},
+            {"key": "1", "text": "정배열·이평 돌파 30점 — 종가>20이평 6 · 20>60이평 8 · "
+                                  "60>120이평 8 · 종가≥120이평 4 · 최근 5봉 내 20·60이평 돌파 4"},
+            {"key": "2", "text": "주도 섹터·지수 초과 25점 — 지수 대비 초과 10 · 주도 섹터 7 · "
+                                  "섹터 점유율 5 · 당일 상승 강도 3"},
+            {"key": "3", "text": "D+1 승률·기대수익 25점 — 최근 120거래일 '정배열 +5%↑' 다음날 "
+                                  "승률 15 + 평균 수익률 10 (표본 3건 미만이면 +3%↑ → 정배열 전체로 확대, "
+                                  "표본이 적을수록 50%로 수축하고 평균 수익률 점수는 표본 수에 비례해 줄입니다)"},
+            {"key": "4", "text": "거래대금·회전율 20점 — 당일 거래대금 300억~2,000억 12 · "
+                                  "시총 대비 회전율 5% 이상 8"},
+        ],
+        "rawFormula": "A and B and C",
+        "rawIntersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ 교집합 · 점수 내림차순 상위 {BREAKOUT_TOP}종목",
+        "rawNote": "점수는 일봉 실측값만으로 계산합니다(추정·보정 없음). D+1 승률은 그 종목의 "
+                   "과거 정배열 강세일 다음날 종가가 오른 비율이고, 표본이 적으면 넓은 기준으로 "
+                   "다시 세어 표본 수를 함께 표시합니다.",
+        "evaluate": breakout_score_scan,
         "pick": lambda scan: bool(scan["pass"]),
     },
 ]
@@ -2496,6 +2741,9 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
     pm_codes = set(base.get("pm_codes") or ())
     index_chg = base.get("index_chg") or {}
     investor = base.get("investor") or {}
+    sector_rank = base.get("sector_rank") or {}
+    sector_share = base.get("sector_share") or {}
+    dominance_top = base.get("dominance_top") or 0
     src = deep_series if (definition.get("deep") and deep_series) else series
     scanned = 0
     hits = []
@@ -2515,9 +2763,12 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
             pm = flow.get(code, value_eok)
         ctx = None
         if use_ctx:
+            sector = row[6] if len(row) > 6 else ""
+            theme = theme_of(row[1] if len(row) > 1 else "", sector)
             ctx = {
                 "code": code,
                 "market": market,
+                "name": row[1] if len(row) > 1 else "",
                 "chg": row[4] if len(row) > 4 else None,
                 "value_eok": value_eok,
                 "index_chg": index_chg.get(market),
@@ -2526,6 +2777,13 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
                 "w52": dmap.get("w52"),
                 "shelf": dmap.get("shelf"),
                 "pm": pm,
+                "sector": sector,
+                "theme": theme,
+                "mcap": row[7] if len(row) > 7 else None,
+                "turn": row[8] if len(row) > 8 else None,
+                "sector_rank": sector_rank.get(theme),
+                "sector_share": sector_share.get(theme),
+                "dominance_top": dominance_top,
             }
         scan = evaluate(rows, ctx) if use_ctx else evaluate(rows)
         if not scan:
@@ -2570,11 +2828,23 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
             hits.append(item)
         if scan.get("line2"):
             item["line2"] = scan["line2"]
+        for key in ("score", "scoreParts", "scoreDetail", "winRate", "avgD1",
+                    "winN", "winM", "winRule", "relPct"):
+            if scan.get(key) is not None:
+                item[key] = scan[key]
         if is_extra and not passed:
             reactions[code] = item
         elif is_extra and (value_eok or 0) < min_value:
             reactions[code] = item        # 조건은 맞아도 거래대금 미달이면 모달용으로만
-    hits.sort(key=lambda h: -(h.get("value_eok") or 0))
+    if definition.get("sortBy") == "score":
+        # 점수 조건식은 점수 내림차순 — 같으면 거래대금 큰 쪽 먼저
+        hits.sort(key=lambda h: (-(h.get("score") or 0), -(h.get("value_eok") or 0)))
+    else:
+        hits.sort(key=lambda h: -(h.get("value_eok") or 0))
+    limit = definition.get("limit")
+    passed_total = len(hits)
+    if limit:
+        hits = hits[:int(limit)]
     bar_date = max(last_dates, key=last_dates.get) if last_dates else ""
     result = scanner_meta(definition)
     result.update({
@@ -2583,9 +2853,14 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
         "updatedAt": now.isoformat(timespec="seconds"),
         "scanned": scanned,
         "passed": len(hits),
+        "passedTotal": passed_total,
         "hits": hits,
         "reactions": reactions,
     })
+    if definition.get("sortBy"):
+        result["sortBy"] = definition["sortBy"]
+    if limit:
+        result["limit"] = int(limit)
     if definition.get("pm") and flow:
         # 오후장 수급 판정 상태 — 화면이 '오전장 진행 중'·'오후장 실측 중'을 그대로 보여준다
         result["phase"] = flow.phase
@@ -2595,7 +2870,7 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
 
 
 def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=None,
-                         index_chg=None, investor=None):
+                         index_chg=None, investor=None, dominance=None):
     """등록된 조건식 전부(SCANNER_DEFS)를 계산해 스캔 결과를 만든다.
 
     반환값은 메모리에서만 쓰는 모양이다 — 저장은 apply_scan 이 암호화해
@@ -2603,6 +2878,7 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
     · deep_series: 거래대금 300억↑ 종목의 250거래일 일봉(52주 신고가 계산용)
     · index_chg  : {'KOSPI': 3.7, 'KOSDAQ': 2.75} — 지수 대비 강세 판정
     · investor   : 직전 실행의 investorStreak.stocks — 외인·기관 연속 순매수 판정
+    · dominance  : 당일 주도 섹터 점유율(sectorDominance) — 주도돌파 100점의 '주도 섹터' 점수
     """
     if not series:
         return None
@@ -2624,8 +2900,20 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
                      key=lambda c: -((info.get(c) or [None] * 6)[5] or 0))
     pm_codes = set(str(c) for c in (extra_codes or ())) | set(ordered[:PM_MAX_FETCH])
     flow.warm(ordered[:PM_MAX_FETCH])
+    # 주도 섹터 — 이름→순위·점유율 (theme_of 로 묶은 이름 그대로)
+    sector_rank, sector_share = {}, {}
+    sectors = (dominance or {}).get("sectors") or []
+    for idx, sec in enumerate(sectors):
+        sec_name = str(sec.get("name") or "")
+        if not sec_name or sec_name == "개별이슈":
+            continue
+        sector_rank[sec_name] = idx + 1
+        if sec.get("share") is not None:
+            sector_share[sec_name] = sec["share"]
     ctx_base = {"pm_flow": flow, "pm_codes": pm_codes,
-                "index_chg": index_chg or {}, "investor": investor or {}}
+                "index_chg": index_chg or {}, "investor": investor or {},
+                "sector_rank": sector_rank, "sector_share": sector_share,
+                "dominance_top": len(sectors)}
     scanners = [build_scanner_scan(defn, series, info, extra_codes, now,
                                   deep_series=deep_series, deep_map=deep_map,
                                   ctx_base=ctx_base)
@@ -4055,7 +4343,8 @@ def scan_only(argv):
     log(f"  · 52주·매물대용 250거래일 일봉 {len(deep_series)}종목")
     result = build_condition_scan(series, rows, extra, now, deep_series=deep_series,
                                  index_chg=index_change_map(entry),
-                                 investor=(entry.get("investorStreak") or {}).get("stocks"))
+                                 investor=(entry.get("investorStreak") or {}).get("stocks"),
+                                 dominance=entry.get("sectorDominance"))
     if not result or not result["meta"].get("asOf"):
         log("  · 일봉을 받지 못해 스캔을 만들지 않았습니다 — data.json 그대로 둡니다.")
         return 1
@@ -4087,7 +4376,11 @@ def scan_only(argv):
         log(f"    [{scanner['name']}] {scanner['basis']} · {len(scanner['hits'])}종목 포착 "
             f"(거래대금 {scanner['minValue']}억+ · {scanner['formula']})")
         for hit in scanner["hits"]:
-            log(f"      {hit['name']}({hit['code']}) {hit['valueText']} · 이격 {hit['gap']}% · {hit['summary']}")
+            if hit.get("score") is not None:
+                log(f"      {hit['name']}({hit['code']}) {hit['score']}점/100 · {hit['valueText']} · "
+                    f"D+1 {hit.get('winRate')} · 평균 {hit.get('avgD1')} · {hit.get('scoreDetail')}")
+            else:
+                log(f"      {hit['name']}({hit['code']}) {hit['valueText']} · 이격 {hit['gap']}% · {hit['summary']}")
         log(f"      모달용 차트 반응 {len(scanner['reactions'])}종목")
     if WARNINGS:
         log(f"    경고 {len(WARNINGS)}건")
@@ -4335,7 +4628,8 @@ def main(argv):
         scan = build_condition_scan(series, all_stocks, extra_all, now,
                                     deep_series=deep_series,
                                     index_chg=index_change_map(old_entry, kospi, kosdaq),
-                                    investor=((old_entry or {}).get("investorStreak") or {}).get("stocks"))
+                                    investor=((old_entry or {}).get("investorStreak") or {}).get("stocks"),
+                                    dominance=entry.get("sectorDominance"))
         if scan and apply_scan(entry, scan):
             log(f"    조건식×수급: {scan['meta']['scanned']}종목 계산 → {len(scan['hits'])}종목 포착 (암호화 저장)")
             for sc in scan["scanners"]:

@@ -1123,6 +1123,15 @@
   .ta-block.is-res .k{color:#be123c}
   .ta-block.is-key{border-color:#e3d8ff;background:var(--violet-soft)}
   .ta-block.is-key .k{color:#6d28d9}
+  /* 🎯 주도돌파 100점 — 모달 상단 점수 카드 */
+  .ta-score-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:9px 11px;
+    border:1px solid #fecdd3;background:#fff1f2;border-radius:11px}
+  .ta-score-top .num{font-size:26px;font-weight:900;letter-spacing:-.05em;line-height:1;
+    color:#b91c1c;font-variant-numeric:tabular-nums}
+  .ta-score-top .num i{font-style:normal;font-size:11px;font-weight:850;margin-left:1px}
+  .ta-score-top .num b{font-size:10px;font-weight:750;opacity:.7;margin-left:2px}
+  .ta-score-top .cap{min-width:0;font-size:10px;font-weight:700;line-height:1.45;color:#7f1d1d}
+  .ta-score-top .cap b{font-weight:850}
   .ta-signals{display:grid;grid-template-columns:1fr 1fr;gap:4px}
   .ta-sig{padding:6px 8px;background:var(--bg-soft);border:1px solid var(--line-2);border-radius:8px;min-width:0}
   .ta-sig .k{font-size:9px;font-weight:800;color:var(--mute)}
@@ -2671,6 +2680,32 @@
 }
 #viewScanner .sc-l2{margin-top:3px;font-size:10.5px;font-weight:750;line-height:1.4;color:#5b21b6}
 #viewScanner .sc-l3{margin-top:2px;font-size:10px;font-weight:600;line-height:1.45;color:var(--mute)}
+/* 🎯 주도돌파 100점 — 점수 배지·D+1 승률·배점 막대 (점수 조건식 행에서만) */
+#viewScanner .sc-scoreline{display:flex;align-items:center;gap:7px;margin-top:5px;min-width:0}
+#viewScanner .sc-score{
+  flex:0 0 auto;display:inline-flex;align-items:baseline;gap:1px;border-radius:8px;padding:2px 7px 3px;
+  font-size:16px;font-weight:900;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;
+  border:1px solid transparent;
+}
+#viewScanner .sc-score i{font-style:normal;font-size:9.5px;font-weight:850;margin-left:1px}
+#viewScanner .sc-score b{font-size:8.5px;font-weight:750;opacity:.72;margin-left:1px}
+#viewScanner .sc-score.t1{color:#b91c1c;background:#fff1f2;border-color:#fecdd3}
+#viewScanner .sc-score.t2{color:#a16207;background:#fffbeb;border-color:#fde68a}
+#viewScanner .sc-score.t3{color:#475569;background:#f4f6fa;border-color:#e2e8f2}
+#viewScanner .sc-wr{min-width:0;font-size:10px;font-weight:700;line-height:1.35;color:var(--ink-2);font-variant-numeric:tabular-nums}
+#viewScanner .sc-wr b{font-weight:850;color:var(--ink)}
+#viewScanner .sc-parts{display:flex;gap:3px;margin-top:5px}
+#viewScanner .sc-part{flex:1 1 0;height:5px;border-radius:3px;background:#eef1f7;overflow:hidden}
+#viewScanner .sc-part>i{display:block;height:100%;border-radius:3px}
+#viewScanner .sc-part.p-trend>i{background:#8b5cf6}
+#viewScanner .sc-part.p-lead>i{background:#2563eb}
+#viewScanner .sc-part.p-win>i{background:#e11d48}
+#viewScanner .sc-part.p-flow>i{background:#0e7490}
+#viewScanner .sc-parts-txt{margin-top:4px;display:flex;flex-wrap:wrap;gap:2px 7px;font-size:9.5px;font-weight:750;color:var(--mute);font-variant-numeric:tabular-nums}
+#viewScanner .sc-parts-txt .k-trend{color:#7c3aed}
+#viewScanner .sc-parts-txt .k-lead{color:#2563eb}
+#viewScanner .sc-parts-txt .k-win{color:#e11d48}
+#viewScanner .sc-parts-txt .k-flow{color:#0e7490}
 /* 종가베팅 핵심 배지 — 신고가근접·매물소화·오후유입 (행마다 필요한 것만, 최대 3개) */
 #viewScanner .sc-ebs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 #viewScanner .sc-eb{
@@ -3339,6 +3374,21 @@ html[data-theme="dark"] #viewScanner .sc-row:focus-visible{outline:2px solid #70
 html[data-theme="dark"] #viewScanner .sc-rank{background:#141924;color:#aab5c9}
 html[data-theme="dark"] #viewScanner .sc-mk{color:#9aa4b8;background:#141924}
 html[data-theme="dark"] #viewScanner .sc-l2{color:#c4b5fd}
+html[data-theme="dark"] #viewScanner .sc-wr{color:#c3cbdb}
+html[data-theme="dark"] #viewScanner .sc-wr b{color:#e9eef8}
+html[data-theme="dark"] #viewScanner .sc-score.t1{color:#ff8da1;background:#2b1419;border-color:#5f2530}
+html[data-theme="dark"] #viewScanner .sc-score.t2{color:#f4cf6f;background:#2a2010;border-color:#5c4a1f}
+html[data-theme="dark"] #viewScanner .sc-score.t3{color:#b2bbc8;background:#141924;border-color:#3a4453}
+html[data-theme="dark"] #viewScanner .sc-part{background:#232c3c}
+html[data-theme="dark"] #viewScanner .sc-part.p-trend>i{background:#a78bfa}
+html[data-theme="dark"] #viewScanner .sc-part.p-lead>i{background:#5c9dff}
+html[data-theme="dark"] #viewScanner .sc-part.p-win>i{background:#ff5f7a}
+html[data-theme="dark"] #viewScanner .sc-part.p-flow>i{background:#67e8f9}
+html[data-theme="dark"] #viewScanner .sc-parts-txt{color:#96a2b7}
+html[data-theme="dark"] #viewScanner .sc-parts-txt .k-trend{color:#c4b5fd}
+html[data-theme="dark"] #viewScanner .sc-parts-txt .k-lead{color:#8ab6ff}
+html[data-theme="dark"] #viewScanner .sc-parts-txt .k-win{color:#ff8da1}
+html[data-theme="dark"] #viewScanner .sc-parts-txt .k-flow{color:#67e8f9}
 html[data-theme="dark"] #viewScanner .sc-eb.hi{color:#f4cf6f;background:#332d19;border-color:#857032}
 html[data-theme="dark"] #viewScanner .sc-eb.sh{color:#67e8f9;background:#193233;border-color:#396c74}
 html[data-theme="dark"] #viewScanner .sc-eb.pm{color:#c4b5fd;background:#141924;border-color:#46327b}
@@ -3354,6 +3404,9 @@ html[data-theme="dark"] .raw-k.ix{color:#f4cf6f;border-color:#7b5b32}
 html[data-theme="dark"] .raw-code{background:#141924}
 html[data-theme="dark"] .raw-foot{background:#161c28}
 html[data-theme="dark"] .ta-scan-sec .ta-scan-badge{color:#c4b5fd;background:#211933;border:1px solid #46327b}
+html[data-theme="dark"] .ta-score-top{border-color:#5f2530;background:#2b1419}
+html[data-theme="dark"] .ta-score-top .num{color:#ff8da1}
+html[data-theme="dark"] .ta-score-top .cap{color:#f3c3cb}
 html[data-theme="dark"] .ta-scan-sec .scan-sample{color:#aab5c9}
 html[data-theme="dark"] .ta-scan-sec .scan-sample b{color:#e9eef8}
 html[data-theme="dark"] .dom-seg.dim{color:#aebbcc}
@@ -12505,6 +12558,38 @@ const REPORT_DATA = [
       "</div>";
   }
 
+  /* 🎯 주도돌파 100점 — 모달 상단 점수 카드(점수·배점·D+1 승률·기대수익). 점수가 없으면 아무것도 안 그린다. */
+  function scoreBlockHTML(item) {
+    if (!item || item.score == null) return "";
+    const parts = item.scoreParts || null;
+    const partTxt = parts ? SCORE_PARTS.map(function (p) {
+      return "<b>" + p.label + "</b> " + Number(parts[p.key] || 0) + "/" + p.cap;
+    }).join(" · ") : esc(item.scoreDetail || "");
+    const rows = [
+      '<div class="ta-block is-key"><span class="k">배점(총 100점)</span>' +
+        '<span class="v">' + partTxt + "</span></div>",
+      '<div class="ta-block"><span class="k">D+1 승률 · 기대수익</span>' +
+        '<span class="v">' + esc(item.winRate || "표본 없음") + " · 평균 " + esc(item.avgD1 || "—") +
+        (item.winRule ? " · " + esc(item.winRule) + " 기준" : "") +
+        (item.winN != null ? " (" + item.winN + "회 표본)" : "") + "</span></div>"
+    ];
+    if (item.relPct != null) {
+      rows.push('<div class="ta-block"><span class="k">지수 대비 초과</span><span class="v">' +
+        (item.relPct > 0 ? "+" : "") + Number(item.relPct).toFixed(2) + "%p</span></div>");
+    }
+    return '<div class="ta-sec ta-scan-sec ta-score-sec">' +
+      '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🎯 주도돌파 100점</h4>' +
+        '<span class="ta-tag">' + esc(item.scoreDetail || "") + '</span></div>' +
+      '<div class="ta-score-top"><span class="num">' + Math.round(item.score) +
+        '<i>점</i><b>/100</b></span><span class="cap">정배열 상승 추세 · 지수 대비 강세를<br>' +
+        '세부 배점으로 나눈 점수입니다</span></div>' +
+      '<div class="ta-blocks">' + rows.join("") + "</div>" +
+      '<p class="ta-note">점수는 일봉 실측값만으로 계산합니다(추정·보정 없음). D+1 승률은 이 종목의 ' +
+        '최근 120거래일 정배열 강세일 다음날 종가가 오른 비율이고, 표본이 적으면 기준을 넓혀 다시 ' +
+        '세어 표본 수를 함께 적습니다.</p>' +
+      "</div>";
+  }
+
   /* 모달 "📝 글 요약" 안의 조건식·과거 반응 블록 — 기록이 없으면 아무것도 그리지 않는다.
      결과 중심: 이름 배지 + 현재 구조 + 과거 반응 + 당일 수급·이격만 (A~E 수식 나열 없음). */
   function scanBlockHTML(item, report) {
@@ -12513,14 +12598,15 @@ const REPORT_DATA = [
     const list = scannerList(report);
     const name = item.scannerName || (list[0] && list[0].name) || meta.name || "세력꿈틀이";
     const edge = item.scannerId === "closing-edge" || name === "종가베팅 핵심";
+    const scored = item.score != null;
     const bt = item.backtest || {};
     const gap = item.gap == null ? "—" : Number(item.gap).toFixed(2) + "%";
-    /* 조건식마다 보여줄 '수급·이격'이 다르다 — 종가베팅은 지수 대비, 나머지는 20·60 이격 */
-    const supply = edge ? (item.line2 || "지수 대비 —") : ("20·60 이격 " + gap);
+    /* 조건식마다 보여줄 '수급·이격'이 다르다 — 점수·종가베팅은 지수 대비, 나머지는 20·60 이격 */
+    const supply = (scored || edge) ? (item.line2 || "지수 대비 —") : ("20·60 이격 " + gap);
     const verdict = item.passed
       ? "교집합 통과 " + (item.valueText || "")
       : "교집합 미통과 · 조건 참고용";
-    return edgeBlockHTML(item) +
+    return scoreBlockHTML(item) + edgeBlockHTML(item) +
       '<div class="ta-sec ta-scan-sec">' +
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🔍 조건식 포착</h4>' +
         '<span class="ta-scan-badge">' + esc(name) + '</span>' +
@@ -12994,14 +13080,66 @@ const REPORT_DATA = [
     return out.length ? '<div class="sc-ebs">' + out.join("") + "</div>" : "";
   }
 
-  function scannerRowHTML(h, i, report, scannerId) {
+  /* 🎯 주도돌파 100점 — 점수 배지·D+1 승률·배점 막대. data.json 의 score·scoreParts 를 그대로 그린다.
+     점수가 없는 조건식 행은 예전과 똑같이(이격·과거 반응) 그린다. */
+  const SCORE_PARTS = [
+    { key: "trend", label: "정배열", cap: 30 },
+    { key: "lead", label: "주도", cap: 25 },
+    { key: "win", label: "승률", cap: 25 },
+    { key: "flow", label: "수급", cap: 20 }
+  ];
+
+  function isScoreScanner(cur, h) {
+    return (!!cur && cur.sortBy === "score") || !!(h && h.score != null);
+  }
+
+  function scoreTierClass(score) {
+    const v = Number(score || 0);
+    return v >= 80 ? "t1" : (v >= 65 ? "t2" : "t3");
+  }
+
+  function scoreBadgeHTML(h) {
+    if (!h || h.score == null) return "";
+    return '<span class="sc-score ' + scoreTierClass(h.score) + '" title="100점 만점 — ' +
+      esc(h.scoreDetail || "") + '">' + Math.round(h.score) + '<i>점</i><b>/100</b></span>';
+  }
+
+  function scorePartsHTML(h) {
+    if (!h || !h.scoreParts) return "";
+    const bars = SCORE_PARTS.map(function (p) {
+      const v = Number(h.scoreParts[p.key] || 0);
+      const pct = Math.max(0, Math.min(100, (v / p.cap) * 100));
+      return '<span class="sc-part p-' + p.key + '" title="' + p.label + " " + v + "/" + p.cap +
+        '"><i style="width:' + pct.toFixed(1) + '%"></i></span>';
+    }).join("");
+    const txt = SCORE_PARTS.map(function (p) {
+      return '<span class="k-' + p.key + '">' + p.label + " " + Number(h.scoreParts[p.key] || 0) +
+        "</span>";
+    }).join("");
+    const rule = h.winRule ? '<span class="k-rule">D+1 표본 ' + esc(h.winRule) +
+      (h.winN != null ? " " + h.winN + "회" : "") + "</span>" : "";
+    return '<div class="sc-parts" aria-hidden="true">' + bars + "</div>" +
+      '<div class="sc-parts-txt">' + txt + rule + "</div>";
+  }
+
+  function scoreLineHTML(h) {
+    if (!h || h.score == null) return "";
+    return '<div class="sc-scoreline">' + scoreBadgeHTML(h) +
+      '<span class="sc-wr">D+1 승률 <b>' + esc(h.winRate || "표본 없음") + "</b> · 평균 <b>" +
+      esc(h.avgD1 || "—") + "</b>" +
+      (h.relPct != null ? " · 지수 대비 <b>" + (h.relPct > 0 ? "+" : "") +
+        Number(h.relPct).toFixed(1) + "p</b>" : "") + "</span></div>";
+  }
+
+  function scannerRowHTML(h, i, report, scannerId, cur) {
     const bt = h.backtest || {};
     const gap = h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%";
     /* 조건식마다 보여줄 요약이 다르다 — data.json 이 준 line2(추세지속주 등)를 우선 쓰고,
        없으면 세력꿈틀이의 20·60 이격으로 채운다. 종가베팅은 줄이 길어 과거 반응을 줄인다 */
     const edge = scannerId === "closing-edge" || !!h.pending;
-    const line2 = (h.line2 || ("20·60 이격 " + gap)) +
-      (edge ? "" : (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음"));
+    const score = isScoreScanner(cur, h);
+    const line2 = h.line2 || (score ? "" : ((edge ? "" : "20·60 이격 " + gap) +
+      (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음")));
     const mk = h.market === "KOSDAQ" ? "KQ" : (h.market === "KOSPI" ? "KP" : "");
     return '<div class="sc-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
       'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
@@ -13013,7 +13151,9 @@ const REPORT_DATA = [
           (h.chg == null ? "" : pct(h.chg)) + "</span>" +
         '<span class="sc-val">' + esc(h.valueText || "—") + "</span>" +
       "</div>" +
-      '<div class="sc-l2">' + esc(line2) + "</div>" +
+      (score ? scoreLineHTML(h) : "") +
+      (line2 ? '<div class="sc-l2">' + esc(line2) + "</div>" : "") +
+      (score ? scorePartsHTML(h) : "") +
       edgeBadges(h) +
       '<div class="sc-l3">' + esc(h.patternText || "") + "</div>" +
     "</div>";
@@ -13073,19 +13213,26 @@ const REPORT_DATA = [
       (cur.basis || "최근 종가") + " 기준",
       (cur.scanned || 0) + "종목 일봉 실측",
       "당일 거래대금 " + (cur.minValue || 100) + "억↑ 교집합",
+      (cur.sortBy === "score" ? "100점 만점 채점" : ""),
+      (cur.sortBy === "score" && cur.passedTotal > hits.length
+        ? "통과 " + cur.passedTotal + "종목 중 상위 " + hits.length : ""),
       (cur.phase ? "오후장 수급 " + cur.phase : ""),
       (at ? "스캔 갱신 " + at : "")
     ].filter(Boolean).join(" · ");
     $("#scCount").textContent = hits.length + "종목";
-    $("#scBasis").textContent = "거래대금순";
-    $("#scList").innerHTML = hits.map((h, i) => scannerRowHTML(h, i, report, cur.id)).join("");
+    $("#scBasis").textContent = cur.sortBy === "score" ? "점수순" : "거래대금순";
+    $("#scList").innerHTML = hits.map((h, i) => scannerRowHTML(h, i, report, cur.id, cur)).join("");
     if (empty) {
       empty.hidden = hits.length > 0;
       empty.textContent = hits.length ? "" :
         "이 날은 " + (cur.name || "조건식") + "를 통과하고 당일 거래대금 " +
         (cur.minValue || 100) + "억 이상인 종목이 없었습니다.";
     }
-    $("#scNote").textContent = "차트 구조·과거 반응은 " + (cur.basis || "최근 120거래일") +
+    $("#scNote").textContent = (cur.sortBy === "score"
+      ? "점수 = 정배열·이평 돌파 30 + 주도 섹터·지수 초과 25 + D+1 실측 승률·기대수익 25 + " +
+        "거래대금·회전율 20 (100점). D+1 승률은 그 종목의 최근 120거래일 정배열 강세일 다음날 " +
+        "종가 기준이고 표본 수를 함께 적었습니다. "
+      : "") + "차트 구조·과거 반응은 " + (cur.basis || "최근 120거래일") +
       " 일봉 실측값 계산입니다(추정·보정 없음). 행을 누르면 차트와 함께 상세가 열립니다." +
       (cur.phase ? " " + cur.phase + " — " + (cur.pmBasis || "13:00 이후 거래대금 비중") + "는 13:00부터 반영합니다." : "");
   }

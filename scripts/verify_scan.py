@@ -131,8 +131,14 @@ def check_scanner(s: dict) -> None:
     check(not missing, f"[{name}] 필수 키 12개 있음", f"[{name}] 필수 키 빠짐 {missing}")
     hits = s.get("hits") or []
     vals = [h.get("value_eok") or 0 for h in hits]
-    check(vals == sorted(vals, reverse=True), f"[{name}] {len(hits)}종목 거래대금 내림차순",
-          f"[{name}] 정렬 안 됨: {vals}")
+    if s.get("sortBy") == "score":
+        # 점수 조건식 — 점수 내림차순 (같으면 거래대금 내림차순)
+        keys = [(-(h.get("score") or 0), -(h.get("value_eok") or 0)) for h in hits]
+        check(keys == sorted(keys), f"[{name}] {len(hits)}종목 점수 내림차순",
+              f"[{name}] 점수 정렬 안 됨: {[h.get('score') for h in hits]}")
+    else:
+        check(vals == sorted(vals, reverse=True), f"[{name}] {len(hits)}종목 거래대금 내림차순",
+              f"[{name}] 정렬 안 됨: {vals}")
     check(all(v >= (s.get("minValue") or 100) for v in vals),
           f"[{name}] 포착 종목 모두 {s.get('minValue')}억 이상",
           f"[{name}] 기준 미달 포함: {vals}")
@@ -204,6 +210,75 @@ def check_edge_item(s: dict, item: dict) -> None:
                   f"[{name}] {nm}: 오후장 판정 불일치 {pm}")
     else:
         bad(f"[{name}] {nm}: 오후장 수급 기록 없음")
+
+
+SCORE_CAPS = {"trend": 30, "lead": 25, "win": 25, "flow": 20}
+
+
+def check_score_item(s: dict, item: dict) -> None:
+    """주도돌파 100점 항목 — 배점 합계·범위·D+1 승률 표기가 앞뒤가 맞는지."""
+    name = s.get("name") or "?"
+    nm = item.get("name")
+    score = item.get("score")
+    parts = item.get("scoreParts") or {}
+    ok_score = isinstance(score, int) and 0 <= score <= 100
+    check(ok_score, f"[{name}] {nm}: {score}점/100", f"[{name}] {nm}: 점수 범위 이상 {score}")
+    if parts:
+        bad_keys = [k for k in parts if k not in SCORE_CAPS]
+        over = [k for k, cap in SCORE_CAPS.items() if (parts.get(k) or 0) > cap or (parts.get(k) or 0) < 0]
+        check(not bad_keys and not over, f"[{name}] {nm}: 배점 4항목이 상한 안 ({parts})",
+              f"[{name}] {nm}: 배점 이상 keys={bad_keys} over={over} {parts}")
+        total = sum(int(parts.get(k) or 0) for k in SCORE_CAPS)
+        check(total == score, f"[{name}] {nm}: 배점 합 {total} == 점수 {score}",
+              f"[{name}] {nm}: 배점 합 {total} != 점수 {score}")
+    else:
+        bad(f"[{name}] {nm}: scoreParts 없음")
+    wr = str(item.get("winRate") or "")
+    ok_wr = (wr == "표본 없음") or bool(re.fullmatch(r"\d+(\.\d+)?% \(\d+/\d+\)", wr))
+    check(ok_wr, f"[{name}] {nm}: D+1 승률 표기 '{wr}'", f"[{name}] {nm}: 승률 표기 이상 '{wr}'")
+    check(re.fullmatch(r"[+-]\d+\.\d{2}%", str(item.get("avgD1") or "")) is not None
+          or item.get("avgD1") == "—",
+          f"[{name}] {nm}: 평균 수익률 표기 '{item.get('avgD1')}'",
+          f"[{name}] {nm}: 평균 수익률 표기 이상 '{item.get('avgD1')}'")
+    check(bool(item.get("scoreDetail")) and bool(item.get("winRule")),
+          f"[{name}] {nm}: 배점 요약·표본 기준 있음",
+          f"[{name}] {nm}: 배점 요약·표본 기준 없음")
+    check((item.get("value_eok") or 0) >= (s.get("minValue") or 0),
+          f"[{name}] {nm}: 거래대금 {item.get('value_eok')}억 ≥ 기준",
+          f"[{name}] {nm}: 거래대금 미달 {item.get('value_eok')}억")
+
+
+def recompute_d1(rows) -> dict:
+    """D+1 승률 독립 재계산 — 정배열 +5%↑ → +3%↑ → 정배열 순으로 표본 3건 이상 기준."""
+    c = [r["c"] for r in rows]
+    n = len(c)
+    start = max(60, n - 121)
+
+    def count(strong):
+        sig = 0
+        up = 0
+        tot = 0.0
+        for i in range(start, n - 1):
+            ma20 = sum(c[i - 19:i + 1]) / 20
+            ma60 = sum(c[i - 59:i + 1]) / 60
+            if not (c[i] > ma20 > ma60):
+                continue
+            if strong is not None and (c[i] / c[i - 1] - 1) * 100 < strong:
+                continue
+            g = (c[i + 1] / c[i] - 1) * 100
+            sig += 1
+            tot += g
+            if g > 0:
+                up += 1
+        return sig, up, (round(tot / sig, 2) if sig else None)
+
+    for strong in (5.0, 3.0, None):
+        sig, up, avg = count(strong)
+        if sig >= 3 or strong is None:
+            return {"n": sig, "m": up, "avg": avg,
+                    "rule": ("정배열 +5%↑" if strong == 5.0 else
+                             ("정배열 +3%↑" if strong == 3.0 else "정배열 상승일"))}
+    return {"n": 0, "m": 0, "avg": None, "rule": "표본 없음"}
 
 
 def load_scan(entry: dict) -> bool:
@@ -314,6 +389,32 @@ def main(argv) -> int:
         withpm = sum(1 for v in rx_all.values() if v.get("pm"))
         check(with52 > 0, f"모달용 종목 {with52}건에 52주 지표 기록", "52주 지표가 붙은 모달 항목 없음")
         check(withpm > 0, f"모달용 종목 {withpm}건에 오후장 기록", "오후장 기록이 붙은 모달 항목 없음")
+
+    # ── 주도돌파 100점 — 승률·기대수익 100점 채점 (2026-11-27 추가) ──
+    score_sc = next((s for s in scanners if s.get("id") == "breakout-100"), None)
+    check(bool(score_sc), "주도돌파 100점 조건식 있음", "주도돌파 100점 조건식 없음")
+    if score_sc:
+        check(score_sc.get("formula") == "A and B and C",
+              "주도돌파 수식 A and B and C", f"수식 다름 {score_sc.get('formula')}")
+        check(score_sc.get("minValue") == 300, "주도돌파 교집합 300억",
+              f"교집합 다름 {score_sc.get('minValue')}")
+        check(score_sc.get("sortBy") == "score", "주도돌파 정렬 기준 score",
+              f"정렬 기준 다름 {score_sc.get('sortBy')}")
+        check(score_sc.get("limit") == 15, "주도돌파 상위 15종목",
+              f"상한 다름 {score_sc.get('limit')}")
+        check(len(score_sc.get("rules") or []) == 3, "주도돌파 필터 기준 3개(A~C)",
+              f"필터 기준 개수 다름 {len(score_sc.get('rules') or [])}")
+        sc_hits = score_sc.get("hits") or []
+        check(0 < len(sc_hits) <= 15, f"주도돌파 {len(sc_hits)}종목 포착(15 이하)",
+              f"주도돌파 포착 수 이상 {len(sc_hits)}")
+        check((score_sc.get("passedTotal") or 0) >= len(sc_hits),
+              f"주도돌파 조건 통과 {score_sc.get('passedTotal')}종목 ≥ 표시 {len(sc_hits)}",
+              f"passedTotal {score_sc.get('passedTotal')} < 표시 {len(sc_hits)}")
+        for item in sc_hits:
+            check_score_item(score_sc, item)
+            check(all((item.get("conditions") or {}).get(k) for k in ("A", "B", "C")),
+                  f"[주도돌파] {item.get('name')}: A·B·C 충족",
+                  f"[주도돌파] {item.get('name')}: A·B·C 미충족 {item.get('conditions')}")
 
     charts = entry.get("charts") or charts_by_date.get(str(entry.get("date"))) or {}
     check("charts" not in entry or not entry.get("charts"),
@@ -484,6 +585,32 @@ def main(argv) -> int:
                           f"{it.get('name')}: 매물대 {shelf['d']} 고가 {shelf['h']} 일치",
                           f"{it.get('name')}: 매물대 불일치 {sh.get('date')}/{sh.get('high')} vs "
                           f"{shelf['d']}/{shelf['h']}")
+
+        # 주도돌파 100점 — D+1 승률·기대수익을 260거래일 일봉으로 다시 계산해 대조
+        if score_sc:
+            codes_score = [h.get("code") for h in (score_sc.get("hits") or [])]
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                bars_deep = dict(pool.map(lambda c: (c, fetch_bars(c, 260)), codes_score))
+            for h in score_sc.get("hits") or []:
+                rows = bars_deep.get(h.get("code"))
+                if not rows or len(rows) < 122:
+                    bad(f"[주도돌파] {h.get('name')}: 일봉을 받지 못해 대조 불가")
+                    continue
+                r = recompute_d1(rows)
+                same_n = r["n"] == (h.get("winN") or 0)
+                same_m = r["m"] == (h.get("winM") or 0)
+                check(same_n and same_m,
+                      f"[주도돌파] {h.get('name')}: D+1 {r['m']}/{r['n']}회 일치 ({r['rule']})",
+                      f"[주도돌파] {h.get('name')}: D+1 불일치 재계산 {r['m']}/{r['n']} vs "
+                      f"{h.get('winM')}/{h.get('winN')}")
+                got = h.get("avgD1")
+                if r["avg"] is not None and got not in (None, "—"):
+                    try:
+                        near = abs(float(str(got).replace("%", "").replace("+", "")) - r["avg"]) < 0.06
+                    except ValueError:
+                        near = False
+                    check(near, f"[주도돌파] {h.get('name')}: 평균 {r['avg']:+.2f}% vs {got}",
+                          f"[주도돌파] {h.get('name')}: 평균 불일치 {r['avg']:+.2f}% vs {got}")
 
     print(f"\n결과: 통과 {len(passes)} · 실패 {len(fails)}")
     return 1 if fails else 0
