@@ -12920,7 +12920,9 @@ const REPORT_DATA = [
     if (p) {
       let txt;
       if (p.pass === null || p.pass === undefined) {
-        txt = (p.status || "오전장 진행 중") + " — 13:00부터 분봉으로 실측합니다(억지 계산 없음)";
+        txt = p.measured === false
+          ? "분봉을 받지 못해 오후장 수급을 판정하지 못했습니다"
+          : (p.status || "오전장 진행 중") + " — 13:00부터 분봉으로 실측합니다(억지 계산 없음)";
       } else {
         txt = "13:00 이후 거래대금 " + (p.pmShare == null ? "—" : p.pmShare + "%") +
           " · 13:00 대비 " + (p.chgPm == null ? "—" : (p.chgPm > 0 ? "+" : "") + p.chgPm + "%") +

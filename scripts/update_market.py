@@ -255,7 +255,11 @@ PM_START_MIN = 13 * 60          # 오후장 시작 13:00
 PM_JUDGE_MIN = 13 * 60 + 30     # 오후장 비중 판정 시작 13:30 (30분 이상 쌓인 뒤)
 PM_END_MIN = 15 * 60 + 30       # 정규장 마감 15:30
 PM_SHARE_MIN = 30.0       # '오후장 유입' 기준 — 13:00 이후 거래대금 비중(%)
-PM_MAX_FETCH = 24         # 한 실행에서 분봉을 받을 최대 종목 수
+PM_MAX_FETCH = 40         # 한 실행에서 분봉을 받을 최대 종목 수(오후장 판정 후보 우선)
+# 시각이 안 되어 일부러 판정하지 않는 상태(대기) — 이때만 'pending'으로 목록에 남는다.
+# 분봉을 못 받은 '미측정'은 대기와 다르다: 대기로 통과시키면 끝나고도 대기 표시가 남는다.
+PM_WAIT_STATES = ("오전장 진행 중", "오후장 초반", "휴장")
+PM_MISS_STATE = "분봉 미측정"   # 분봉 조회 실패·한도 초과 — 판정 불가(통과 아님)
 SCAN_REFRESH_MIN = 25     # 오후장 판정 중 스캔을 다시 계산하는 간격(분)
 
 # ── 주도돌파 100점 (2026-11-27) — 승률·기대수익이 높은 쪽을 100점으로 채점 ──────
@@ -2085,6 +2089,8 @@ class AfternoonFlow:
         self.phase = self._phase()
         self.cache: dict[str, dict | None] = {}
         self.fetched = 0
+        self.planning = False          # 후보 선별 단계 — 분봉을 받지 않고 대기로만 답한다
+        self.skipped: set[str] = set()  # 한도·실패로 분봉을 못 받은 종목
 
     def _phase(self) -> str:
         if self.now.weekday() >= 5:
@@ -2150,13 +2156,25 @@ class AfternoonFlow:
                 self.fetched += 1
 
     def get(self, code: str, value_eok=None):
-        """종목 하나의 오후장 수급 — 판정 전이면 status만 돌려준다(API 호출 없음)."""
+        """종목 하나의 오후장 수급 — 판정 전이면 status만 돌려준다(API 호출 없음).
+
+        돌려주는 세 가지를 화면·판정이 구분한다.
+        · 대기(pass=None, status=PM_WAIT_STATES) : 13:30 전·휴장 — 아직 판정하지 않음
+        · 미측정(pass=None, status=PM_MISS_STATE) : 분봉 실패·한도 초과 — 판정 불가
+        · 판정(pass=True/False, pmShare·chgPm)     : 13:00~15:30 분봉 실측
+        """
         if self.pending():
             return {"status": self.phase, "pass": None,
                     "basis": "13:00부터 분봉 실측(오전장은 계산하지 않음)"}
+        if self.planning and code not in self.cache:
+            # 후보 선별 — 분봉 없이 '아직 판정 전'으로 답해 후보만 모은다(호출 없음)
+            return {"status": self.phase, "pass": None, "planned": True,
+                    "basis": "후보 선별 단계(분봉 미조회)"}
         if code not in self.cache:
             if self.fetched >= self.limit:
-                return None
+                self.skipped.add(code)
+                return {"status": PM_MISS_STATE, "pass": None, "measured": False,
+                        "basis": f"분봉 조회 한도({self.limit}종목) 초과"}
             self.fetched += 1
             try:
                 self.cache[code] = self._measure(code)
@@ -2165,7 +2183,9 @@ class AfternoonFlow:
                 self.cache[code] = None
         base = self.cache.get(code)
         if not base:
-            return {"status": self.phase, "pass": None, "basis": "분봉을 받지 못해 미판정"}
+            self.skipped.add(code)
+            return {"status": PM_MISS_STATE, "pass": None, "measured": False,
+                    "basis": "분봉을 받지 못해 미판정"}
         chg = (base["px"] / base["px13"] - 1) * 100 if base["px13"] else None
         share = None
         if value_eok:
@@ -2209,7 +2229,11 @@ def closing_edge_scan(rows, ctx):
     streak = max(int(inv.get("dualStreak") or 0), int(inv.get("instStreak") or 0),
                  int(inv.get("frgnStreak") or 0))
     pm = (ctx or {}).get("pm") or {}
-    pending = pm.get("pass") is None
+    pm_status = str(pm.get("status") or "")
+    unmeasured = pm.get("pass") is None
+    # 대기 = 시각이 안 됐거나(오전장·휴장) 후보 선별 단계 — 그때만 D 없이 목록에 남긴다.
+    # 분봉을 못 받은 '미측정'은 대기가 아니다(끝나고도 대기로 남던 원인).
+    pending = bool(unmeasured and (pm_status in PM_WAIT_STATES or pm.get("planned")))
     cond = {
         "A": bool(w52 and w52["near"]),
         "B": bool(shelf and shelf["overHigh"]),
@@ -2228,6 +2252,8 @@ def closing_edge_scan(rows, ctx):
         bits.append("오후장 대기")
     elif pm.get("pass"):
         bits.append(f"오후 비중 {pm.get('pmShare')}% · {pm.get('chgPm'):+.1f}%")
+    elif unmeasured:
+        bits.append("오후장 미측정")
     return {
         "gap": round(rel, 2) if rel is not None else 0.0,
         "conditions": cond,
@@ -2734,8 +2760,12 @@ def scanner_meta(definition: dict) -> dict:
 
 
 def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_series=None,
-                       deep_map=None, ctx_base=None):
+                       deep_map=None, ctx_base=None, plan=None):
     """조건식 하나 — 통과 + 거래대금 기준 이상 종목과 모달용 차트 반응.
+
+    · plan: 리스트를 주면 '후보 선별 단계' — 차트·백테스트를 계산하지 않고
+      오후장 판정이 필요한 종목(대기 항목 = pm 사용 조건식의 통과 후보)만 담는다
+      (분봉 한도를 후보에게 먼저 쓰기 위해 build_condition_scan 이 두 번 돌린다)
 
     · series 는 메모리의 일봉(거래량 포함) — data.json에는 결과만 저장
     · 거래대금은 allStocks(당일 누적) 값을 쓰고, 없으면 마지막 봉 종가×거래량으로 계산
@@ -2802,6 +2832,11 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
         last_dates[rows[-1]["d"]] = last_dates.get(rows[-1]["d"], 0) + 1
         is_extra = code in extra_codes
         passed = bool(pick(scan))
+        if plan is not None:
+            # 후보 선별 — 분봉 판정이 필요한 종목(D만 남은 통과 후보)만 모은다
+            if passed and (value_eok or 0) >= min_value:
+                plan.append(code)
+            continue
         if not passed and not is_extra:
             continue
         pat_rows = rows[-CHARTS_DAYS:]          # 차트 구조·과거 반응은 늘 최근 120거래일 기준
@@ -2876,6 +2911,10 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
         result["phase"] = flow.phase
         result["pmBasis"] = (f"13:00 이후 거래대금 비중 {PM_SHARE_MIN:.0f}%↑ · 13:00 대비 우상향")
         result["pmMeasured"] = flow.fetched
+        missed = [it for it in list(hits) + list(reactions.values())
+                  if (it.get("pm") or {}).get("measured") is False]
+        if missed:
+            result["pmMissed"] = len(missed)     # 분봉을 못 받아 판정하지 못한 목록 항목
     return result
 
 
@@ -2908,8 +2947,7 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
     flow = AfternoonFlow(now)
     ordered = sorted(((deep_series or {}).keys()),
                      key=lambda c: -((info.get(c) or [None] * 6)[5] or 0))
-    pm_codes = set(str(c) for c in (extra_codes or ())) | set(ordered[:PM_MAX_FETCH])
-    flow.warm(ordered[:PM_MAX_FETCH])
+    pm_codes = set(str(c) for c in (extra_codes or ()))
     # 주도 섹터 — 이름→순위·점유율 (theme_of 로 묶은 이름 그대로)
     sector_rank, sector_share = {}, {}
     sectors = (dominance or {}).get("sectors") or []
@@ -2924,6 +2962,45 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
                 "index_chg": index_chg or {}, "investor": investor or {},
                 "sector_rank": sector_rank, "sector_share": sector_share,
                 "dominance_top": len(sectors)}
+
+    # ── 1단계: 오후장 판정 후보를 먼저 찾는다 ───────────────────────────────────
+    # 분봉은 종목당 한 번씩 비용이 든다. 예전에는 거래대금 상위 24종목만 받아서,
+    # 그보다 작은 종목(종가베팅 핵심의 실제 후보)은 끝나고도 '대기'로 남았다.
+    # 이제는 A·B·C를 통과해 D만 남은 종목을 먼저 모아 그쪽에 분봉을 먼저 쓴다.
+    plan: list[str] = []
+    if not flow.pending():
+        flow.planning = True
+        try:
+            for defn in SCANNER_DEFS:
+                if not defn.get("pm"):
+                    continue                 # 분봉이 판정에 쓰이는 조건식만
+                build_scanner_scan(defn, series, info, extra_codes, now,
+                                   deep_series=deep_series, deep_map=deep_map,
+                                   ctx_base=ctx_base, plan=plan)
+        finally:
+            flow.planning = False
+        priority: list[str] = []
+
+        def _queue(codes):
+            for c in codes:
+                c = str(c)
+                if c and c not in priority:
+                    priority.append(c)
+
+        # 관찰·카드(모달 표시) → 오후장 판정 후보(거래대금 큰 순) → 나머지 상위 거래대금
+        _queue(extra_codes or ())
+        _queue(sorted(dict.fromkeys(plan),
+                      key=lambda c: -((info.get(c) or [None] * 6)[5] or 0)))
+        _queue(ordered)
+        flow.warm(priority)
+        # 실측한 종목(후보·거래대금 상위)은 모달에도 오후장 수치를 그대로 보여준다
+        pm_codes.update(flow.cache.keys())
+        if flow.fetched:
+            log(f"    오후장 분봉 {flow.fetched}종목 실측"
+                + (f"(판정 후보 {len(set(plan))}종목 우선)" if plan else ""))
+        if flow.skipped:
+            log(f"    분봉 한도({flow.limit}종목) 밖 {len(flow.skipped)}종목은 오후장 수치 없음")
+
     scanners = [build_scanner_scan(defn, series, info, extra_codes, now,
                                   deep_series=deep_series, deep_map=deep_map,
                                   ctx_base=ctx_base)

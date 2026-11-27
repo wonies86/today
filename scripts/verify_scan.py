@@ -35,14 +35,23 @@ HEADERS = {"User-Agent": UA, "Referer": "https://m.stock.naver.com/"}
 
 RULE = "A and (B or C) and D and E"
 MIN_VALUE = 100
+PM_WAIT_STATES = ("오전장 진행 중", "오후장 초반", "휴장")   # 판정 전(대기)
+PM_MISS_STATE = "분봉 미측정"                                  # 분봉 한도·실패
 
 fails: list[str] = []
 passes: list[str] = []
+notes: list[str] = []
 
 
 def ok(msg: str) -> None:
     passes.append(msg)
     print(f"  ✓ {msg}")
+
+
+def warn(msg: str) -> None:
+    """고치기 전에 알아야 할 상태 — 실패는 아니지만 통과로 덮지 않는다."""
+    notes.append(msg)
+    print(f"  △ {msg}")
 
 
 def bad(msg: str) -> None:
@@ -193,9 +202,13 @@ def check_edge_item(s: dict, item: dict) -> None:
         st = str(pm.get("status") or "")
         check(bool(st), f"[{name}] {nm}: 오후장 상태 '{st}'", f"[{name}] {nm}: 오후장 상태 없음")
         if pm.get("pass") is None:
-            check(st in ("오전장 진행 중", "오후장 초반", "휴장"),
-                  f"[{name}] {nm}: 미판정 상태 '{st}' (오후장 실측 아님)",
-                  f"[{name}] {nm}: 미판정인데 상태가 '{st}'")
+            if st == PM_MISS_STATE:
+                # 분봉을 못 받은 종목 — 대기(판정 전)와 다르게 다룬다. 실패는 아니지만 기록한다.
+                warn(f"[{name}] {nm}: 오후장 {PM_MISS_STATE} — {pm.get('basis') or '사유 없음'}")
+            else:
+                check(st in PM_WAIT_STATES,
+                      f"[{name}] {nm}: 미판정 상태 '{st}' (오후장 실측 아님)",
+                      f"[{name}] {nm}: 미판정인데 상태가 '{st}'")
             check("pmShare" not in pm, f"[{name}] {nm}: 대기 상태에 수치 없음",
                   f"[{name}] {nm}: 대기인데 오후 수치가 있음 {pm}")
         else:
@@ -379,7 +392,24 @@ def main(argv) -> int:
         check(bool(edge.get("phase")), f"오후장 수급 단계 '{edge.get('phase')}'", "오후장 단계 없음")
         check(isinstance(edge.get("pmMeasured"), int), "오후장 분봉 조회 수 기록",
               "pmMeasured 없음")
-        edge_items = list(edge.get("hits") or []) + list((edge.get("reactions") or {}).values())
+        phase = str(edge.get("phase") or "")
+        judged = phase not in PM_WAIT_STATES          # 13:30 이후·마감 — D를 판정했어야 하는 시각
+        edge_hits = list(edge.get("hits") or [])
+        if judged:
+            # 2026-11-27 버그 회귀 검사: 다 지난 시각인데 '대기(pending)'로 남은 항목은 없어야 한다
+            stuck = [h.get("name") for h in edge_hits if h.get("pending")]
+            check(not stuck,
+                  f"[{edge.get('name')}] '{phase}' 판정 단계 — 대기(pending) 항목 없음",
+                  f"[{edge.get('name')}] '{phase}'인데 대기로 남은 종목 {len(stuck)}건 {stuck[:5]}")
+            no_pass = [h.get("name") for h in edge_hits
+                       if (h.get("pm") or {}).get("pass") is not True]
+            check(not no_pass,
+                  f"[{edge.get('name')}] 포착 {len(edge_hits)}종목 모두 오후장(D) 통과",
+                  f"[{edge.get('name')}] 오후장(D) 미통과·미측정 항목 {len(no_pass)}건 {no_pass[:5]}")
+            if edge.get("pmMissed"):
+                warn(f"[{edge.get('name')}] 분봉을 못 받아 판정 못 한 목록 항목 "
+                     f"{edge.get('pmMissed')}건 (조회 {edge.get('pmMeasured')}종목)")
+        edge_items = edge_hits + list((edge.get("reactions") or {}).values())
         for item in edge_items:
             check_edge_item(edge, item)
         # 관찰·카드 종목(모달용)도 다른 조건식 항목에 52주·오후장 기록이 붙었는지
@@ -616,7 +646,8 @@ def main(argv) -> int:
                     check(near, f"[주도돌파] {h.get('name')}: 평균 {r['avg']:+.2f}% vs {got}",
                           f"[주도돌파] {h.get('name')}: 평균 불일치 {r['avg']:+.2f}% vs {got}")
 
-    print(f"\n결과: 통과 {len(passes)} · 실패 {len(fails)}")
+    print(f"\n결과: 통과 {len(passes)} · 실패 {len(fails)}" +
+          (f" · 확인 {len(notes)}" if notes else ""))
     return 1 if fails else 0
 
 
