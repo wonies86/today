@@ -13242,7 +13242,7 @@ const REPORT_DATA = [
       (cur.basis || "최근 종가") + " 기준",
       (cur.scanned || 0) + "종목 일봉 실측",
       "당일 거래대금 " + (cur.minValue || 100) + "억↑ 교집합",
-      (cur.sortBy === "score" ? "100점 만점 채점" : ""),
+      (cur.sortBy === "score" ? "100점 만점 채점 · " + SCORE_MIN + "점 초과" : ""),
       (cur.sortBy === "score" && cur.passedTotal > hits.length
         ? "통과 " + cur.passedTotal + "종목 중 상위 " + hits.length : ""),
       (cur.phase ? "오후장 수급 " + cur.phase : ""),
