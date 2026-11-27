@@ -2212,6 +2212,8 @@
   html[data-mode="simple"] #viewScanner,
   html[data-mode="detail"] #viewScanner{display:none !important}
   #viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden]{display:none !important}
+  /* 조건식 탭에서는 상단 시장 수급 이슈 배너를 띄우지 않는다 (잠금/조건식 화면만) */
+  html[data-mode="scanner"] #issueBar{display:none !important}
   body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs{display:none}
   body.mode-simple .wrap,body.mode-scanner .wrap{padding-bottom:0}
 
