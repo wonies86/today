@@ -12586,6 +12586,24 @@ const REPORT_DATA = [
       "</div>";
   }
 
+  /* 점수 조건식(주도돌파 100점)에서 이 종목의 점수 항목 — 조건식 순서와 상관없이 찾는다.
+     조건을 통과한 항목만 쓴다(미통과 참고용 항목의 점수는 보여주지 않는다). */
+  function scanScoreItem(report, code, name) {
+    const list = scannerList(report);
+    for (let i = 0; i < list.length; i++) {
+      const sc = list[i];
+      if (sc.sortBy !== "score") continue;
+      const rx = sc.reactions || {};
+      const pool = (sc.hits || []).concat(Object.keys(rx).map(function (k) { return rx[k]; }));
+      for (let j = 0; j < pool.length; j++) {
+        const h = pool[j];
+        if (!h || h.score == null || h.passed === false) continue;
+        if ((code && h.code === code) || (name && h.name === name)) return h;
+      }
+    }
+    return null;
+  }
+
   /* 모달 "📝 글 요약" 안의 조건식·과거 반응 블록 — 기록이 없으면 아무것도 그리지 않는다.
      결과 중심: 이름 배지 + 현재 구조 + 과거 반응 + 당일 수급·이격만 (A~E 수식 나열 없음). */
   function scanBlockHTML(item, report) {
@@ -12603,7 +12621,8 @@ const REPORT_DATA = [
     const verdict = item.passed
       ? "교집합 통과 " + (item.valueText || "")
       : "교집합 미통과 · 조건 참고용";
-    return scoreBlockHTML(item) + edgeBlockHTML(item) +
+    const scoreItem = item.score != null ? item : scanScoreItem(report, item.code || "", item.name || "");
+    return scoreBlockHTML(scoreItem) + edgeBlockHTML(item) +
       '<div class="ta-sec ta-scan-sec">' +
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🔍 조건식 포착</h4>' +
         '<span class="ta-scan-badge">' + esc(name) + '</span>' +
