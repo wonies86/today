@@ -9895,7 +9895,11 @@ const REPORT_DATA = [
     const quiet = !!(options && options.quiet);
     const started = Date.now();
     const ok = await loadLiveData();
-    if (ok) render();
+    if (ok) {
+      render();
+      /* data.json 이 새로 오면 조건식 암호문도 바뀐다 — 풀어 둔 탭은 그 날짜를 다시 푼다 */
+      scanSyncStale();
+    }
     if (!quiet) {
       /* 스피너가 깜빡이지 않도록 최소 노출 시간 */
       const wait = Math.max(0, 240 - (Date.now() - started));
@@ -12592,7 +12596,22 @@ const REPORT_DATA = [
      · 복호화 결과는 sessionStorage 에만 두고, 탭을 오가도 다시 묻지 않는다
      · `다시 잠그기`면 메모리·sessionStorage 에서 지우고 잠금 카드로 돌아간다
      ======================================================================= */
-  const SCAN_LOCK = { SKEY: "kr_scan_unlock_v1", open: false, byDate: null, busy: false };
+  /* · sessionStorage 두 칸
+       SKEY = 복호화 결과(byDate) — 예전 판과 같은 키(구버전 저장본도 그대로 읽힌다)
+       PKEY = 잠금에 쓴 비밀번호 + 날짜별로 마지막에 푼 iv — 새 data.json 의 새 암호문을 다시 풀 때만 쓴다
+     · 비밀번호는 이 탭 sessionStorage 에만 두고(복호화된 결과와 같은 자리), `다시 잠그기`면 즉시 지운다
+     · data.json 은 장중 60초마다 새로 오므로 그때 scannersEncrypted.iv 가 바뀐 날짜는 자동 재복호화(scanSyncStale) */
+  const SCAN_LOCK = {
+    SKEY: "kr_scan_unlock_v1",
+    PKEY: "kr_scan_unlock_pw_v1",
+    open: false,
+    byDate: null,
+    pw: null,      /* 이 탭에서 잠금을 푼 비밀번호 */
+    iv: {},        /* {date: 마지막으로 복호화에 성공한 scannersEncrypted.iv} */
+    ivBad: {},     /* {date: 실패한 iv} — 같은 iv 로 매 주기 되풀이하지 않는다 */
+    busy: false,
+    syncing: false
+  };
 
   function scanB64(b64) {
     const s = atob(b64), u = new Uint8Array(s.length);
@@ -12602,6 +12621,11 @@ const REPORT_DATA = [
 
   function scanLockTargets() {
     return REPORT_DATA.filter((r) => r && r.scannersEncrypted && r.scannersEncrypted.ct);
+  }
+
+  function scanIvOf(r) {
+    const e = r && r.scannersEncrypted;
+    return e && e.iv ? String(e.iv) : "";
   }
 
   function scanDecrypt(pw, meta) {
@@ -12624,12 +12648,18 @@ const REPORT_DATA = [
     if (!targets.length) return Promise.reject(new Error("norecord"));
     return Promise.all(targets.map((r) =>
       scanDecrypt(pw, r.scannersEncrypted)
-        .then((p) => [r.date, p])
+        .then((p) => [r.date, p, scanIvOf(r)])
         .catch(() => null)
     )).then((rows) => {
       const acc = {};
-      rows.forEach((row) => { if (row) acc[row[0]] = row[1]; });
+      rows.forEach((row) => {
+        if (!row) return;
+        acc[row[0]] = row[1];
+        SCAN_LOCK.iv[row[0]] = row[2];      /* 어느 iv 로 풀었는지 남겨 둔다 */
+        delete SCAN_LOCK.ivBad[row[0]];
+      });
       if (!Object.keys(acc).length) throw new Error("badpw");
+      SCAN_LOCK.pw = pw;
       return acc;
     });
   }
@@ -12651,11 +12681,21 @@ const REPORT_DATA = [
 
   function scanRemember() {
     try { sessionStorage.setItem(SCAN_LOCK.SKEY, JSON.stringify(SCAN_LOCK.byDate)); } catch (e) { /* 무시 */ }
+    try {
+      if (SCAN_LOCK.pw) {
+        sessionStorage.setItem(SCAN_LOCK.PKEY, JSON.stringify({ pw: SCAN_LOCK.pw, iv: SCAN_LOCK.iv }));
+      } else {
+        sessionStorage.removeItem(SCAN_LOCK.PKEY);
+      }
+    } catch (e) { /* 무시 */ }
   }
 
   function scanForget() {
     SCAN_LOCK.open = false;
     SCAN_LOCK.byDate = null;
+    SCAN_LOCK.pw = null;
+    SCAN_LOCK.iv = {};
+    SCAN_LOCK.ivBad = {};
     REPORT_DATA.forEach((r) => {
       if (!r) return;
       delete r.scanners;
@@ -12664,11 +12704,24 @@ const REPORT_DATA = [
       delete r.chartReactions;
     });
     try { sessionStorage.removeItem(SCAN_LOCK.SKEY); } catch (e) { /* 무시 */ }
+    try { sessionStorage.removeItem(SCAN_LOCK.PKEY); } catch (e) { /* 무시 */ }
   }
 
   function scanRestore() {
     let raw = null;
     try { raw = sessionStorage.getItem(SCAN_LOCK.SKEY); } catch (e) { raw = null; }
+    /* 비밀번호·마지막 iv — 구버전 sessionStorage 에는 이 칸이 없다(그때는 예전처럼 결과만 복원) */
+    let sess = null;
+    try { sess = sessionStorage.getItem(SCAN_LOCK.PKEY); } catch (e) { sess = null; }
+    if (sess) {
+      try {
+        const s = JSON.parse(sess);
+        if (s && typeof s.pw === "string" && s.pw) {
+          SCAN_LOCK.pw = s.pw;
+          SCAN_LOCK.iv = (s.iv && typeof s.iv === "object") ? s.iv : {};
+        }
+      } catch (e) { SCAN_LOCK.pw = null; SCAN_LOCK.iv = {}; }
+    }
     if (!raw) return false;
     try {
       scanApply(JSON.parse(raw));
@@ -12677,6 +12730,37 @@ const REPORT_DATA = [
       return false;
     }
     return SCAN_LOCK.open;
+  }
+
+  /* data.json 을 새로 받아 scannersEncrypted.iv 가 바뀐 날짜는 저장해 둔 비밀번호로 자동 재복호화
+     · 장중 60초 갱신·F5 새로고침 뒤에도 조건식이 옛 종목으로 남지 않게 (2026-11-27 수정)
+     · 비밀번호를 모르면(구버전 sessionStorage) 아무 것도 하지 않고 예전처럼 동작 */
+  function scanSyncStale() {
+    if (!SCAN_LOCK.open || !SCAN_LOCK.pw || SCAN_LOCK.syncing) return Promise.resolve(false);
+    const targets = scanLockTargets().filter((r) => {
+      const iv = scanIvOf(r);
+      if (!iv) return false;
+      if (SCAN_LOCK.iv[r.date] === iv) return false;     /* 이미 이 iv 로 풀어 붙였다 */
+      if (SCAN_LOCK.ivBad[r.date] === iv) return false;  /* 풀지 못한 iv — 갱신 전까지 재시도하지 않는다 */
+      return true;
+    });
+    if (!targets.length) return Promise.resolve(false);
+    SCAN_LOCK.syncing = true;
+    const pw = SCAN_LOCK.pw;
+    const got = {};
+    return Promise.all(targets.map((r) => {
+      const iv = scanIvOf(r);
+      return scanDecrypt(pw, r.scannersEncrypted)
+        .then((p) => { got[r.date] = p; SCAN_LOCK.iv[r.date] = iv; delete SCAN_LOCK.ivBad[r.date]; })
+        .catch(() => { SCAN_LOCK.ivBad[r.date] = iv; });
+    })).then(() => {
+      SCAN_LOCK.syncing = false;
+      if (!Object.keys(got).length) return false;
+      scanApply(Object.assign({}, SCAN_LOCK.byDate || {}, got));
+      scanRemember();
+      renderScanner(findReport(activeDate));   /* 전체 render() 는 scanSyncStale 을 다시 부르므로 이 뷰만 */
+      return true;
+    }).catch(() => { SCAN_LOCK.syncing = false; return false; });
   }
 
   function scanLockMsg(text) {
