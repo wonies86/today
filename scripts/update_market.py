@@ -1199,7 +1199,7 @@ def build_pre_market(now, old_entry):
         "source": "네이버 금융 NXT 프리마켓 시세",
         # 시총 대비 회전율(프리장) — 모수는 거래대금 100억↑ · +1%↑ 종목
         "turnover": build_turnover_block(
-            rows, PRE_RISE_MIN_PCT, block["asOf"], rise_label=_pre_rise_label(),
+            rows, PRE_RISE_MIN_PCT, now.strftime("%H:%M"), rise_label=_pre_rise_label(),
             stock_fn=lambda s: _pre_stock(s, reasons),
             stock_cap=PRE_SECTOR_STOCKS, ind_cap=PRE_SECTOR_STOCKS),
     }
