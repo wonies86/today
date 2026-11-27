@@ -117,6 +117,7 @@ DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
 TURNOVER_MIN_VALUE = 100     # 회전율 집계 최소 거래대금(억) — 이 미만 종목은 분자·분모 모두 제외
 TURNOVER_STOCKS = 5          # 회전율순 종목 목록 크기(섹터 카드 한 칸)
 TURNOVER_SECTOR_MAX = 4      # 회전율순으로 보여줄 섹터 수(막대·카드는 4개까지)
+TURNOVER_SECTOR_MIN_COUNT = 2  # 회전율순 섹터 최소 종목 수 — 1종목짜리 섹터는 순위에서 뺀다
 
 # ── NXT 프리마켓(08:00~08:50) — 장전 탭 「🌅 NXT 프리장 수급」 카드 ───────────────
 # 정규장 집계(sectorDominance·allStocks)와 완전히 분리된 preMarket 블록만 갱신한다.
@@ -866,6 +867,9 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
     · 섹터 회전율 = 섹터 모수 종목 거래대금 합 ÷ 시총 합 × 100 (가중)
     · 순서는 섹터 회전율 높은 순, 최대 TURNOVER_SECTOR_MAX개. 주도 3개로 자르면
       자금은 적지만 도는 섹터가 사라지므로 회전율 기준은 4개까지 둔다
+    · 모수 종목이 TURNOVER_SECTOR_MIN_COUNT(2)개 미만인 섹터는 순위에서 뺀다 —
+      한 종목의 하루 회전을 섹터 회전율처럼 보여 주지 않는다. 뺀 종목은 「개별이슈」로
+      내려보내 점유 합계는 그대로 둔다
     · stocks(거래대금순)와 topTurnover(회전율순)를 함께 담아 화면이 정렬만 전환한다
     """
     stock_fn = stock_fn or _dom_stock
@@ -888,9 +892,12 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
         return (sum(s[5] for s in stocks) / mc * 100) if mc else 0.0
 
     ranked = sorted(groups.items(), key=lambda kv: -tp(kv[1]))
+    # 1종목짜리 섹터는 건너뛰고, 자격(2종목↑)을 갖춘 섹터로 TURNOVER_SECTOR_MAX개를 채운다
+    picked = [(name, stocks) for name, stocks in ranked
+              if len(stocks) >= TURNOVER_SECTOR_MIN_COUNT][:TURNOVER_SECTOR_MAX]
     sectors = []
     used = 0.0
-    for name, stocks in ranked[:TURNOVER_SECTOR_MAX]:
+    for name, stocks in picked:
         block = _dom_block(name, stocks, stock_cap)
         block["stocks"] = [stock_fn(s) for s in sorted(stocks, key=lambda s: -s[5])[:stock_cap]]
         turn_pool = [s for s in stocks if _row_turn(s) is not None and (s[5] or 0) >= min_value]
@@ -902,7 +909,9 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
     if not sectors:
         return None
 
-    rest = [r for _n, stocks in ranked[TURNOVER_SECTOR_MAX:] for r in stocks]
+    # 카드에 못 든 종목(섹터 수 초과 + 1종목 섹터)은 모두 「개별이슈」로
+    used_names = {name for name, _stocks in picked}
+    rest = [r for name, stocks in ranked if name not in used_names for r in stocks]
     individual = None
     if rest:
         individual = _dom_block("개별이슈", rest, ind_cap)
@@ -916,15 +925,18 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
         "asOf": asof,
         "basisMode": "riseTurnover",
         "minValueEok": TURNOVER_MIN_VALUE,
+        "minSectorCount": TURNOVER_SECTOR_MIN_COUNT,
         "riseMinPct": rise_min,
         "universe": len(pool),
         "valueEok": int(round(total)),
         "marketCapEok": int(round(total_mc)),
         "turnoverPct": round(total / total_mc * 100, 2),
         "basis": (f"거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 {len(pool):,}종목 · "
+                  f"{TURNOVER_SECTOR_MIN_COUNT}종목↑ 섹터 {len(sectors)}개 · "
                   f"합계 {_large_eok(total)} · 시총 {_large_eok(total_mc)}"),
         "rule": (f"회전율 = 섹터 거래대금 ÷ 섹터 시가총액 × 100 "
-                 f"(모수: 거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 종목)"),
+                 f"(모수: 거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 종목 · "
+                 f"{TURNOVER_SECTOR_MIN_COUNT}종목↑ 섹터)"),
         "sectors": sectors,
         "individual": individual,
     }
