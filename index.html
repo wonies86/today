@@ -12577,8 +12577,8 @@ const REPORT_DATA = [
       '<div class="ta-sec-head"><span class="ta-bar"></span><h4>🎯 주도돌파 100점</h4>' +
         '<span class="ta-tag">' + esc(item.scoreDetail || "") + '</span></div>' +
       '<div class="ta-score-top"><span class="num">' + Math.round(item.score) +
-        '<i>점</i><b>/100</b></span><span class="cap">정배열 상승 추세 · 지수 대비 강세를 <br>' +
-        '세부 배점으로 나눈 점수입니다</span></div>' +
+        '<i>점</i><b>/100</b></span><span class="cap">주도·정배열 상승 추세와 지수 대비 강세를 <br>' +
+        '세부 배점(주도 40·정배열 25·승률 25·수급 10)으로 나눈 점수입니다</span></div>' +
       '<div class="ta-blocks">' + rows.join("") + "</div>" +
       '<p class="ta-note">점수는 일봉 실측값만으로 계산합니다(추정·보정 없음). D+1 승률은 이 종목의 ' +
         '최근 120거래일 정배열 강세일 다음날 종가가 오른 비율이고, 표본이 적으면 기준을 넓혀 다시 ' +
@@ -13106,11 +13106,12 @@ const REPORT_DATA = [
   /* 🎯 주도돌파 100점 — 점수 배지·D+1 승률·배점 막대. data.json 의 score·scoreParts 를 그대로 그린다.
      점수가 없는 조건식 행은 예전과 똑같이(이격·과거 반응) 그린다. */
   const SCORE_PARTS = [
-    { key: "trend", label: "정배열", cap: 30 },
-    { key: "lead", label: "주도", cap: 25 },
+    { key: "lead", label: "주도", cap: 40 },
+    { key: "trend", label: "정배열", cap: 25 },
     { key: "win", label: "승률", cap: 25 },
-    { key: "flow", label: "수급", cap: 20 }
+    { key: "flow", label: "수급", cap: 10 }
   ];
+  const SCORE_MIN = 51;   /* 주도돌파 100점 목록 기준 — 51점 초과만 올라온다 */
 
   function isScoreScanner(cur, h) {
     return (!!cur && cur.sortBy === "score") || !!(h && h.score != null);
@@ -13254,11 +13255,13 @@ const REPORT_DATA = [
       empty.hidden = hits.length > 0;
       empty.textContent = hits.length ? "" :
         "이 날은 " + (cur.name || "조건식") + "를 통과하고 당일 거래대금 " +
-        (cur.minValue || 100) + "억 이상인 종목이 없었습니다.";
+        (cur.minValue || 100) + "억 이상" +
+        (cur.sortBy === "score" ? " · " + SCORE_MIN + "점 초과" : "") + "인 종목이 없었습니다.";
     }
     $("#scNote").textContent = (cur.sortBy === "score"
-      ? "점수 = 정배열·이평 돌파 30 + 주도 섹터·지수 초과 25 + D+1 실측 승률·기대수익 25 + " +
-        "거래대금·회전율 20 (100점). D+1 승률은 그 종목의 최근 120거래일 정배열 강세일 다음날 " +
+      ? "점수 = 주도 섹터·지수 초과 40 + 정배열·이평 돌파 25 + D+1 실측 승률·기대수익 25 + " +
+        "거래대금·회전율 10 (100점) · " + SCORE_MIN + "점 초과만 표시. " +
+        "D+1 승률은 그 종목의 최근 120거래일 정배열 강세일 다음날 " +
         "종가 기준이고 표본 수를 함께 적었습니다. "
       : "") + "차트 구조·과거 반응은 " + (cur.basis || "최근 120거래일") +
       " 일봉 실측값 계산입니다(추정·보정 없음). 행을 누르면 차트와 함께 상세가 열립니다." +

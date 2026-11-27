@@ -269,7 +269,10 @@ BREAKOUT_WIN_BARS = 120   # D+1 승률 백테스트 창(거래일)
 BREAKOUT_STRONG = 5.0     # 1차 유사 강세일 — 정배열 + 당일 +5% 이상
 BREAKOUT_STRONG_WIDE = 3.0  # 표본이 모자랄 때 2차 기준 — 정배열 + 당일 +3% 이상
 BREAKOUT_MIN_SAMPLES = 3  # 이보다 적으면 더 넓은 기준으로 다시 센다
-BREAKOUT_CAP = {"trend": 30, "lead": 25, "win": 25, "flow": 20}   # 100점 배분
+BREAKOUT_CAP = {"lead": 40, "trend": 25, "win": 25, "flow": 10}   # 100점 배분(2026-11-27 개편)
+BREAKOUT_MIN_SCORE = 51   # 목록에 올릴 최소 점수 — 51점 초과(52점 이상)만
+#   2026-11-27 사용자 요청 2차: "주도 40 · 정배열 25 · 승률 25 · 수급 10" 배점으로 바꾸고
+#   목록은 51점 초과만 남긴다.
 MINUTE_URL = FCHART + "?symbol={code}&timeframe=minute&count=400&requestType=0"
 
 # 조건식(scanners) 잠금 — data.json 에는 암호문만 남기고 평문 키는 저장하지 않는다.
@@ -2308,8 +2311,9 @@ def breakout_score_scan(rows, ctx):
     C [당일] 종목 등락률 > 0% (상승)
     조건식: A and B and C — 당일 거래대금 300억↑ 교집합(SCANNER_DEFS.minValue)
 
-    점수(총 100) = 정배열·이평 돌파 30 + 주도 섹터·지수 초과 25
-                 + 유사 강세일 D+1 승률·기대수익 25 + 거래대금·회전율 20
+    점수(총 100) = 주도 섹터·지수 초과 40 + 정배열·이평 돌파 25
+                 + 유사 강세일 D+1 승률·기대수익 25 + 거래대금·회전율 10
+    점수가 BREAKOUT_MIN_SCORE(51)를 넘지 못하면 목록에서 뺀다.
     """
     ctx = ctx or {}
     closes = [r["c"] for r in rows or []]
@@ -2332,16 +2336,16 @@ def breakout_score_scan(rows, ctx):
     }
     passed = cond["A"] and cond["B"] and cond["C"]
 
-    # ── 1) 정배열·이평 돌파 (30) ─────────────────────────────────────────────
+    # ── 1) 정배열·이평 돌파 (25) ─────────────────────────────────────────────
     trend = 0
     if close > ma20:
-        trend += 6
+        trend += 5
     if ma20 > ma60:
-        trend += 8
+        trend += 7
     if ma120 and ma60 > ma120:
-        trend += 8
+        trend += 7
     if ma120 and close >= ma120:
-        trend += 4
+        trend += 3
     fresh = False                              # 최근 5봉 안 20·60이평 상향 돌파
     for i in range(max(60, n - 5), n):
         if i < 61:
@@ -2357,21 +2361,21 @@ def breakout_score_scan(rows, ctx):
             fresh = True
             break
     if fresh:
-        trend += 4
+        trend += 3
     trend = int(_cap(trend, BREAKOUT_CAP["trend"]))
 
-    # ── 2) 주도 섹터·지수 초과 강도 (25) ─────────────────────────────────────
+    # ── 2) 주도 섹터·지수 초과 강도 (40) ─────────────────────────────────────
     lead = 0.0
     if rel is not None:
-        lead += 10 * _cap(rel / 8.0, 1)                     # 지수 대비 +8%p = 만점
+        lead += 16 * _cap(rel / 8.0, 1)                     # 지수 대비 +8%p = 만점
     rank = ctx.get("sector_rank")
     if rank and rank <= (ctx.get("dominance_top") or 0):
-        lead += 7                                           # 주도 섹터(상위 3~4) 소속
+        lead += 11                                          # 주도 섹터(상위 3~4) 소속
     share = ctx.get("sector_share")
     if share:
-        lead += 5 * _cap(share / 20.0, 1)                   # 섹터 점유율 20% = 만점
+        lead += 8 * _cap(share / 20.0, 1)                   # 섹터 점유율 20% = 만점
     if chg is not None:
-        lead += 3 * _cap(chg / 5.0, 1)                      # 당일 상승 강도(+5% = 만점)
+        lead += 5 * _cap(chg / 5.0, 1)                      # 당일 상승 강도(+5% = 만점)
     lead = int(round(_cap(lead, BREAKOUT_CAP["lead"])))
 
     # ── 3) 유사 강세일 D+1 실측 승률·기대수익 (25) ───────────────────────────
@@ -2384,23 +2388,25 @@ def breakout_score_scan(rows, ctx):
         win += 10 * _cap((wr["avg"] + 1.0) / 5.0, 1) * conf  # 평균 +4%→만점 · -1%→0
     win = int(round(_cap(win, BREAKOUT_CAP["win"])))
 
-    # ── 4) 거래대금·시총 대비 회전율 (20) ────────────────────────────────────
+    # ── 4) 거래대금·시총 대비 회전율 (10) ────────────────────────────────────
     value_eok = float(ctx.get("value_eok") or 0)
     flow = 0.0
     if value_eok > BREAKOUT_MIN_VALUE:
-        flow += 12 * _cap(math.log(value_eok / BREAKOUT_MIN_VALUE)
-                          / math.log(2000 / BREAKOUT_MIN_VALUE), 1)
+        flow += 6 * _cap(math.log(value_eok / BREAKOUT_MIN_VALUE)
+                         / math.log(2000 / BREAKOUT_MIN_VALUE), 1)
     turn = ctx.get("turn")
     if turn:
-        flow += 8 * _cap(float(turn) / 5.0, 1)              # 회전율 5% = 만점
+        flow += 4 * _cap(float(turn) / 5.0, 1)              # 회전율 5% = 만점
     flow = int(round(_cap(flow, BREAKOUT_CAP["flow"])))
 
-    parts = {"trend": trend, "lead": lead, "win": win, "flow": flow}
+    parts = {"lead": lead, "trend": trend, "win": win, "flow": flow}
     score = min(100, sum(parts.values()))
+    # 51점 초과만 목록에 올린다(52점 이상) — 조건을 맞아도 점수가 낮으면 제외
+    passed = bool(passed and score > BREAKOUT_MIN_SCORE)
     rate_text = (f"{wr['rate']:.1f}% ({mm}/{nn})" if wr.get("rate") is not None
                  else "표본 없음")
     avg_text = (f"{wr['avg']:+.2f}%" if wr.get("avg") is not None else "—")
-    detail = (f"정배열 {trend} · 주도 {lead} · 승률 {win} · 수급 {flow}")
+    detail = (f"주도 {lead} · 정배열 {trend} · 승률 {win} · 수급 {flow}")
     bits = []
     if rel is not None:
         bits.append(f"지수 대비 {rel:+.1f}%p")
@@ -2536,8 +2542,8 @@ SCANNER_DEFS = [
         "id": "breakout-100",
         "name": "주도돌파 100점",
         "summary": "종가 > 20이평 > 60이평 정배열 상승 추세 + 소속 지수 대비 초과 상승(당일 +)"
-                   " — 정배열·지수 초과·최근 120거래일 D+1 실측 승률·기대수익·거래대금으로 "
-                   "100점 만점 채점(점수 상위 15종목)",
+                   " — 주도 40·정배열 25·승률 25·수급 10 배점으로 100점 만점 채점, "
+                   "51점 초과 종목만(점수 내림차순 상위 15종목)",
         "formula": "A and B and C",
         "minValue": BREAKOUT_MIN_VALUE,
         "deep": True,
@@ -2551,25 +2557,29 @@ SCANNER_DEFS = [
              "detail": "당일 등락률 − 소속 지수(코스피·코스닥) 등락률 > 0%p"},
             {"key": "C", "label": "당일 상승", "detail": "당일 등락률 > 0%"},
         ],
-        "intersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ · 점수 상위 {BREAKOUT_TOP}종목",
+        "intersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ · {BREAKOUT_MIN_SCORE}점 초과"
+                        f" · 점수 상위 {BREAKOUT_TOP}종목",
         "rawSource": "시루 자체 조건식 (일봉 250거래일 실측 · 100점 채점)",
         "rawTarget": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억 이상 종목(250거래일 일봉 보유분)",
         "rawRules": [
             {"key": "A", "text": "[일]0봉전 종가 > 20이평 > 60이평 (정배열 상승 추세)"},
             {"key": "B", "text": "[당일] 등락률 − 소속 지수 등락률 > 0%p (지수 대비 초과 강세)"},
             {"key": "C", "text": "[당일] 등락률 > 0% (상승 마감)"},
-            {"key": "점수1", "text": "정배열·이평 돌파 30점 — 종가>20이평 6 · 20>60이평 8 · "
-                                  "60>120이평 8 · 종가≥120이평 4 · 최근 5봉 내 20·60이평 돌파 4"},
-            {"key": "점수2", "text": "주도 섹터·지수 초과 25점 — 지수 대비 초과 10 · 주도 섹터 7 · "
-                                  "섹터 점유율 5 · 당일 상승 강도 3"},
+            {"key": "점수1", "text": "주도 섹터·지수 초과 40점 — 지수 대비 초과 최대 16(+8%p 만점) · "
+                                  "주도 섹터(상위권) 11 · 섹터 점유율 최대 8(20% 만점) · "
+                                  "당일 상승 강도 최대 5(+5% 만점)"},
+            {"key": "점수2", "text": "정배열·이평 돌파 25점 — 종가>20이평 5 · 20>60이평 7 · "
+                                  "60>120이평 7 · 종가≥120이평 3 · 최근 5봉 내 20·60이평 돌파 3"},
             {"key": "점수3", "text": "D+1 승률·기대수익 25점 — 최근 120거래일 '정배열 +5%↑' 다음날 "
                                   "승률 15 + 평균 수익률 10 (표본 3건 미만이면 +3%↑ → 정배열 전체로 확대, "
                                   "표본이 적을수록 50%로 수축하고 평균 수익률 점수는 표본 수에 비례해 줄입니다)"},
-            {"key": "점수4", "text": "거래대금·회전율 20점 — 당일 거래대금 300억~2,000억 12 · "
-                                  "시총 대비 회전율 5% 이상 8"},
+            {"key": "점수4", "text": "거래대금·회전율 10점 — 당일 거래대금 300억~2,000억 6 · "
+                                  "시총 대비 회전율 5% 이상 4"},
+            {"key": "필터", "text": f"점수 {BREAKOUT_MIN_SCORE}점 초과(52점 이상)만 목록에 올림"},
         ],
-        "rawFormula": "A and B and C",
-        "rawIntersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ 교집합 · 점수 내림차순 상위 {BREAKOUT_TOP}종목",
+        "rawFormula": f"A and B and C and score > {BREAKOUT_MIN_SCORE}",
+        "rawIntersection": f"당일 거래대금 {BREAKOUT_MIN_VALUE}억+ 교집합 · "
+                            f"점수 {BREAKOUT_MIN_SCORE}점 초과 · 점수 내림차순 상위 {BREAKOUT_TOP}종목",
         "rawNote": "점수는 일봉 실측값만으로 계산합니다(추정·보정 없음). D+1 승률은 그 종목의 "
                    "과거 정배열 강세일 다음날 종가가 오른 비율이고, 표본이 적으면 넓은 기준으로 "
                    "다시 세어 표본 수를 함께 표시합니다.",

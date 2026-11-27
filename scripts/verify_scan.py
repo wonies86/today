@@ -212,7 +212,8 @@ def check_edge_item(s: dict, item: dict) -> None:
         bad(f"[{name}] {nm}: 오후장 수급 기록 없음")
 
 
-SCORE_CAPS = {"trend": 30, "lead": 25, "win": 25, "flow": 20}
+SCORE_CAPS = {"lead": 40, "trend": 25, "win": 25, "flow": 10}
+SCORE_MIN = 51   # 51점 초과만 목록에 올라온다(2026-11-27 개편)
 
 
 def check_score_item(s: dict, item: dict) -> None:
@@ -412,6 +413,9 @@ def main(argv) -> int:
               f"passedTotal {score_sc.get('passedTotal')} < 표시 {len(sc_hits)}")
         for item in sc_hits:
             check_score_item(score_sc, item)
+            check(int(item.get("score") or 0) > SCORE_MIN,
+                  f"[주도돌파] {item.get('name')}: {item.get('score')}점 > {SCORE_MIN}점",
+                  f"[주도돌파] {item.get('name')}: {item.get('score')}점 — {SCORE_MIN}점 초과 필터 위반")
             check(all((item.get("conditions") or {}).get(k) for k in ("A", "B", "C")),
                   f"[주도돌파] {item.get('name')}: A·B·C 충족",
                   f"[주도돌파] {item.get('name')}: A·B·C 미충족 {item.get('conditions')}")
