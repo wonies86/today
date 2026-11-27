@@ -115,7 +115,11 @@ DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
 # 소스: 네이버 polling API 의 overMarketPriceInfo(tradingSessionType=PRE_MARKET)
 PRE_MARKET_START = 8 * 60        # 08:00 KST
 PRE_MARKET_END = 8 * 60 + 50     # 08:50 KST (NXT 프리마켓 종료)
-PRE_VALUE_TOP = 10               # 거래대금 상위 종목 수
+# 프리장 섹터 점유율의 모수도 정규장과 같은 방식으로 상승 종목만 잡는다(+1%↑) —
+#   전체 체결을 모수로 쓰면 하락 대형주(SK하이닉스 -1.33% 등)의 거래대금이 섹터 1위를 만드는 착시가 생긴다.
+#   정규장은 +2%↑ 이지만 프리장은 표본이 적고 변동성이 커서 +1%↑ 로 둔다(2026-11-27 사용자 확정 "1+2 조합").
+PRE_RISE_MIN_PCT = 1.0           # 프리장 모수 최소 등락률(%) — +0.99% 제외, +1.00% 포함
+PRE_VALUE_TOP = 10               # 거래대금 상위 종목 수(프리장 전체 체결 기준)
 PRE_RISE_TOP = 10                # 상승률 상위 종목 수
 PRE_SECTOR_TOP = 5               # 점유율 막대 섹터 수
 PRE_SECTOR_STOCKS = 3            # 섹터 카드에 담는 종목 수
@@ -737,6 +741,11 @@ def _rise_label() -> str:
     return f"+{pct}%↑"
 
 
+def _pre_rise_label() -> str:
+    """프리장 모수 기준 표기 — '+1%↑'."""
+    return f"+{PRE_RISE_MIN_PCT:g}%↑"
+
+
 def build_sector_dominance(all_stocks, now):
     """주도 섹터 점유율 — **당일 +2% 이상 상승 종목**의 거래대금 비중을 섹터별로 계산한다.
 
@@ -872,9 +881,11 @@ def build_pre_market(now, old_entry):
 
     · 모수: 전 종목 인덱스(allStocks, 직전 실행분)의 종목코드 + 관찰 5선. 병렬 polling 으로
       프리마켓 체결분만 골라 담는다(30종목씩 10스레드 — 599종목 ≈ 2초).
-    · 점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 체결 전체 거래대금 (모수는 프리장만)
-    · 등락률은 프리장 체결 종목의 실측값 단순 평균, 거래대금 상위·상승률 상위 각 10종목
-    · 상승 사유는 네이버 종목 뉴스 최신 헤드라인 1줄(수집 실패 종목은 빈칸)
+    · 점유율 = 섹터 프리장 합산 거래대금 ÷ **프리장 +1%↑ 상승 종목** 거래대금
+      (전체 체결을 모수로 쓰면 하락 대형주가 섹터 1위를 만드는 착시 — 2026-11-27 수정)
+    · 종목 리스트(거래대금·상승률 상위)는 프리장 전체 체결 그대로 — 거래대금 상위에는
+      하락 대형주도 들어갈 수 있으므로 basis/label 에 기준을 명시한다
+    · 등락률은 프리장 체결 종목의 실측값 단순 평균, 상승 사유는 네이버 종목 뉴스 최신 헤드라인 1줄
     """
     industry_map = {}
     codes = []
@@ -912,9 +923,11 @@ def build_pre_market(now, old_entry):
         return None
     chgs = [r[4] for r in rows if r[4] is not None]
 
-    # 섹터 점유율 — 실전 테마 우선, 나머지는 네이버 업종
+    # 섹터 점유율 모수 — 프리장 +1%↑ 상승 종목만 (실전 테마 우선, 나머지는 네이버 업종)
+    rise_dom = [r for r in rows if r[4] is not None and r[4] >= PRE_RISE_MIN_PCT]
+    total_rise = sum(r[5] for r in rise_dom)
     groups: dict[str, list] = {}
-    for r in rows:
+    for r in rise_dom:
         groups.setdefault(theme_of(r[1], r[6]) or "기타", []).append(r)
     ranked = sorted(groups.items(), key=lambda kv: -sum(x[5] for x in kv[1]))
 
@@ -943,12 +956,13 @@ def build_pre_market(now, old_entry):
         reasons = {c: t for c, t in zip(reason_codes, got) if t}
 
     sectors = []
-    for name, stocks in ranked[:PRE_SECTOR_TOP]:
-        block = _dom_block(name, stocks, PRE_SECTOR_STOCKS)
-        block["share"] = round(block["valueEok"] / total * 100, 1)
-        block["stocks"] = [_pre_stock(r, reasons)
-                           for r in sorted(stocks, key=lambda x: -x[5])[:PRE_SECTOR_STOCKS]]
-        sectors.append(block)
+    if total_rise > 0:
+        for name, stocks in ranked[:PRE_SECTOR_TOP]:
+            block = _dom_block(name, stocks, PRE_SECTOR_STOCKS)
+            block["share"] = round(block["valueEok"] / total_rise * 100, 1)
+            block["stocks"] = [_pre_stock(r, reasons)
+                               for r in sorted(stocks, key=lambda x: -x[5])[:PRE_SECTOR_STOCKS]]
+            sectors.append(block)
     used = sum(s["share"] for s in sectors)
     rest = [r for _name, stocks in ranked[PRE_SECTOR_TOP:] for r in stocks]
     individual = None
@@ -966,8 +980,11 @@ def build_pre_market(now, old_entry):
         "window": "08:00~08:50",
         "label": "NXT 프리마켓",
         "universe": len(rows),
+        "riseUniverse": len(rise_dom),
+        "riseEok": int(round(total_rise)),
         "totalEok": int(round(total)),
         "totalText": _large_eok(total),
+        "riseTotalText": _large_eok(total_rise),
         "riseCount": sum(1 for c in chgs if c > 0),
         "fallCount": sum(1 for c in chgs if c < 0),
         "avgChg": round(sum(chgs) / len(chgs), 2) if chgs else None,
@@ -975,9 +992,12 @@ def build_pre_market(now, old_entry):
         "individual": individual,
         "valueTop": [_pre_stock(r, reasons) for r in value_top],
         "riseTop": [_pre_stock(r, reasons) for r in rise_top],
+        "valueTopLabel": "프리장 전체 체결 거래대금 상위",
+        "riseTopLabel": f"{_pre_rise_label()} · 프리장 {PRE_MIN_VALUE}억↑ 상승률 상위",
         "reasonCount": len(reasons),
-        "basis": f"프리장 체결 {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
-        "rule": "점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 체결 거래대금",
+        "basisMode": "rise",
+        "basis": f"{_pre_rise_label()} {len(rise_dom):,}종목 · 거래대금 {_large_eok(total_rise)}",
+        "rule": f"점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 {_pre_rise_label()} 종목 거래대금",
         "source": "네이버 금융 NXT 프리마켓 시세",
     }
     return block
@@ -1025,7 +1045,8 @@ def pre_market_update(now):
     if block.get("individual"):
         segs.append(f"개별이슈 {block['individual']['share']}%")
     log(f"  · preMarket {block['asOf']} 기준 · 체결 {block['universe']}종목 · "
-        f"{block['totalText']} · 사유 {block['reasonCount']}종목 ({time.time() - started:.1f}초)")
+        f"{block['totalText']} · 모수 {block.get('basis', '')} · "
+        f"사유 {block['reasonCount']}종목 ({time.time() - started:.1f}초)")
     log("    프리장 섹터 점유율: " + (" | ".join(segs) or "—"))
     log(f"    거래대금 1위 {block['valueTop'][0]['name']} "
         f"{block['valueTop'][0]['valueText']}" if block.get("valueTop") else "    거래대금 상위 없음")
