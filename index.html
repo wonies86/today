@@ -13003,9 +13003,12 @@ const REPORT_DATA = [
     };
   }
 
-  /* 원문 그대로 — 괄호 안 문구는 줄바꿈으로 쪼개지 않게 한 덩어리로 둔다 */
+  /* 원문 그대로 — 짧은 괄호 문구는 줄바꿈으로 쪼개지 않게 한 덩어리로 둔다.
+     긴 괄호(설명 문장)는 그대로 두어 폭에 맞게 줄바꿈되게 한다(잘림 방지). */
   function rawCodeHTML(text) {
-    return esc(text).replace(/(\([^()]*\))/g, '<span class="nw">$1</span>');
+    return esc(text).replace(/(\([^()]*\))/g, function (m) {
+      return m.length <= 24 ? '<span class="nw">' + m + "</span>" : m;
+    });
   }
 
   /* 원본 조건식 팝업 — 영웅문 원문(A~E + 조건식 + 수급 교집합)만 그대로 보여준다 */
