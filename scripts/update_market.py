@@ -114,7 +114,8 @@ DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
 # 거래대금은 큰 종목이 늘 이기므로, 같은 수급을 **시가총액 대비 거래대금**으로도 본다.
 # 초소형 품절주(시총 300억에 거래대금 200억 = 회전율 66%)가 섹터 회전율을 통째로
 # 왜곡하지 않도록 집계 모수에 **거래대금 TURNOVER_MIN_VALUE억 이상**을 둔다.
-TURNOVER_MIN_VALUE = 100     # 회전율 집계 최소 거래대금(억) — 이 미만 종목은 분자·분모 모두 제외
+TURNOVER_MIN_VALUE = 300     # 회전율 집계 최소 거래대금(억) — 이 미만 종목은 분자·분모 모두 제외
+                             #   100 → 300 (2026-11-27 사용자 확정 — 초소형 품절주 잡음 제거)
 TURNOVER_STOCKS = 5          # 회전율순 종목 목록 크기(섹터 카드 한 칸)
 TURNOVER_SECTOR_MAX = 4      # 회전율순으로 보여줄 섹터 수(막대·카드는 4개까지)
 TURNOVER_SECTOR_MIN_COUNT = 2  # 회전율순 섹터 최소 종목 수 — 1종목짜리 섹터는 순위에서 뺀다
@@ -862,7 +863,7 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
                          min_value=TURNOVER_MIN_VALUE):
     """시총 대비 회전율 기준의 섹터 순위 — 「자금순」과 **같은 모양**의 블록.
 
-    · 모수: 업종이 있는 종목 중 ① 거래대금 TURNOVER_MIN_VALUE(100억)억 이상
+    · 모수: 업종이 있는 종목 중 ① 거래대금 min_value(TURNOVER_MIN_VALUE=300억) 이상
       ② 당일 등락률 rise_min 이상(정규장 +2%, 프리장 +1%) — 초소형 품절주 왜곡 방지
     · 섹터 회전율 = 섹터 모수 종목 거래대금 합 ÷ 시총 합 × 100 (가중)
     · 순서는 섹터 회전율 높은 순, 최대 TURNOVER_SECTOR_MAX개. 주도 3개로 자르면
@@ -924,18 +925,18 @@ def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
     return {
         "asOf": asof,
         "basisMode": "riseTurnover",
-        "minValueEok": TURNOVER_MIN_VALUE,
+        "minValueEok": min_value,
         "minSectorCount": TURNOVER_SECTOR_MIN_COUNT,
         "riseMinPct": rise_min,
         "universe": len(pool),
         "valueEok": int(round(total)),
         "marketCapEok": int(round(total_mc)),
         "turnoverPct": round(total / total_mc * 100, 2),
-        "basis": (f"거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 {len(pool):,}종목 · "
+        "basis": (f"거래대금 {min_value}억↑ · {label} 상승 {len(pool):,}종목 · "
                   f"{TURNOVER_SECTOR_MIN_COUNT}종목↑ 섹터 {len(sectors)}개 · "
                   f"합계 {_large_eok(total)} · 시총 {_large_eok(total_mc)}"),
         "rule": (f"회전율 = 섹터 거래대금 ÷ 섹터 시가총액 × 100 "
-                 f"(모수: 거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 종목 · "
+                 f"(모수: 거래대금 {min_value}억↑ · {label} 상승 종목 · "
                  f"{TURNOVER_SECTOR_MIN_COUNT}종목↑ 섹터)"),
         "sectors": sectors,
         "individual": individual,
@@ -1209,7 +1210,7 @@ def build_pre_market(now, old_entry):
         "basis": f"{_pre_rise_label()} {len(rise_dom):,}종목 · 거래대금 {_large_eok(total_rise)}",
         "rule": f"점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 {_pre_rise_label()} 종목 거래대금",
         "source": "네이버 금융 NXT 프리마켓 시세",
-        # 시총 대비 회전율(프리장) — 모수는 거래대금 100억↑ · +1%↑ 종목
+        # 시총 대비 회전율(프리장) — 모수는 거래대금 300억↑ · +1%↑ 종목(정규장과 같은 기준)
         "turnover": build_turnover_block(
             rows, PRE_RISE_MIN_PCT, now.strftime("%H:%M"), rise_label=_pre_rise_label(),
             stock_fn=lambda s: _pre_stock(s, reasons),
