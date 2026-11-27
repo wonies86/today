@@ -110,6 +110,14 @@ DOM_FOURTH_SHARE = 5.0   # 4번째 섹터를 넣는 최소 점유율(%) — 테�
 DOM_STOCKS = 5           # 섹터 카드에 담는 종목 수(거래대금 순)
 DOM_IND_STOCKS = 6       # 개별이슈 카드에 담는 종목 수
 
+# ── 시총 대비 회전율(2026-11-27) — 화면의 「자금순 | 회전율순」 전환 ───────────────
+# 거래대금은 큰 종목이 늘 이기므로, 같은 수급을 **시가총액 대비 거래대금**으로도 본다.
+# 초소형 품절주(시총 300억에 거래대금 200억 = 회전율 66%)가 섹터 회전율을 통째로
+# 왜곡하지 않도록 집계 모수에 **거래대금 TURNOVER_MIN_VALUE억 이상**을 둔다.
+TURNOVER_MIN_VALUE = 100     # 회전율 집계 최소 거래대금(억) — 이 미만 종목은 분자·분모 모두 제외
+TURNOVER_STOCKS = 5          # 회전율순 종목 목록 크기(섹터 카드 한 칸)
+TURNOVER_SECTOR_MAX = 4      # 회전율순으로 보여줄 섹터 수(막대·카드는 4개까지)
+
 # ── NXT 프리마켓(08:00~08:50) — 장전 탭 「🌅 NXT 프리장 수급」 카드 ───────────────
 # 정규장 집계(sectorDominance·allStocks)와 완전히 분리된 preMarket 블록만 갱신한다.
 # 소스: 네이버 polling API 의 overMarketPriceInfo(tradingSessionType=PRE_MARKET)
@@ -561,6 +569,7 @@ def fetch_realtime_stocks(codes):
                 "chg": to_float(d.get("fluctuationsRatioRaw")),
                 "volume": to_int(d.get("accumulatedTradingVolumeRaw")),
                 "value_eok": (to_int(d.get("accumulatedTradingValueRaw")) or 0) / 1e8 or None,
+                "mv_eok": _mcap_eok(d.get("marketValueFullRaw") or d.get("marketValueRaw")),
                 "prevClose": (price - diff) if price is not None else None,
                 "traded_at": d.get("localTradedAt"),
             }
@@ -648,11 +657,68 @@ def fetch_sector_map():
     return mapping
 
 
+def _mcap_eok(raw):
+    """시가총액 원 → 억 원 정수. 값이 없거나 0이면 None(회전율을 만들지 않는다)."""
+    n = to_int(raw)
+    if not n or n <= 0:
+        return None
+    return int(round(n / 1e8))
+
+
+def _turnover_pct(value_eok, mcap_eok):
+    """시총 대비 회전율(%) = 거래대금 ÷ 시가총액 × 100 — 시총이 없으면 None."""
+    if value_eok is None or mcap_eok is None:
+        return None
+    try:
+        v, m = float(value_eok), float(mcap_eok)
+    except (TypeError, ValueError):
+        return None
+    if m <= 0:
+        return None
+    return round(v / m * 100, 2)
+
+
+def _row_mcap(row):
+    return row[7] if isinstance(row, list) and len(row) > 7 else None
+
+
+def _row_turn(row):
+    return row[8] if isinstance(row, list) and len(row) > 8 else None
+
+
+def _fill_missing_mcaps(rows):
+    """시총 상위 500 밖에서 거래대금 순으로 들어온 종목의 시총을 polling 으로 채운다.
+
+    allStocks 요소 [7]=시총(억), [8]=회전율(%). 30종목씩 한 번에 받으므로 보통 1~2회 요청이다.
+    실패하면 그대로 None — 회전율을 지어내지 않는다.
+    """
+    missing = [r for r in (rows or []) if isinstance(r, list) and _row_mcap(r) is None]
+    codes = [str(r[0]) for r in missing if r and r[0]]
+    if not codes:
+        return
+    got = {}
+    for i in range(0, len(codes), 30):
+        data = get_json(f"{POLL_BASE}/stock/" + ",".join(codes[i:i + 30]), tries=1) or {}
+        for d in data.get("datas") or []:
+            mv = _mcap_eok(d.get("marketValueFullRaw"))
+            if mv and d.get("itemCode"):
+                got[str(d["itemCode"])] = mv
+    for r in missing:
+        while len(r) < 9:
+            r.append(None)
+        r[7] = got.get(str(r[0]))
+        r[8] = _turnover_pct(r[5], r[7])
+
+
 def build_all_stocks(mv_by_market, movers, sector_map):
-    """KOSPI·KOSDAQ 전 종목 시세 인덱스 — [[코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종]].
+    """KOSPI·KOSDAQ 전 종목 시세 인덱스
+    — [[코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종, 시총(억), 회전율(%)]].
 
     소스: 시가총액 상위 500(KOSPI·KOSDAQ 각각) + 당일 상승·하락 상위(movers),
     그중 시가총액 150위 안은 무조건, 나머지는 거래대금 순으로 시장당 300종목까지.
+    · 8번째(인덱스 7)는 시가총액(억 원) — marketValue 를 그대로 억 단위로 옮긴 실측값
+    · 9번째(인덱스 8)는 회전율(%) = 거래대금 ÷ 시총 × 100 (시총 없으면 None)
+      기존 화면·코드는 앞 7개만 읽으므로 과거 날짜(7개)와도 함께 동작한다.
     """
     movers_by_market = {"KOSPI": [], "KOSDAQ": []}
     for s in movers or []:
@@ -689,11 +755,14 @@ def build_all_stocks(mv_by_market, movers, sector_map):
                 continue
             chg = to_float(s.get("fluctuationsRatio"))
             value_eok = round((to_int(s.get("accumulatedTradingValueRaw")) or 0) / 1e8)
+            mcap = _mcap_eok(s.get("marketValueRaw"))
             picked.append([s.get("itemCode"), name, market, price,
                            round(chg, 2) if chg is not None else None,
-                           value_eok, sector_map.get(s.get("itemCode"), "")])
+                           value_eok, sector_map.get(s.get("itemCode"), ""),
+                           mcap, _turnover_pct(value_eok, mcap)])
         picked.sort(key=lambda r: -r[5])
         rows.extend(picked)
+    _fill_missing_mcaps(rows)
     return rows
 
 
@@ -707,32 +776,73 @@ def _large_eok(v) -> str:
     return f"{v:,}억"
 
 
+def _dom_stock(s):
+    """섹터 카드 종목 한 개 — 시총(억)·회전율(%)까지. 없으면 None(화면은 — 표시)."""
+    return {"code": s[0], "name": s[1], "market": s[2], "price": s[3],
+            "chg": s[4], "valueEok": s[5],
+            "marketCap": _row_mcap(s), "turnoverPct": _row_turn(s)}
+
+
+def _sector_turnover(stocks):
+    """섹터 회전율 — 거래대금 합 ÷ 시총 합 × 100(가중), 종목 평균도 함께.
+
+    · 가중 회전율이 카드·막대의 기준값이다(대형주 한 종목이 섹터를 좌우하는 것을 막는다)
+    · 시총을 모르는 종목이 하나라도 있으면 그 종목은 분자·분모 모두에서 뺰다
+      — 반쪽 시총으로 나누어 회전율을 부풀리지 않는다
+    """
+    known = [s for s in stocks if _row_mcap(s) and s[5] is not None]
+    mc = sum(_row_mcap(s) for s in known)
+    val = sum(s[5] or 0 for s in known)
+    tps = [_row_turn(s) for s in stocks if _row_turn(s) is not None]
+    return {
+        "marketCapEok": int(round(mc)) if known else None,
+        "turnoverPct": round(val / mc * 100, 2) if mc else None,
+        "avgTurnoverPct": round(sum(tps) / len(tps), 2) if tps else None,
+    }
+
+
+def _turnover_stocks(stocks, cap=TURNOVER_STOCKS, min_value=TURNOVER_MIN_VALUE):
+    """섹터 안에서 회전율 높은 순 종목 목록 — 화면의 「회전율순」 종목 줄.
+
+    섹터 회전율 집계와 **같은 모수**(거래대금 min_value억 이상)만 쓴는다 —
+    집계에서 뺀 초소형주를 종목 목록에서만 다시 올리지 않는다.
+    """
+    pool = [s for s in stocks if _row_turn(s) is not None and (s[5] or 0) >= min_value]
+    return [_dom_stock(s) for s in sorted(pool, key=lambda s: -(_row_turn(s) or 0))[:cap]]
+
+
 def _dom_block(name, stocks, cap=DOM_STOCKS):
     """섹터 하나(또는 개별이슈 묶음)의 카드 데이터 — allStocks 실측값만."""
     values = [s[5] for s in stocks]
     chgs = [s[4] for s in stocks if s[4] is not None]
     picked = sorted(stocks, key=lambda s: -s[5])[:cap]
-    return {
+    block = {
         "name": name,
         "valueEok": int(sum(values)),
         "count": len(stocks),
         "rise": sum(1 for c in chgs if c > 0),
         "fall": sum(1 for c in chgs if c < 0),
         "chg": round(sum(chgs) / len(chgs), 2) if chgs else None,
-        "stocks": [{"code": s[0], "name": s[1], "market": s[2], "price": s[3],
-                    "chg": s[4], "valueEok": s[5]} for s in picked],
+        "stocks": [_dom_stock(s) for s in picked],
     }
+    block.update(_sector_turnover(stocks))
+    return block
+
+
+def _is_rising_at(row, pct) -> bool:
+    """allStocks 한 줄이 당일 등락률 pct 이상인지 — 등락률이 없으면 False.
+
+    경계는 이상(>=) — +1.99%는 제외, +2.00%는 포함.
+    """
+    try:
+        return float(row[4]) >= pct
+    except (TypeError, ValueError, IndexError):
+        return False
 
 
 def _is_rising(row) -> bool:
-    """allStocks 한 줄이 당일 등락률 RISE_MIN_PCT(+2.0%) 이상인지.
-
-    등락률이 없으면 모수에서 뺀다. 경계는 이상(>=) — +1.99%는 제외, +2.00%는 포함.
-    """
-    try:
-        return float(row[4]) >= RISE_MIN_PCT
-    except (TypeError, ValueError, IndexError):
-        return False
+    """allStocks 한 줄이 당일 등락률 RISE_MIN_PCT(+2.0%) 이상인지."""
+    return _is_rising_at(row, RISE_MIN_PCT)
 
 
 def _rise_label() -> str:
@@ -744,6 +854,80 @@ def _rise_label() -> str:
 def _pre_rise_label() -> str:
     """프리장 모수 기준 표기 — '+1%↑'."""
     return f"+{PRE_RISE_MIN_PCT:g}%↑"
+
+
+def build_turnover_block(rows, rise_min, asof, rise_label="", stock_fn=None,
+                         stock_cap=DOM_STOCKS, ind_cap=DOM_IND_STOCKS,
+                         min_value=TURNOVER_MIN_VALUE):
+    """시총 대비 회전율 기준의 섹터 순위 — 「자금순」과 **같은 모양**의 블록.
+
+    · 모수: 업종이 있는 종목 중 ① 거래대금 TURNOVER_MIN_VALUE(100억)억 이상
+      ② 당일 등락률 rise_min 이상(정규장 +2%, 프리장 +1%) — 초소형 품절주 왜곡 방지
+    · 섹터 회전율 = 섹터 모수 종목 거래대금 합 ÷ 시총 합 × 100 (가중)
+    · 순서는 섹터 회전율 높은 순, 최대 TURNOVER_SECTOR_MAX개. 주도 3개로 자르면
+      자금은 적지만 도는 섹터가 사라지므로 회전율 기준은 4개까지 둔다
+    · stocks(거래대금순)와 topTurnover(회전율순)를 함께 담아 화면이 정렬만 전환한다
+    """
+    stock_fn = stock_fn or _dom_stock
+    pool = [r for r in (rows or [])
+            if isinstance(r, list) and len(r) > 7 and r[6] and r[7]
+            and (r[5] or 0) >= min_value and _is_rising_at(r, rise_min)]
+    if not pool:
+        return None
+    total = sum(r[5] for r in pool)
+    total_mc = sum(r[7] for r in pool)
+    if total <= 0 or total_mc <= 0:
+        return None
+
+    groups: dict[str, list] = {}
+    for r in pool:
+        groups.setdefault(theme_of(r[1], r[6]), []).append(r)
+
+    def tp(stocks):
+        mc = sum(s[7] for s in stocks if s[7])
+        return (sum(s[5] for s in stocks) / mc * 100) if mc else 0.0
+
+    ranked = sorted(groups.items(), key=lambda kv: -tp(kv[1]))
+    sectors = []
+    used = 0.0
+    for name, stocks in ranked[:TURNOVER_SECTOR_MAX]:
+        block = _dom_block(name, stocks, stock_cap)
+        block["stocks"] = [stock_fn(s) for s in sorted(stocks, key=lambda s: -s[5])[:stock_cap]]
+        turn_pool = [s for s in stocks if _row_turn(s) is not None and (s[5] or 0) >= min_value]
+        block["topTurnover"] = [stock_fn(s) for s in
+                                sorted(turn_pool, key=lambda s: -(_row_turn(s) or 0))[:stock_cap]]
+        block["share"] = round(block["valueEok"] / total * 100, 1)
+        used += block["share"]
+        sectors.append(block)
+    if not sectors:
+        return None
+
+    rest = [r for _n, stocks in ranked[TURNOVER_SECTOR_MAX:] for r in stocks]
+    individual = None
+    if rest:
+        individual = _dom_block("개별이슈", rest, ind_cap)
+        ind_pool = [s for s in rest if _row_turn(s) is not None and (s[5] or 0) >= min_value]
+        individual["topTurnover"] = [stock_fn(s) for s in
+                                     sorted(ind_pool, key=lambda s: -(_row_turn(s) or 0))[:ind_cap]]
+        individual["share"] = round(100.0 - used, 1)
+
+    label = rise_label or f"+{rise_min:g}%↑"
+    return {
+        "asOf": asof,
+        "basisMode": "riseTurnover",
+        "minValueEok": TURNOVER_MIN_VALUE,
+        "riseMinPct": rise_min,
+        "universe": len(pool),
+        "valueEok": int(round(total)),
+        "marketCapEok": int(round(total_mc)),
+        "turnoverPct": round(total / total_mc * 100, 2),
+        "basis": (f"거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 {len(pool):,}종목 · "
+                  f"합계 {_large_eok(total)} · 시총 {_large_eok(total_mc)}"),
+        "rule": (f"회전율 = 섹터 거래대금 ÷ 섹터 시가총액 × 100 "
+                 f"(모수: 거래대금 {TURNOVER_MIN_VALUE}억↑ · {label} 상승 종목)"),
+        "sectors": sectors,
+        "individual": individual,
+    }
 
 
 def build_sector_dominance(all_stocks, now):
@@ -778,7 +962,11 @@ def build_sector_dominance(all_stocks, now):
         if fourth >= DOM_FOURTH_SHARE:
             top = DOM_TOP_MAX
 
-    sectors = [_dom_block(name, stocks) for name, stocks in ranked[:top]]
+    sectors = []
+    for name, stocks in ranked[:top]:
+        block = _dom_block(name, stocks)
+        block["topTurnover"] = _turnover_stocks(stocks)
+        sectors.append(block)
     used = 0.0
     for item in sectors:
         item["share"] = round(item["valueEok"] / total * 100, 1)
@@ -792,8 +980,9 @@ def build_sector_dominance(all_stocks, now):
         # 남는 종목이 없으면 마지막 섹터에서 반올림 잔차를 흡수해 100.0%로 맞춘다
         sectors[-1]["share"] = round(sectors[-1]["share"] + (100.0 - used), 1)
 
+    asof = now.strftime("%H:%M")
     return {
-        "asOf": now.strftime("%H:%M"),
+        "asOf": asof,
         "basis": f"{_rise_label()} {len(rows):,}종목 · 거래대금 {_large_eok(total)}",
         "basisMode": "rise",
         "totalEok": int(total),
@@ -801,13 +990,17 @@ def build_sector_dominance(all_stocks, now):
         "sectors": sectors,
         "individual": individual,
         "rule": f"점유율 = 섹터 합산 거래대금 ÷ {_rise_label()} 종목 거래대금",
+        # 시총 대비 회전율 — 화면의 「자금순 | 회전율순」 두 번째 기준
+        "turnover": build_turnover_block(all_stocks, RISE_MIN_PCT, asof,
+                                        rise_label=_rise_label()),
     }
 
 
 # ---------------------------------------------------------------- NXT 프리마켓
 
 def _pre_market_rows(datas, industry_map):
-    """polling 응답 → 프리장 체결 행 [코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종].
+    """polling 응답 → 프리장 체결 행
+    [코드, 이름, 시장, 현재가, 등락%, 거래대금(억), 업종, 시총(억), 회전율(%)].
 
     overMarketPriceInfo 의 tradingSessionType 이 PRE_MARKET 인 것만 쓴다 — 정규장·애프터장
     값이 섞이지 않게 하는 첫 번째 방어선이다. 프리장 체결이 없는 종목(NXT 미상장 등)은 빠진다.
@@ -828,9 +1021,10 @@ def _pre_market_rows(datas, industry_map):
             continue
         exchange = (d.get("stockExchangeType") or {}).get("nameKor") or ""
         market = "KOSPI" if "코스피" in exchange else ("KOSDAQ" if "코스닥" in exchange else exchange)
+        mcap = _mcap_eok(d.get("marketValueFullRaw") or d.get("marketValueRaw"))
         rows.append([code, d.get("stockName") or code, market, price,
                      round(chg, 2) if chg is not None else None, value,
-                     industry_map.get(code) or ""])
+                     industry_map.get(code) or "", mcap, _turnover_pct(value, mcap)])
     return rows
 
 
@@ -841,6 +1035,7 @@ def _pre_stock(row, reasons):
         "price": row[3], "priceText": comma(row[3]),
         "chg": row[4], "valueEok": int(round(row[5])),
         "valueText": turnover_text(row[5]) or _large_eok(row[5]),
+        "marketCap": _row_mcap(row), "turnoverPct": _row_turn(row),
         "reason": reasons.get(row[0]) or "",
     }
 
@@ -962,6 +1157,9 @@ def build_pre_market(now, old_entry):
             block["share"] = round(block["valueEok"] / total_rise * 100, 1)
             block["stocks"] = [_pre_stock(r, reasons)
                                for r in sorted(stocks, key=lambda x: -x[5])[:PRE_SECTOR_STOCKS]]
+            block["topTurnover"] = [_pre_stock(r, reasons) for r in
+                                    sorted([r for r in stocks if _row_turn(r) is not None],
+                                           key=lambda x: -(_row_turn(x) or 0))[:PRE_SECTOR_STOCKS]]
             sectors.append(block)
     used = sum(s["share"] for s in sectors)
     rest = [r for _name, stocks in ranked[PRE_SECTOR_TOP:] for r in stocks]
@@ -999,6 +1197,11 @@ def build_pre_market(now, old_entry):
         "basis": f"{_pre_rise_label()} {len(rise_dom):,}종목 · 거래대금 {_large_eok(total_rise)}",
         "rule": f"점유율 = 섹터 프리장 합산 거래대금 ÷ 프리장 {_pre_rise_label()} 종목 거래대금",
         "source": "네이버 금융 NXT 프리마켓 시세",
+        # 시총 대비 회전율(프리장) — 모수는 거래대금 100억↑ · +1%↑ 종목
+        "turnover": build_turnover_block(
+            rows, PRE_RISE_MIN_PCT, block["asOf"], rise_label=_pre_rise_label(),
+            stock_fn=lambda s: _pre_stock(s, reasons),
+            stock_cap=PRE_SECTOR_STOCKS, ind_cap=PRE_SECTOR_STOCKS),
     }
     return block
 
@@ -3136,6 +3339,8 @@ def build_watch_item(rank, info, quote, ind, why):
         "price": comma(quote.get("price")),
         "turnover": info.get("turnover") or quote.get("turnover") or "—",
         "turnoverRank": quote.get("turnoverRank") or "",
+        "marketCap": quote.get("marketCap"),
+        "turnoverPct": quote.get("turnoverPct"),
         "chg": quote.get("chg"),
         "prevClose": comma(quote.get("prevClose") or info.get("prevClose")),
         "day": {
@@ -3683,7 +3888,8 @@ def merge_entry(new, old):
             merged_watch.append(item)
             continue
         m = dict(item)
-        for key in ("price", "chg", "prevClose", "day", "turnover", "rank"):
+        for key in ("price", "chg", "prevClose", "day", "turnover", "rank",
+                    "marketCap", "turnoverPct"):
             if fresh.get(key) not in (None, "", "—"):
                 m[key] = fresh[key]
         tech = dict(item.get("technical") or {})
@@ -4006,6 +4212,9 @@ def main(argv):
                     break
             turnover = (turnover_text(live.get("value_eok")) if live.get("value_eok")
                         else (hangeul_turnover(stock) if stock else "—"))
+            # 시총·회전율 — 관찰 5선 카드의 「시총 1.2조 · 회전율 8.4%」 배지
+            mv_eok = live.get("mv_eok") or _mcap_eok((stock or {}).get("marketValueRaw"))
+            val_eok = live.get("value_eok") or (((to_int((stock or {}).get("accumulatedTradingValueRaw")) or 0) / 1e8) or None)
             watch_quotes[code] = {
                 "code": code,
                 "name": live.get("name") or name or stock.get("stockName"),
@@ -4018,6 +4227,8 @@ def main(argv):
                 "volume": live.get("volume") or (rows[-1]["v"] if rows else None),
                 "turnover": turnover,
                 "turnoverRank": f"전체 {rank_no}위" if rank_no and rank_no <= 20 else "",
+                "marketCap": mv_eok,
+                "turnoverPct": _turnover_pct(val_eok, mv_eok),
                 "ind": ind,
                 "prevDate": ind.get("prevDate") if ind else None,
                 "rank": rank,

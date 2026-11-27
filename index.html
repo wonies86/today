@@ -2076,6 +2076,10 @@
 #viewSimple .wr-pat{
   flex:0 0 auto;font-size:9px;padding:1px 5px;border-radius:4px;letter-spacing:-.03em
 }
+#viewSimple .wr-mc{
+  display:block;margin-top:1px;font-size:9px;font-weight:650;color:var(--mute);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
 #viewSimple .watch li.has-why .wr{
   padding-bottom:1px
 }
@@ -2785,6 +2789,19 @@
 .dom-meta{order:3;flex:1 1 100%;font-size:10px;color:var(--mute);line-height:1.5;font-variant-numeric:tabular-nums}
 .dom-meta .dot{opacity:.5;margin:0 3px}
 .dom-meta b{font-weight:800}
+/* 자금순 ↔ 회전율순 — 카드 머리의 작은 세그먼트 (값이 없으면 통째로 숨김) */
+.dom-mode{display:inline-flex;flex:0 0 auto;border:1px solid var(--line-2);border-radius:7px;overflow:hidden;background:var(--bg-soft)}
+.dom-mode button{appearance:none;border:0;background:transparent;padding:2px 6px;font-size:9.5px;font-weight:800;letter-spacing:-.03em;color:var(--mute);cursor:pointer;line-height:1.55;font-family:inherit}
+.dom-mode button + button{border-left:1px solid var(--line-2)}
+.dom-mode button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.dom-mode[hidden]{display:none !important}
+html[data-theme="dark"] .dom-mode button[aria-pressed="true"]{background:#3b4a63;color:#eef3fb}
+/* 섹터 안 종목 정렬 — 카드 그리드 바로 위 오른쪽 */
+.dom-sort{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin:5px 2px 0;font-size:9px;color:var(--mute);font-weight:750}
+.dom-sort[hidden]{display:none !important}
+.dom-sort button{appearance:none;border:1px solid var(--line-2);background:var(--bg-soft);color:var(--mute);border-radius:5px;padding:1px 5px;font-size:9px;font-weight:800;cursor:pointer;letter-spacing:-.03em;font-family:inherit}
+.dom-sort button[aria-pressed="true"]{border-color:#c4b5fd;color:#6d28d9;background:var(--violet-soft)}
+html[data-theme="dark"] .dom-sort button[aria-pressed="true"]{color:#c4b5fd;background:#241a3d;border-color:#5a4390}
 .dom-bar{display:flex;height:31px;border-radius:9px;overflow:hidden;background:var(--line-2);box-shadow:inset 0 0 0 1px rgba(16,24,40,.05)}
 .dom-seg{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;flex:0 0 auto;padding:0 5px;box-sizing:border-box;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;transition:width .4s ease}
 .dom-seg + .dom-seg{box-shadow:inset 2px 0 0 rgba(255,255,255,.8)}
@@ -2824,7 +2841,12 @@
 .dsec-m b{font-weight:820;color:var(--ink-2)}
 .dsec-m .dm-k{color:var(--mute);font-weight:700;margin-right:1px}
 .dsec-l{margin:0;padding:0;list-style:none;display:grid;gap:4px}
-.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "p v" "b b";gap:0 4px;padding:2px 2px 3px;border-radius:6px;cursor:pointer}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "p v" "m m" "b b";gap:0 4px;padding:2px 2px 3px;border-radius:6px;cursor:pointer}
+/* 시총·회전율 한 줄 — 값이 없으면 아예 그리지 않는다(과거 날짜) */
+.drow-mc{grid-area:m;font-size:8.5px;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;letter-spacing:-.025em}
+.drow-mc b{color:var(--ink-2);font-weight:800}
+.drow-mc i{font-style:normal;font-weight:800;color:#6d28d9}
+html[data-theme="dark"] .drow-mc i{color:#c4b5fd}
 .drow:hover{background:#faf7ff}
 .drow:focus-visible{outline:2px solid #8b5cf6;outline-offset:1px}
 .dn{grid-area:n;font-size:10.5px;font-weight:750;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
@@ -2865,6 +2887,7 @@ html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:
 .ps-row .ps-nm{min-width:0}
 .ps-row .ps-nm b{display:block;font-size:10.5px;font-weight:820;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ps-row .ps-nm em{display:block;font-style:normal;font-size:8.5px;line-height:1.35;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-row .ps-nm em.ps-mc{color:var(--mute);font-weight:700;font-variant-numeric:tabular-nums}
 .ps-row .ps-rt{text-align:right;font-variant-numeric:tabular-nums}
 .ps-row .ps-rt b{display:block;font-size:10px;font-weight:850}
 .ps-row .ps-rt s{display:block;font-size:8px;text-decoration:none;color:var(--mute)}
@@ -3054,6 +3077,7 @@ html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:
   .sh-price{font-size:14.5px;font-weight:760;letter-spacing:-.03em;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
   .sh-chg{min-width:56px;text-align:right;font-size:15px;font-weight:860;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
   .sh-why{grid-column:2 / -1;margin:4px 0 0;font-size:12px;line-height:1.5;letter-spacing:-.025em;color:#63718b;word-break:keep-all;overflow-wrap:break-word}
+.sh-mc{grid-column:2 / -1;margin-top:2px;font-size:10.5px;font-weight:700;letter-spacing:-.02em;color:#8a94a8;font-variant-numeric:tabular-nums}
 
   /* 하단 — 수급 순환 · 체크포인트 */
   .sh-foot{flex:0 0 auto;padding:12px 16px 13px;border-top:1px solid var(--line);background:linear-gradient(180deg,#fbfcff,#fff)}
@@ -3565,6 +3589,10 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
       <section class="dom" id="domBox" aria-labelledby="domTitle" hidden>
         <div class="dom-head">
           <h2 class="dom-title" id="domTitle">주도 섹터 점유율</h2>
+          <div class="dom-mode" id="domMode" role="group" aria-label="수급 기준 전환" hidden>
+            <button type="button" data-dommode="value" aria-pressed="true">자금순</button>
+            <button type="button" data-dommode="turn" aria-pressed="false">회전율순</button>
+          </div>
           <button type="button" class="shot-btn" data-shot="dom" aria-haspopup="dialog">📸 한화면 캡처</button>
           <span class="dom-meta" id="domMeta"><span id="domLive"></span><span class="dot">·</span><span id="domAge"></span></span>
         </div>
@@ -3572,6 +3600,10 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <div class="dom-legend" id="domLegend"></div>
         <p class="dom-basis" id="domBasis"></p>
         <p class="dom-shift" id="domShift" hidden></p>
+        <div class="dom-sort" id="domSort" hidden><span>종목</span>
+          <button type="button" data-domsort="value" aria-pressed="true">거래대금순</button>
+          <button type="button" data-domsort="turn" aria-pressed="false">회전율순</button>
+        </div>
         <div class="dom-cards" id="domCards"></div>
         <p class="dom-foot" id="domFoot"></p>
       </section>
@@ -3581,12 +3613,20 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
       <section class="dom pm" id="preBox" aria-labelledby="pmTitle" hidden>
         <div class="dom-head">
           <h2 class="dom-title" id="pmTitle">🌅 NXT 프리장 수급</h2>
+          <div class="dom-mode" id="pmMode" role="group" aria-label="프리장 수급 기준 전환" hidden>
+            <button type="button" data-dommode="value" aria-pressed="true">자금순</button>
+            <button type="button" data-dommode="turn" aria-pressed="false">회전율순</button>
+          </div>
           <button type="button" class="shot-btn" data-shot="pre" aria-haspopup="dialog">📸 한화면 캡처</button>
           <span class="dom-meta" id="pmMeta"></span>
         </div>
         <div class="dom-bar" id="pmBar" role="img" aria-label="프리장 주도 섹터 점유율"></div>
         <div class="dom-legend" id="pmLegend"></div>
         <p class="dom-basis" id="pmBasis"></p>
+        <div class="dom-sort" id="pmSort" hidden><span>종목</span>
+          <button type="button" data-domsort="value" aria-pressed="true">거래대금순</button>
+          <button type="button" data-domsort="turn" aria-pressed="false">회전율순</button>
+        </div>
         <div class="dom-cards" id="pmCards"></div>
         <p class="dom-foot" id="pmFoot"></p>
       </section>
@@ -6653,6 +6693,28 @@ const REPORT_DATA = [
     }
   }
 
+  /* 관찰 종목 시총·회전율 — data.json 관찰 5선의 marketCap·turnoverPct,
+     없으면(과거 날짜·자동 갱신 전) 전 종목 인덱스 allStocks 같은 종목에서 채운다 */
+  function watchMc(w, report) {
+    let mc = w && w.marketCap;
+    let tp = w && w.turnoverPct;
+    if ((mc == null || tp == null) && report && w) {
+      const row = taStockRow(report, w.ticker, w.name);
+      if (row) {
+        if (mc == null && row.length > 7) mc = row[7];
+        if (tp == null && row.length > 8) tp = row[8];
+      }
+    }
+    const hasMc = !(mc == null || !Number(mc));
+    const hasTp = !(tp == null || tp === "" || isNaN(Number(tp)));
+    if (!hasMc && !hasTp) return null;
+    return {
+      mc: hasMc ? mc : null,
+      tp: hasTp ? Number(tp) : null,
+      text: "시총 " + (hasMc ? domMcapText(mc) : "—") + " · 회전율 " + (hasTp ? domTurnText(tp) : "—"),
+    };
+  }
+
   /* ---------------- 관찰 5선 + 모달 ---------------- */
   function rangeBar(d, labels) {
     if (!d || !(d.high > d.low)) return "";
@@ -6878,6 +6940,7 @@ const REPORT_DATA = [
       card.setAttribute("aria-haspopup", "dialog");
       card.setAttribute("aria-label", w.name + " 차트 기술적 분석 보기 · " + pct(w.chg) +
         (pat ? " · 종가배팅 " + pat.label : ""));
+      const mc = watchMc(w, report);
       let h =
         '<span class="pick-top">' +
           '<span class="pick-rank" aria-hidden="true">' + w.rank + "</span>" +
@@ -6886,6 +6949,8 @@ const REPORT_DATA = [
             '<span class="pick-meta">' +
               "<span>거래대금 <b>" + esc(w.turnover || "—") + "</b></span>" +
               "<span>" + esc(w.turnoverRank || "") + "</span>" +
+              (mc ? '<span>시총 <b>' + esc(mc.mc == null ? "—" : domMcapText(mc.mc)) +
+                '</b> · 회전율 <b>' + esc(mc.tp == null ? "—" : domTurnText(mc.tp)) + "</b></span>" : "") +
             "</span>" +
           "</span>" +
           '<span class="pick-chg ' + dir(w.chg) + '">' + pct(w.chg) + "</span>" +
@@ -7008,12 +7073,14 @@ const REPORT_DATA = [
     const chk = shotCheck(report);
     const rows = (report.watchlist || []).slice(0, 5).map((w, i) => {
       const why = shotText(sumOf(w, "why") || autoSum(w.why, 40));
+      const mc = watchMc(w, report);
       return '<li class="sh-row">' +
         '<span class="sh-rank">' + esc(String(w.rank || i + 1)) + "</span>" +
         '<span class="sh-name">' + esc(w.name || "") +
           (w.sector ? '<span class="sh-sec">' + esc(w.sector) + "</span>" : "") + "</span>" +
         '<span class="sh-price">' + (w.price ? esc(w.price) + "원" : "—") + "</span>" +
         '<span class="sh-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span>" +
+        (mc ? '<span class="sh-mc">' + esc(mc.text) + "</span>" : "") +
         (why ? '<span class="sh-why">' + esc(why) + "</span>" : "") +
       "</li>";
     }).join("");
@@ -7090,6 +7157,21 @@ const REPORT_DATA = [
     if (typeof dlg.close === "function" && dlg.open) dlg.close();
     else dlg.removeAttribute("open");
     document.body.classList.remove("shot-lock");
+  }
+
+  /* 자금순 | 회전율순 · 거래대금순 | 회전율순 — 누른 기준으로 다시 그리고 상태는 DOM_VIEW 에 남긴다 */
+  function wireDomViews() {
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-dommode],[data-domsort]");
+      if (!b) return;
+      const box = b.closest(".dom");
+      const view = domView(box && box.id === "preBox" ? "pre" : "dom");
+      if (b.hasAttribute("data-dommode")) view.mode = b.getAttribute("data-dommode");
+      else view.sort = b.getAttribute("data-domsort");
+      e.preventDefault();
+      e.stopPropagation();
+      render();
+    });
   }
 
   function wireShot() {
@@ -10143,6 +10225,69 @@ const REPORT_DATA = [
     return (sNull(v) ? 0 : Math.round(Number(v) * 10) / 10).toFixed(1) + "%";
   }
 
+  /* ---------------- 시총 대비 회전율 (2026-11-27) ----------------
+     · 「자금순」 = 거래대금 점유율(기존 화면 그대로), 「회전율순」 = 거래대금 ÷ 시가총액
+     · 두 번째 기준은 data.json `sectorDominance.turnover` / `preMarket.turnover` 에만 있다.
+       과거 날짜(7개짜리 allStocks·turnover 없음)는 자금순 그대로 열고 토글을 숨긴다
+     · 화면 상태는 카드별로 남긴다 — 60초 갱신으로 다시 그려도 고른 기준을 유지한다
+     ------------------------------------------------------------------ */
+  const DOM_VIEW = { dom: { mode: "value", sort: "value" }, pre: { mode: "value", sort: "value" } };
+
+  function domView(kind) {
+    const k = kind === "pre" ? "pre" : "dom";
+    if (!DOM_VIEW[k]) DOM_VIEW[k] = { mode: "value", sort: "value" };
+    return DOM_VIEW[k];
+  }
+
+  function domTurnBlock(blk) {
+    const t = blk && blk.turnover;
+    return (t && Array.isArray(t.sectors) && t.sectors.length) ? t : null;
+  }
+
+  function domModeOf(kind, blk) {
+    return (domView(kind).mode === "turn" && domTurnBlock(blk)) ? "turn" : "value";
+  }
+
+  function domTurnText(v) {
+    if (v === null || v === undefined || v === "" || isNaN(Number(v))) return "—";
+    return (Math.round(Number(v) * 10) / 10).toFixed(1) + "%";
+  }
+
+  function domMcapText(v) {
+    return (v === null || v === undefined || !Number(v)) ? "—" : domEok(v);
+  }
+
+  /* 섹터 카드의 종목 줄 — 거래대금순(기본) 또는 회전율순 */
+  function domRowsOf(item, sort) {
+    const t = item && item.topTurnover;
+    return (sort === "turn" && Array.isArray(t) && t.length) ? t : ((item && item.stocks) || []);
+  }
+
+  /* 시총·회전율 한 줄 — 두 값 다 없으면 null(과거 날짜는 줄 자체를 안 그린다) */
+  function domMcLine(st, withDash) {
+    const mc = (!sNull(st.marketCap) && Number(st.marketCap)) ? domMcapText(st.marketCap) : null;
+    const tp = (!sNull(st.turnoverPct) && !isNaN(Number(st.turnoverPct))) ? domTurnText(st.turnoverPct) : null;
+    if (!mc && !tp && !withDash) return "";
+    return '<span class="drow-mc">시총 <b>' + (mc || "—") + "</b> · 회전율 <i>" +
+      (tp || "—") + "</i></span>";
+  }
+
+  function domModeSync(el, mode, hasTurn) {
+    if (!el) return;
+    el.hidden = !hasTurn;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-dommode]"), (b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-dommode") === mode));
+    });
+  }
+
+  function domSortSync(el, sort, has) {
+    if (!el) return;
+    el.hidden = !has;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-domsort]"), (b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-domsort") === sort));
+    });
+  }
+
   /* 당일(없으면 보유 일봉 전체) 고·저 범위에서 현재가 위치 — charts 실측 일봉만 */
   function domRange(report, code, price) {
     const c = chartsOf(report);
@@ -10381,6 +10526,8 @@ const REPORT_DATA = [
         (range.prev == null ? "" : '<s style="left:' + range.prev.toFixed(1) + '%"></s>') +
       "</span>";
     }
+    /* 시총·회전율 — 값이 있는 날만 한 줄(과거 날짜는 줄 자체가 없다) */
+    const mc = domMcLine(st, opts.withDash);
     /* 프리장 행 — 수집된 상승 사유가 있으면 이름·가격 아래 한 줄로 */
     const why = (opts.reason && st.reason)
       ? '<span class="drw">📰 ' + esc(shotBrief(st.reason, 38)) + "</span>" : "";
@@ -10398,6 +10545,7 @@ const REPORT_DATA = [
         (mark ? streakBadgeHTML(report, st.name, st.code, 1) : "") +
       "</span>" +
       '<span class="dv">' + (sNull(st.valueEok) ? "—" : domEok(st.valueEok)) + "</span>" +
+      mc +
       why +
       bar +
     "</li>";
@@ -10405,10 +10553,17 @@ const REPORT_DATA = [
 
   function domCard(item, idx, tone, report, dim, note, marks, opts) {
     opts = opts || {};
-    /* 자금(거래대금 비중) + 확산(상승 종목 수·비중) — 같은 카드에서 나란히 본다 */
+    /* 자금(거래대금 비중) + 확산(상승 종목 수·비중) — 같은 카드에서 나란히 본다
+       회전율순 = 시총 대비 회전율과 시총을 앞세우고, 종목 줄은 고른 정렬을 따른다 */
     const sp = domSpreadOf(item, opts.uni, opts.denom ? item.count : null);
-    const meta = '<span class="dm-k">자금</span> <b>' + domShareText(item.share) + "</b> · " +
-      '<span class="dm-k">확산</span> <b>' + esc(sp.text) + "</b>";
+    const meta = opts.useTurn
+      ? '<span class="dm-k">회전율</span> <b>' + domTurnText(item.turnoverPct) + "</b> · " +
+        '<span class="dm-k">시총</span> <b>' + domMcapText(item.marketCapEok) + "</b> · " +
+        '<span class="dm-k">자금</span> ' + domShareText(item.share)
+      : '<span class="dm-k">자금</span> <b>' + domShareText(item.share) + "</b> · " +
+        '<span class="dm-k">확산</span> <b>' + esc(sp.text) + "</b>";
+    const rows = domRowsOf(item, opts.sort);
+    const rowOpts = Object.assign({}, opts, { withDash: !!opts.canSort });
     return '<article class="dsec">' +
       '<div class="dsec-h">' +
         (dim ? "" : '<span class="dsec-r" style="background:' + tone + '" aria-hidden="true">' +
@@ -10423,8 +10578,8 @@ const REPORT_DATA = [
       '<p class="dsec-m">' + meta + "</p>" +
       (note ? '<p class="dsec-x">' + esc(note) + "</p>" : "") +
       '<ul class="dsec-l">' +
-        (item.stocks || []).map((st) =>
-          domStockRow(report, st, tone, domRowMark(st, marks), opts)).join("") +
+        rows.map((st) =>
+          domStockRow(report, st, tone, domRowMark(st, marks), rowOpts)).join("") +
       "</ul>" +
     "</article>";
   }
@@ -10447,14 +10602,19 @@ const REPORT_DATA = [
   /* 점유율 막대 — 정규장·애프터·프리장이 같은 함수를 쓴다
      · 라벨은 비율이 아니라 실제 픽셀 폭으로 정한다 — 패딩 포함 여유가 있을 때만 넣고,
        좁으면 퍼센트만, 아래 범례에 모든 섹터·퍼센트를 빠짐없이 표시한다 */
-  function domBarHTML(bar, items, sum, titleOf, ariaPrefix) {
+  function domBarHTML(bar, items, sum, titleOf, ariaPrefix, opts) {
     if (!bar) return;
+    opts = opts || {};
+    /* wOf: 막대 폭을 만드는 값(기본=점유율 share, 회전율순=turnoverPct)
+       txtOf: 막대·범례에 쓰는 라벨(기본=점유율 표기) */
+    const wOf = opts.wOf || ((item) => Number(item.share) || 0);
+    const txtOf = opts.txtOf || ((item) => domShareText(item.share));
     const barPx = (bar.getBoundingClientRect && bar.getBoundingClientRect().width) || 340;
     const textW = (s) => Array.from(String(s || "")).reduce((a, ch) =>
       a + (/[\u3000-\u9fff\uff00-\uffdc]/.test(ch) ? 11.0 : 6.6), 0);
     bar.innerHTML = items.map(({ item, tone, dim }) => {
-      const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
-      const share = domShareText(item.share);
+      const w = Math.max(0, Math.min(100, (Number(wOf(item)) || 0) / sum * 100));
+      const share = txtOf(item);
       const px = w / 100 * barPx;
       const nameW = textW(item.name);
       const shareW = textW(share);
@@ -10466,7 +10626,7 @@ const REPORT_DATA = [
         '">' + label + "</span>";
     }).join("");
     bar.setAttribute("aria-label", (ariaPrefix || "") + items.map(({ item }) =>
-      item.name + " 자금 " + domShareText(item.share)).join(", "));
+      item.name + " " + (opts.unit || "자금") + " " + txtOf(item)).join(", "));
   }
 
   function renderDominance(report) {
@@ -10482,30 +10642,63 @@ const REPORT_DATA = [
     /* 장전에는 장중 점유율이 아니라 전일·해외 지표를 본다 — 이 블록은 정규장·애프터에만 */
     if (key === "pre") { box.hidden = true; return; }
 
+    /* 자금순(점유율) | 회전율순(시총 대비 거래대금) — 기준 블록을 바꿔 그린다 */
+    const turnBlk = domTurnBlock(dom);
+    const view = domView("dom");
+    const mode = domModeOf("dom", dom);
+    const useTurn = mode === "turn" && !!turnBlk;
+    const src = useTurn ? turnBlk : dom;
+    const canSort = !!turnBlk || ((dom && dom.sectors) || []).some((s) => (s.topTurnover || []).length);
+    if (!canSort) view.sort = "value";
+
     const items = [];
-    if (dom && dom.sectors && dom.sectors.length) {
-      dom.sectors.forEach((s) => items.push({
+    if (src && src.sectors && src.sectors.length) {
+      src.sectors.forEach((s) => items.push({
         item: s, tone: DOM_TONES[Math.min(items.length, DOM_TONES.length - 1)], dim: false,
       }));
-      if (dom.individual) items.push({ item: dom.individual, tone: DOM_GRAY, dim: true });
+      /* 개별이슈는 점유율 기준의 묶음 — 회전율순에서는 섹터 순위만 본다 */
+      if (!useTurn && src.individual) items.push({ item: src.individual, tone: DOM_GRAY, dim: true });
     }
     if (!items.length) { box.hidden = true; return; }
     box.hidden = false;
+    domModeSync($("#domMode"), mode, !!turnBlk);
+    domSortSync($("#domSort"), view.sort, canSort);
 
     /* 제목은 구간에 맞춰 — 애프터 + 정규장 마감 후에는 '최종' */
     const closed = !isLatest || regularClosed();
     const title = $("#domTitle");
-    if (title) title.textContent = key === "aft" && closed ? "최종 주도 섹터 점유율" : "주도 섹터 점유율";
+    if (title) title.textContent = (key === "aft" && closed ? "최종 " : "") +
+      (useTurn ? "주도 섹터 회전율" : "주도 섹터 점유율");
 
-    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
     const uni = domSpreadBase(dom);
-    domBarHTML($("#domBar"), items, sum, function (item) {
-      return item.name + " 자금 " + domShareText(item.share) +
+    let sum, wOf, txtOf, barTitle;
+    if (useTurn) {
+      /* 회전율 막대 — 보여 주는 섹터의 회전율 합을 100%로 늘어놓는다(막대가 넘치지 않게).
+         막대 라벨은 비중이 아니라 그 섹터의 회전율(%)을 그대로 적는다 */
+      sum = items.reduce((a, b) => a + (Number(b.item.turnoverPct) || 0), 0) || 1;
+      wOf = (item) => Number(item.turnoverPct) || 0;
+      txtOf = (item) => domTurnText(item.turnoverPct);
+      barTitle = (item) => item.name + " 회전율 " + domTurnText(item.turnoverPct) +
+        " · 거래대금 " + domEok(item.valueEok) + " · 시총 " + domMcapText(item.marketCapEok) +
+        " · " + (item.count || 0) + "종목";
+    } else {
+      sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+      wOf = (item) => Number(item.share) || 0;
+      txtOf = (item) => domShareText(item.share);
+      barTitle = (item) => item.name + " 자금 " + domShareText(item.share) +
         " · 확산 " + domSpreadOf(item, uni).text;
-    }, "주도 섹터 점유율 — ");
+    }
+    domBarHTML($("#domBar"), items, sum, barTitle,
+      useTurn ? "주도 섹터 회전율 — " : "주도 섹터 점유율 — ",
+      { wOf: wOf, txtOf: txtOf, unit: useTurn ? "회전율" : "자금" });
     const leg = $("#domLegend");
     if (leg) {
       leg.innerHTML = items.map(({ item, tone }) => {
+        if (useTurn) {
+          return '<span class="dom-leg-i"><i class="dom-leg-d" style="background:' + tone + '"></i>' +
+            esc(item.name) + " <b>" + domTurnText(item.turnoverPct) + "</b>" +
+            '<em>' + esc((item.count || 0) + "종·" + domEok(item.valueEok)) + "</em></span>";
+        }
         const sp = domSpreadOf(item, uni);
         return '<span class="dom-leg-i"><i class="dom-leg-d" style="background:' + tone + '"></i>' +
           esc(item.name) + " <b>" + domShareText(item.share) + "</b>" +
@@ -10514,27 +10707,35 @@ const REPORT_DATA = [
     }
 
     const basis = $("#domBasis");
-    if (basis) basis.textContent = dom.basis || "";
-    renderDomShift(report);
+    if (basis) basis.textContent = useTurn ? (turnBlk.basis || "") : (dom.basis || "");
+    if (useTurn) { const sh = $("#domShift"); if (sh) sh.hidden = true; }
+    else renderDomShift(report);
     const cards = $("#domCards");
     /* 카드마다 배지(👑·🔄)를 한 번만 계산하고, 붙은 배지가 있으면 아래 설명 줄에 뜻을 덧붙인다 */
     let nLead = 0, nRot = 0, nFlow = 0;
     if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) => {
-      const marks = dim ? null : domMarksOf(report, item);
+      const marks = (dim || useTurn) ? null : domMarksOf(report, item);
       if (marks && marks.lead) nLead += 1;
       if (marks && marks.rot) nRot += 1;
       if (marks && marks.flow) nFlow += 1;
-      return domCard(item, i, tone, report, dim, dim ? "" : domNoteFor(report, item), marks, { uni: uni });
+      return domCard(item, i, tone, report, dim, (dim || useTurn) ? "" : domNoteFor(report, item), marks,
+        { uni: uni, mode: mode, useTurn: useTurn, sort: view.sort, canSort: canSort });
     }).join("");
     const foot = $("#domFoot");
     if (foot) {
-      const legend = [];
-      if (nLead) legend.push("👑 주도주 = +2%↑·시가 위·고가 유지 70%↑ 최고점");
-      if (nRot) legend.push("🔄 순환 대장 = 대형주 약세 속 +4%↑ 중소형");
-      if (nFlow) legend.push("🔄 자금 이동 = 전일 대비 점유율 +3.0%p↑");
-      foot.textContent = "자금 = +2%↑ 종목 거래대금 점유율 · 확산 = 그 모수 안 상승 종목 수(비중)" +
-        " · 종목 막대 = 당일 고·저 중 현재가 위치 · 종목을 누르면 차트 분석" +
-        (legend.length ? " · " + legend.join(" · ") : "");
+      if (useTurn) {
+        foot.textContent = "회전율 = 섹터 거래대금 ÷ 섹터 시가총액 × 100 · 모수 = 거래대금 100억↑ & " +
+          "+2%↑ 상승 종목 · 막대 라벨은 각 섹터의 회전율(%) · 종목 줄 = 당일 고·저 중 현재가 위치" +
+          " · 종목을 누르면 차트 분석";
+      } else {
+        const legend = [];
+        if (nLead) legend.push("👑 주도주 = +2%↑·시가 위·고가 유지 70%↑ 최고점");
+        if (nRot) legend.push("🔄 순환 대장 = 대형주 약세 속 +4%↑ 중소형");
+        if (nFlow) legend.push("🔄 자금 이동 = 전일 대비 점유율 +3.0%p↑");
+        foot.textContent = "자금 = +2%↑ 종목 거래대금 점유율 · 확산 = 그 모수 안 상승 종목 수(비중)" +
+          " · 종목 막대 = 당일 고·저 중 현재가 위치 · 종목을 누르면 차트 분석" +
+          (legend.length ? " · " + legend.join(" · ") : "");
+      }
     }
     domLiveTick(report);
   }
@@ -10592,18 +10793,46 @@ const REPORT_DATA = [
       meta.innerHTML = bits.join('<span class="dot">·</span>');
     }
 
-    const items = pm.sectors.map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
-    if (pm.individual) items.push({ item: pm.individual, tone: DOM_GRAY, dim: true });
-    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
-    const uni = domSpreadBase(pm);
+    /* 자금순 | 회전율순 — 프리장도 정규장과 같은 두 기준을 쓴다 */
+    const turnBlk = domTurnBlock(pm);
+    const view = domView("pre");
+    const mode = domModeOf("pre", pm);
+    const useTurn = mode === "turn" && !!turnBlk;
+    const src = useTurn ? turnBlk : pm;
+    const canSort = !!turnBlk || (pm.sectors || []).some((s) => (s.topTurnover || []).length);
+    if (!canSort) view.sort = "value";
+    domModeSync($("#pmMode"), mode, !!turnBlk);
+    domSortSync($("#pmSort"), view.sort, canSort);
 
-    domBarHTML($("#pmBar"), items, sum, function (item) {
-      const sp = domSpreadOf(item, uni, legacy ? item.count : null);
-      return item.name + " 자금 " + domShareText(item.share) + " · 확산 " + sp.text;
-    }, "프리장 주도 섹터 점유율 — ");
+    const items = src.sectors.map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
+    if (!useTurn && src.individual) items.push({ item: src.individual, tone: DOM_GRAY, dim: true });
+    const uni = domSpreadBase(pm);
+    let sum, wOf, txtOf, barTitle;
+    if (useTurn) {
+      sum = items.reduce((a, b) => a + (Number(b.item.turnoverPct) || 0), 0) || 1;
+      wOf = (item) => Number(item.turnoverPct) || 0;
+      txtOf = (item) => domTurnText(item.turnoverPct);
+      barTitle = (item) => item.name + " 회전율 " + domTurnText(item.turnoverPct) +
+        " · 거래대금 " + domEok(item.valueEok) + " · 시총 " + domMcapText(item.marketCapEok);
+    } else {
+      sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+      wOf = (item) => Number(item.share) || 0;
+      txtOf = (item) => domShareText(item.share);
+      barTitle = (item) => item.name + " 자금 " + domShareText(item.share) +
+        " · 확산 " + domSpreadOf(item, uni, legacy ? item.count : null).text;
+    }
+
+    domBarHTML($("#pmBar"), items, sum, barTitle,
+      useTurn ? "프리장 섹터 회전율 — " : "프리장 주도 섹터 점유율 — ",
+      { wOf: wOf, txtOf: txtOf, unit: useTurn ? "회전율" : "자금" });
 
     const leg = $("#pmLegend");
     if (leg) leg.innerHTML = items.map(({ item, tone }) => {
+      if (useTurn) {
+        return '<span class="dom-leg-i"><i class="dom-leg-d" style="background:' + tone + '"></i>' +
+          esc(item.name) + " <b>" + domTurnText(item.turnoverPct) + "</b>" +
+          '<em>' + esc((item.count || 0) + "종·" + domEok(item.valueEok)) + "</em></span>";
+      }
       const sp = domSpreadOf(item, uni, legacy ? item.count : null);
       return '<span class="dom-leg-i"><i class="dom-leg-d" style="background:' + tone + '"></i>' +
         esc(item.name) + " <b>" + domShareText(item.share) + "</b>" +
@@ -10611,20 +10840,23 @@ const REPORT_DATA = [
     }).join("");
 
     const basis = $("#pmBasis");
-    if (basis) basis.textContent = pm.basis || "";
+    if (basis) basis.textContent = useTurn ? (turnBlk.basis || "") : (pm.basis || "");
 
     const cards = $("#pmCards");
     if (cards) cards.innerHTML = items.map(({ item, tone, dim }, i) =>
       domCard(item, i, tone, report, dim, "", null,
-        { uni: uni, denom: legacy, noRange: true, reason: true })).join("");
+        { uni: uni, denom: legacy, noRange: true, reason: true,
+          mode: mode, useTurn: useTurn, sort: view.sort, canSort: canSort })).join("");
 
     const foot = $("#pmFoot");
     if (foot) {
-      foot.textContent = (legacy ? "자금 = 프리장 전체 거래대금 점유율(08:48 저장값)" : "자금 = +1%↑ 프리장 거래대금 점유율") +
-        " · 확산 = " + (legacy ? "상승(0%↑)" : "+1%↑") + " 종목 수(모수 대비)" +
+      foot.textContent = (useTurn
+        ? "회전율 = 섹터 프리장 거래대금 ÷ 섹터 시가총액 × 100 · 모수 = 거래대금 100억↑ & +1%↑ 상승 종목"
+        : (legacy ? "자금 = 프리장 전체 거래대금 점유율(08:48 저장값)" : "자금 = +1%↑ 프리장 거래대금 점유율") +
+          " · 확산 = " + (legacy ? "상승(0%↑)" : "+1%↑") + " 종목 수(모수 대비)") +
         " · 종목을 누르면 차트 분석 · " + (pm.source || "네이버 금융 NXT 프리마켓") +
         " · 사유는 종목 뉴스 헤드라인 1줄(수집된 종목만)" +
-        (legacy ? " · +1%↑ 상승 기준은 다음 프리마켓부터" : "");
+        (legacy && !useTurn ? " · +1%↑ 상승 기준은 다음 프리마켓부터" : "");
     }
   }
 
@@ -10641,37 +10873,56 @@ const REPORT_DATA = [
     const key = isPre ? "pre" : ((sess && sess.key) || "krx");
     const date = shotText(String(report.date || "").replace(/-/g, "."));
     const dow = dowOfDate(report.date);
-    const items = (blk.sectors || []).map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
-    if (blk.individual) items.push({ item: blk.individual, tone: DOM_GRAY, dim: true });
-    const sum = items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100;
+    /* 화면에서 고른 기준(자금순·회전율순)과 종목 정렬을 그대로 캐처에 담는다 */
+    const view = domView(isPre ? "pre" : "dom");
+    const mode = domModeOf(isPre ? "pre" : "dom", blk);
+    const turnBlk = domTurnBlock(blk);
+    const useTurn = mode === "turn" && !!turnBlk;
+    const src = useTurn ? turnBlk : blk;
+    const canSort = !!turnBlk || (blk.sectors || []).some((s) => (s.topTurnover || []).length);
+    const items = (src.sectors || []).map((s, i) => ({ item: s, tone: DOM_TONES[Math.min(i, DOM_TONES.length - 1)], dim: false }));
+    if (!useTurn && src.individual) items.push({ item: src.individual, tone: DOM_GRAY, dim: true });
+    const sum = useTurn
+      ? (items.reduce((a, b) => a + (Number(b.item.turnoverPct) || 0), 0) || 1)
+      : (items.reduce((a, b) => a + (Number(b.item.share) || 0), 0) || 100);
     const uni = domSpreadBase(blk);
     const legacy = isPre && String(blk.basisMode || "") !== "rise";
     const spreadOf = (item) => domSpreadOf(item, uni, legacy ? item.count : null);
+    const wOf = (item) => useTurn ? (Number(item.turnoverPct) || 0) : (Number(item.share) || 0);
+    const labOf = (item) => useTurn ? domTurnText(item.turnoverPct) : domShareText(item.share);
 
     const bar = items.map(({ item, tone, dim }) => {
-      const w = Math.max(0, Math.min(100, (Number(item.share) || 0) / sum * 100));
-      const share = domShareText(item.share);
+      const w = Math.max(0, Math.min(100, wOf(item) / sum * 100));
+      const share = labOf(item);
       const label = w >= 17 ? esc(item.name) + " <b>" + share + "</b>" : w >= 7 ? share : "";
       return '<span class="ps-seg' + (dim ? " dim" : "") + '" style="width:' + w.toFixed(2) +
         "%;background:" + tone + '">' + label + "</span>";
     }).join("");
     const legend = items.map(({ item, tone }) => {
+      if (useTurn) {
+        return '<span><i style="background:' + tone + '"></i>' + esc(item.name) +
+          " <b>" + domTurnText(item.turnoverPct) + "</b>" +
+          " <em>" + esc((item.count || 0) + "종·" + domEok(item.valueEok)) + "</em></span>";
+      }
       const sp = spreadOf(item);
       return '<span><i style="background:' + tone + '"></i>' + esc(item.name) +
         " <b>" + domShareText(item.share) + "</b>" +
         " <em>" + esc(sp.n + "종" + (sp.p == null ? "" : "·" + sp.p.toFixed(1) + "%")) + "</em></span>";
     }).join("");
 
-    /* 섹터 블록 — 섹터별 핵심 종목(등락률·거래대금·수집된 사유)
+    /* 섹터 블록 — 섹터별 핵심 종목(등락률·거래대금·시총·회전율·수집된 사유)
        · 블록이 5개 이상이면 종목은 2개씩 — 한 화면 축소율을 키우지 않는다 */
     const perSec = items.length >= 5 ? 2 : 3;
     const blocks = items.map(({ item, tone, dim }, i) => {
       const sp = spreadOf(item);
-      const rows = (item.stocks || []).slice(0, perSec).map((st, j) =>
+      const rows = domRowsOf(item, view.sort).slice(0, perSec).map((st, j) =>
         '<div class="ps-row">' +
           '<span class="ps-rk">' + (j + 1) + "</span>" +
           '<span class="ps-nm"><b>' + esc(st.name) + "</b>" +
-            (st.reason ? "<em>📰 " + esc(shotBrief(st.reason, 30)) + "</em>" : "") + "</span>" +
+            (st.reason ? "<em>📰 " + esc(shotBrief(st.reason, 30)) + "</em>" : "") +
+            (st.turnoverPct != null ? '<em class="ps-mc">시총 ' +
+              esc(domMcapText(st.marketCap)) + " · 회전율 " + esc(domTurnText(st.turnoverPct)) + "</em>" : "") +
+          "</span>" +
           '<span class="ps-rt"><b class="' + pmDir(st.chg) + '">' + pmPct(st.chg) + "</b><s>" +
             esc(sNull(st.valueEok) ? "—" : domEok(st.valueEok)) + "</s></span>" +
         "</div>").join("");
@@ -10679,22 +10930,26 @@ const REPORT_DATA = [
         '<div class="ps-sech">' +
           '<span class="ps-rk">' + (dim ? "·" : (i + 1)) + "</span>" +
           '<b class="ps-sn">' + esc(item.name) + "</b>" +
-          '<span class="ps-sh">자금 ' + domShareText(item.share) + " · 확산 " +
-            esc(sp.text) + "</span>" +
+          '<span class="ps-sh">' + (useTurn
+            ? "회전율 " + domTurnText(item.turnoverPct) + " · 시총 " + domMcapText(item.marketCapEok)
+            : "자금 " + domShareText(item.share) + " · 확산 " + esc(sp.text)) + "</span>" +
           '<span class="ps-ch ' + sDir(item.chg) + '">' + sPct(item.chg) + "</span>" +
         "</div>" + rows + "</div>";
     }).join("");
 
     const top = items[0];
-    const lead = shotText(blk.basis || "") +
-      (top ? " · 1위 " + top.item.name + " " + domShareText(top.item.share) : "");
-    const eyebrow = isPre ? "🌅 NXT 프리장 수급"
-      : (key === "aft" ? "🌙 최종 주도 섹터 점유율" : "🔥 주도 섹터 점유율");
+    const lead = shotText((useTurn ? (turnBlk.basis || turnBlk.rule) : blk.basis) || "") +
+      (top ? " · 1위 " + top.item.name + " " + labOf(top.item) : "");
+    const eyebrow = useTurn
+      ? (isPre ? "🌅 NXT 프리장 회전율" : "🔥 주도 섹터 회전율")
+      : (isPre ? "🌅 NXT 프리장 수급"
+        : (key === "aft" ? "🌙 최종 주도 섹터 점유율" : "🔥 주도 섹터 점유율"));
     const sessText = isPre ? shotText(blk.window || "08:00~08:50")
       : (key === "aft" ? "애프터장" : "정규장");
     const meta = [
       "⏱ " + shotText(blk.asOf || "") + " 기준",
-      isPre ? (legacy ? "프리장 전체 거래대금 기준" : "+1%↑ 기준") : "+2%↑ 기준",
+      useTurn ? "시총 대비 회전율 · 거래대금 100억↑"
+        : (isPre ? (legacy ? "프리장 전체 거래대금 기준" : "+1%↑ 기준") : "+2%↑ 기준"),
       isPre && blk.universe ? "프리장 체결 " + Number(blk.universe).toLocaleString("ko-KR") + "종목" : "",
     ].filter(Boolean);
 
@@ -11231,6 +11486,7 @@ const REPORT_DATA = [
          둘 다 있는 종목은 수급 배지를 아래 설명 줄 맨 앞으로 내린다(정보는 그대로) */
       const stb = streakBadgeHTML(report, w.name, w.ticker, 1);
       const inline = !(pat && w.why);
+      const mc = watchMc(w, report);
       return "<li" + (w.why ? ' class="has-why"' : "") + ">" +
         '<button type="button" class="wr" data-idx="' + i + '" aria-haspopup="dialog" ' +
           'aria-label="' + esc(w.name) + " 차트 기술적 분석 보기" + (pat ? " · 종가배팅 " + esc(pat.label) : "") + "\">" +
@@ -11241,6 +11497,7 @@ const REPORT_DATA = [
               (pat ? patBadge(pat, "wr-pat") : "") +
               '<span class="wr-price">' + esc(w.price ? w.price + "원" : (w.turnover || "")) + "</span>" +
               '<span class="wr-chg ' + sDir(w.chg) + '">' + sPct(w.chg) + "</span></span>" +
+            (mc ? '<span class="wr-mc">' + esc(mc.text) + "</span>" : "") +
           "</span>" +
           '<span class="wr-go" aria-hidden="true">›</span>' +
         "</button>" +
@@ -12824,6 +13081,7 @@ const REPORT_DATA = [
   function start() {
     wireModeToggle();
     wireThemeToggle();
+    wireDomViews();
     wireSimpleUI();
     wireSessionJumps();
     wireDateNav();
