@@ -154,6 +154,13 @@ INVESTOR_TTL_MIN = 30         # 연속매수 캐시 유효 시간(분) — 순�
 NEWS_TTL_MIN = 15             # 뉴스 캐시 유효 시간(분)
 NEWS_COUNT = 3                # 종목당 수집 기사 수
 
+# 종목 뉴스에 섞여 오는 무관 기사 — 제목에 종목명이 없을 때만 이 단어로 거른다.
+# (아파트 분양 홍보·견본주택 안내처럼 그 종목과 상관없는 부동산 기사)
+NEWS_JUNK_WORDS = (
+    "분양", "모델하우스", "견본주택", "청약", "입주자모집",
+    "아파트", "오피스텔", "파크밸리", "단독주택",
+)
+
 # 악재 키워드 — 종목 뉴스 제목·요약에서 찾는다(사전에 없는 단어는 만들지 않는다)
 NEWS_BAD_WORDS = (
     "유상증자", "전환사채", "CB", "BW", "신주인수권", "3자배정", "횡령", "배임",
@@ -1060,7 +1067,7 @@ def _pre_news_reason(code, name=""):
     제목·요약에 **종목명이 있는 기사**만 사유로 쓰고(제목>요약), 없으면 비워 둔다 —
     엉뚱한 기사를 재료처럼 붙이지 않기 위한 장치다.
     """
-    arts = fetch_investor_news(code) or []
+    arts = fetch_investor_news(code, name) or []
     plain = str(name or "").replace(" ", "")
     best, best_score = "", 0
     for a in arts:
@@ -1376,8 +1383,16 @@ def fetch_investor_trend(code: str):
     return data if isinstance(data, list) and data else None
 
 
-def fetch_investor_news(code: str):
-    """종목 뉴스 제목·요약(최신 3건) — 실패 시 None."""
+def fetch_investor_news(code: str, name: str = ""):
+    """종목 뉴스 제목·요약 — 무관 기사를 걸러 최신 순 최대 NEWS_COUNT 건. 실패 시 None.
+
+    · 네이버 종목 뉴스에는 그 종목과 무관한 아파트 분양 홍보·일반 시황 기사가 섞여 온다.
+      제목에 종목명이 없으면서 부동산 분양·홍보 키워드(NEWS_JUNK_WORDS)가 있는 기사는 버린다.
+      (건설사 본인 분양 기사는 제목에 종목명이 있어 남는다)
+    · 남은 기사는 제목 속 종목명(1순위) > 요약 속 종목명(2순위) > 나머지(3순위) 로 정렬해
+      그 종목 직접 기사가 먼저 3건에 들게 한다 — 같은 순위끼리는 최신 순.
+    · 응답 전체를 훑은 뒤 3건을 고른다(처음 3건에서 끊으면 걸러낸 만큼 빈자리가 생긴다).
+    """
     data = get_json(INVESTOR_NEWS_URL.format(code=code), timeout=INVESTOR_TIMEOUT, tries=1)
     if data is None:
         return None
@@ -1390,22 +1405,29 @@ def fetch_investor_news(code: str):
                 raw.append(it)
     if not raw:
         return []
-    seen, arts = set(), []
-    for it in sorted(raw, key=lambda x: str(x.get("datetime") or ""), reverse=True):
+    plain = str(name or "").replace(" ", "")
+    seen, ranked = set(), []
+    # idx = 최신 순서 — 같은 순위끼리는 최신 기사가 먼저 남게 하는 tie-break
+    for idx, it in enumerate(sorted(raw, key=lambda x: str(x.get("datetime") or ""), reverse=True)):
         key = str(it.get("id") or it.get("articleId") or it.get("title") or "")
         if not key or key in seen:
             continue
         seen.add(key)
-        arts.append({
-            "title": _clean_text(it.get("titleFull") or it.get("title"), 140),
-            "body": _clean_text(it.get("body"), 90),
+        title = _clean_text(it.get("titleFull") or it.get("title"), 140)
+        body = _clean_text(it.get("body"), 90)
+        in_title = bool(plain) and plain in title.replace(" ", "")
+        if not in_title and any(w in title for w in NEWS_JUNK_WORDS):
+            continue                        # 종목명 없는 부동산 분양·홍보 기사 — 무관
+        in_body = bool(plain) and plain in body.replace(" ", "")
+        ranked.append((1 if in_title else 2 if in_body else 3, idx, {
+            "title": title,
+            "body": body,
             "url": str(it.get("mobileNewsUrl") or ""),
             "office": _clean_text(it.get("officeName"), 20),
             "dt": str(it.get("datetime") or ""),
-        })
-        if len(arts) >= NEWS_COUNT:
-            break
-    return arts
+        }))
+    ranked.sort(key=lambda x: (x[0], x[1]))
+    return [art for _rank, _idx, art in ranked[:NEWS_COUNT]]
 
 
 def build_news_check(articles):
@@ -1464,8 +1486,10 @@ def _cache_age_min(stamp, now):
         return None
 
 
-def build_investor_blocks(codes, cached_streak, cached_news, now):
+def build_investor_blocks(codes, cached_streak, cached_news, now, names=None):
     """(investorStreak, investorNews) — 캐시가 신선하면 그대로 쓰고 모자란 종목만 병렬 수집.
+
+    names(코드→종목명)는 뉴스 무관 기사 필터·종목 기사 우선 정렬에 쓴다.
 
     · 5분마다 40종목×2요청을 다시 받지 않도록 종목별 생성 시각(`at`)으로 캐시를 판단한다
     · 수집에 실패한 종목은 이전 값을 그대로 유지한다(0이나 빈 배지를 만들지 않는다)
@@ -1496,7 +1520,9 @@ def build_investor_blocks(codes, cached_streak, cached_news, now):
     if need_streak or need_news:
         with ThreadPoolExecutor(max_workers=INVESTOR_WORKERS) as pool:
             f_streak = {c: pool.submit(fetch_investor_trend, c) for c in need_streak}
-            f_news = {c: pool.submit(fetch_investor_news, c) for c in need_news}
+            news_names = names or {}
+            f_news = {c: pool.submit(fetch_investor_news, c, news_names.get(c, ""))
+                      for c in need_news}
             for c, fut in f_streak.items():
                 try:
                     rows = fut.result(timeout=INVESTOR_TIMEOUT + 3)
@@ -1549,7 +1575,8 @@ def build_investor_blocks(codes, cached_streak, cached_news, now):
     news_block = {
         # 생성 시각은 새로 받은 종목이 있을 때만 움직인다 — 캐시만 쓴 실행은 data.json 을 바꾸지 않도록
         "asOf": (news_at[5:16].replace("T", " ") if news_at else ""),
-        "rule": f"종목 뉴스 최신 {NEWS_COUNT}건 제목·요약 악재 키워드 스캔",
+        "rule": (f"종목 뉴스 최신 {NEWS_COUNT}건(종목명 없는 부동산 분양·홍보 기사 제외) "
+                 "제목·요약 악재 키워드 스캔"),
         "keywords": list(NEWS_BAD_WORDS),
         "stocks": news_items,
     }
@@ -4326,13 +4353,17 @@ def main(argv):
     invest_started = time.time()
     invest_codes = investor_target_codes(entry.get("sectorDominance"), entry.get("watchlist"),
                                         (scan or {}).get("hits"), (old_entry or {}).get("investorStreak"))
+    name_of = {str(r[0]): r[1] for r in (all_stocks or []) if r and len(r) > 1 and r[1]}
+    for w in entry.get("watchlist") or []:
+        if w.get("ticker") and w.get("name"):
+            name_of.setdefault(str(w["ticker"]), w["name"])
     streak_block, news_block = build_investor_blocks(
         invest_codes,
         (old_entry or {}).get("investorStreak"),
         (old_entry or {}).get("investorNews"),
-        now)
+        now,
+        names=name_of)
     if streak_block:
-        name_of = {str(r[0]): r[1] for r in (all_stocks or []) if r and len(r) > 1 and r[1]}
         for code, item in streak_block["stocks"].items():
             if name_of.get(code) and not item.get("name"):
                 item["name"] = name_of[code]        # 종목명으로도 배지를 찾을 수 있게
