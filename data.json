@@ -10,6 +10,90 @@
     "marketState": "상승장",
     "priceBasis": "20:00 NXT 애프터마켓 마감 시세 기준",
     "indicatorBasis": "2026-11-26 종가",
+    "usMarket": {
+      "asOf": "미국 11/27(금) 마감 · 블랙프라이데이 단축장 (13:00 ET)",
+      "date": "2026-11-27",
+      "note": "S&P 11개 업종 전부 상승(403↑/81↓) · 주간 S&P +5.60%(2025년 4월 이후 최대) · 단 10년물 4.93%·12월 인상 99%는 그대로라 추세 전환은 아님",
+      "indices": [
+        {
+          "name": "다우",
+          "value": "50,774.94",
+          "chg": 1.18
+        },
+        {
+          "name": "S&P500",
+          "value": "7,297.49",
+          "chg": 1.6
+        },
+        {
+          "name": "나스닥",
+          "value": "24,129.50",
+          "chg": 2.31
+        },
+        {
+          "name": "SOX",
+          "value": "9,186.71",
+          "chg": 4.69
+        }
+      ],
+      "sectors": [
+        {
+          "name": "기술·반도체",
+          "etf": "XLK",
+          "chg": 2.8,
+          "sub": "SOX +4.69%",
+          "stocks": [
+            {"name": "SNDK", "chg": 15.96},
+            {"name": "LITE", "chg": 7.98},
+            {"name": "STX", "chg": 7.9},
+            {"name": "MU", "chg": 7.6},
+            {"name": "MRVL", "chg": 7.34},
+            {"name": "INTC", "chg": 5.38},
+            {"name": "NVDA", "chg": 0.8}
+          ]
+        },
+        {
+          "name": "경기소비",
+          "etf": "XLY",
+          "chg": 2.11,
+          "sub": "블랙프라이데이",
+          "stocks": [
+            {"name": "TSLA", "chg": 5.22},
+            {"name": "AMZN", "chg": 3.96},
+            {"name": "COST", "chg": 1.01},
+            {"name": "WMT", "chg": 0.9}
+          ]
+        },
+        {
+          "name": "커뮤니케이션",
+          "etf": "XLC",
+          "chg": 1.99,
+          "sub": "",
+          "stocks": [
+            {"name": "META", "chg": 3.13},
+            {"name": "GOOGL", "chg": 0.68}
+          ]
+        },
+        {
+          "name": "소재",
+          "etf": "XLB",
+          "chg": 1.84,
+          "sub": "금 +3.8% · 은 +9.1% · 구리 +3.3%",
+          "stocks": [
+            {"name": "NEM", "chg": 5.4}
+          ]
+        },
+        {
+          "name": "산업재·금융",
+          "etf": "XLI",
+          "chg": 1.6,
+          "sub": "XLF +1.15%",
+          "stocks": [
+            {"name": "JPM", "chg": 1.92}
+          ]
+        }
+      ]
+    },
     "rangeLabels": {
       "title": "당일 정규장(09:00~15:30) 범위",
       "close": "종가"

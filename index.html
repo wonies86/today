@@ -9,7 +9,7 @@
   try {
     var m = localStorage.getItem("kr_dash_mode");
     document.documentElement.setAttribute("data-mode",
-      m === "detail" || m === "scanner" || m === "portfolio" ? m : "simple");
+      m === "report" || m === "detail" || m === "scanner" || m === "portfolio" ? m : "simple");
   } catch (e) {
     document.documentElement.setAttribute("data-mode", "simple");
   }
@@ -1553,7 +1553,9 @@
     background:var(--bg-soft);border:1px solid var(--line-2);color:var(--mute);
     margin-top:1px;
   }
-  .issue-why b{display:block;font-weight:800;color:var(--ink);font-size:11.5px}
+  /* 제목(.ibt)만 줄을 바꾸고, 본문 문장 안의 <b> 강조는 글자 흐름 그대로 둔다 */
+  .issue-why b{font-weight:800;color:var(--ink)}
+  .issue-why b.ibt{display:block;font-size:11.5px;letter-spacing:-.02em}
   .issue-facts{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
   .ifchip{
     font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;
@@ -1565,6 +1567,102 @@
   .issue-note{margin:8px 0 0;font-size:10px;line-height:1.5;color:var(--mute);font-weight:700}
   .issue-links{margin:6px 0 0;font-size:10px;font-weight:700;color:var(--mute)}
   .issue-links a{color:var(--violet);text-decoration:none;border-bottom:1px solid #ddd0fb}
+
+  /* ============================================================
+     리포트 탭 — 전일 미장 강세 섹터 + 구간 리포트(장전·정규장·애프터)
+     · 2026-11-28: 헤더 바로 아래에 늘 떠 있던 이슈 배너를 이 탭으로 옮겼다
+       → 심플·상세는 지수·세션·섹터·관찰 5선부터 바로 시작한다
+     ============================================================ */
+  #viewReport{max-width:980px;margin:0 auto;padding:12px 0 10px}
+  .rp-head{display:flex;align-items:baseline;gap:4px 8px;flex-wrap:wrap;margin:0 2px 10px}
+  .rp-h1{margin:0;font-size:17px;font-weight:860;letter-spacing:-.04em;color:var(--ink)}
+  .rp-sub{flex:1 1 100%;margin:0;font-size:10.5px;font-weight:650;color:var(--mute);line-height:1.45}
+
+  /* ---- 🇺🇸 전일 미장 강세 섹터 ---- */
+  .us{position:relative;margin-bottom:12px;border:1px solid var(--line-3);border-radius:var(--radius);
+    background:var(--card);box-shadow:var(--shadow);overflow:hidden}
+  .us::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+  .us[hidden]{display:none}
+  .us-head{display:flex;align-items:flex-start;gap:8px;padding:10px 12px 9px 15px;border-bottom:1px solid var(--line-2)}
+  .us-head-main{min-width:0}
+  .us-title{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
+  .us-asof{margin:2px 0 0;font-size:9.5px;font-weight:700;color:var(--mute);line-height:1.4}
+  .us-idx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:9px 12px 0 15px}
+  .us-ix{min-width:0;background:var(--bg-soft);border:1px solid var(--line-2);border-radius:9px;padding:5px 6px}
+  .us-ix .k{display:block;font-size:8.5px;font-weight:800;letter-spacing:-.02em;color:var(--mute);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .us-ix .v{display:block;font-size:11px;font-weight:850;letter-spacing:-.03em;color:var(--ink);
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .us-ix .d{display:block;font-size:9.5px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .us-note{margin:7px 12px 0 15px;font-size:9.5px;line-height:1.45;font-weight:650;color:var(--mute)}
+  .us-list{list-style:none;margin:0;padding:8px 12px 10px 15px;display:grid;gap:5px}
+  .us-row{border:1px solid var(--line-2);border-radius:10px;background:linear-gradient(180deg,var(--bg-soft),var(--card) 78%);padding:6px 8px}
+  .us-rh{display:flex;align-items:center;gap:5px;min-width:0}
+  .us-nm{font-size:11px;font-weight:850;letter-spacing:-.025em;color:var(--ink);white-space:nowrap}
+  .us-etf{flex:0 0 auto;font-size:9px;font-weight:800;color:var(--violet);background:var(--violet-soft);
+    border-radius:4px;padding:1px 4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .us-sub{margin-left:2px;min-width:0;font-size:9px;font-weight:700;color:var(--mute);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .us-chg{margin-left:auto;padding-left:6px;font-size:10.5px;font-weight:850;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .us-st{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px}
+  .us-st span{display:inline-flex;align-items:baseline;gap:2px;font-size:9.5px;font-weight:750;color:var(--ink-2);
+    background:var(--card);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .us-st b{font-weight:850;letter-spacing:-.02em;color:var(--ink)}
+  .us-st i{font-style:normal;font-weight:850}
+  html[data-theme="dark"] .us-row{background:linear-gradient(180deg,#131a26,#161c28 78%)}
+
+  /* ---- 구간 리포트 카드 ---- */
+  .rblock + .rblock{margin-top:10px}
+  .rblock-head{display:flex;align-items:center;gap:6px;margin:0 2px 5px}
+  .rchip{font-size:9.5px;font-weight:850;letter-spacing:-.01em;color:var(--ink);
+    background:var(--card);border:1px solid var(--line-3);border-radius:999px;padding:2px 8px}
+  .rwin{font-size:9.5px;font-weight:700;color:var(--mute);font-variant-numeric:tabular-nums}
+  /* 읽는 탭이라 본문을 심플·상세보다 한 단계 크게 */
+  #viewReport .issue-title{font-size:13px}
+  #viewReport .issue-why li{font-size:11.5px;line-height:1.58}
+  #viewReport .issue-note{font-size:10.5px}
+  .rp-empty{margin:0;padding:16px 14px;border:1px dashed var(--line-3);border-radius:var(--radius);
+    background:var(--card);font-size:11.5px;font-weight:700;color:var(--mute);text-align:center}
+
+  /* ---- 📸 캡쳐 카드 → PNG (측정용 스테이지 + 390px 미장 카드 · 항상 라이트) ---- */
+  #pngStage{position:fixed;left:-10000px;top:0;width:420px;pointer-events:none;z-index:-1}
+  #usShotStage{position:fixed;left:-10000px;top:0;width:390px;pointer-events:none;z-index:-1}
+  .ushot{width:390px;box-sizing:border-box;background:#fff;color:#0f172a;padding:16px 16px 13px;
+    border-radius:18px;font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",
+    "Malgun Gothic","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .ush-top{display:flex;align-items:center;gap:6px}
+  .ush-tag{flex:0 0 auto;font-size:10px;font-weight:850;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-radius:999px;padding:3px 8px}
+  .ush-date{margin-left:auto;font-size:10.5px;font-weight:800;color:#63718b;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-h{margin:9px 0 0;font-size:19px;font-weight:860;letter-spacing:-.04em;color:#0f172a}
+  .ush-asof{margin:3px 0 0;font-size:10px;font-weight:700;color:#8a94a8;line-height:1.4}
+  .ush-idx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:10px}
+  .ush-ix{min-width:0;background:#f7f9fd;border:1px solid #e8edf6;border-radius:9px;padding:5px 6px}
+  .ush-ix .k{display:block;font-size:8.5px;font-weight:800;color:#8a94a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ush-ix .v{display:block;font-size:11px;font-weight:850;color:#0f172a;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-ix .d{display:block;font-size:9.5px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-list{margin-top:9px;display:grid;gap:5px}
+  .ush-sec{border:1px solid #eef1f7;border-radius:10px;background:#fafbfe;padding:6px 8px}
+  .ush-sh{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}
+  .ush-sh b{font-size:11.5px;font-weight:850;letter-spacing:-.02em;color:#0f172a}
+  .ush-sh em{font-style:normal;font-size:9.5px;font-weight:800;color:#6d28d9;background:#f4efff;border-radius:4px;padding:1px 4px;font-variant-numeric:tabular-nums}
+  .ush-sh u{text-decoration:none;font-size:9px;font-weight:700;color:#8a94a8}
+  .ush-st{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px}
+  .ush-st span{display:inline-flex;align-items:baseline;gap:2px;font-size:9.5px;font-weight:750;color:#44506a;
+    background:#fff;border:1px solid #e8edf6;border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-st b{font-weight:850;letter-spacing:-.02em;color:#0f172a}
+  .ush-st i{font-style:normal;font-weight:850}
+  .ush-st .up{color:#e11d48}
+  .ush-st .down{color:#2563eb}
+  .ush-st .flat{color:#63718b}
+  .ush-note{margin:9px 0 0;font-size:9.5px;line-height:1.45;font-weight:650;color:#63718b}
+  .ush-disc{display:flex;justify-content:space-between;gap:8px;margin:11px 0 0;padding-top:8px;
+    border-top:1px dashed #e6eaf2;font-size:8.5px;font-weight:700;color:#9aa5ba}
+  @media (max-width:430px){
+    .us-idx{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
 
   /* ============================================================
      반응형
@@ -1649,7 +1747,7 @@
     .issue-body{padding:0 16px 14px 19px}
     .issue-title{font-size:14.5px}
     .issue-why li{font-size:12.5px}
-    .issue-why b{font-size:13px}
+    .issue-why b.ibt{font-size:13px}
     .ifchip{font-size:11px;padding:3px 8px}
     .issue-note{font-size:11px}
   }
@@ -2226,18 +2324,22 @@
   }
   .mode-toggle button:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
 
-  /* 모드별 표시 — 첫 페인트부터 깜빡임 없이 (html[data-mode] + hidden 둘 다 사용) */
-  html[data-mode="detail"] #viewSimple,
-  html[data-mode="simple"] #viewDetail,
-  html[data-mode="scanner"] #viewSimple,
-  html[data-mode="scanner"] #viewDetail,
-  html[data-mode="simple"] #viewScanner,
-  html[data-mode="detail"] #viewScanner{display:none !important}
-  #viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden]{display:none !important}
-  /* 조건식 탭에서는 상단 시장 수급 이슈 배너를 띄우지 않는다 (잠금/조건식 화면만) */
-  html[data-mode="scanner"] #issueBar{display:none !important}
-  body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs{display:none}
-  body.mode-simple .wrap,body.mode-scanner .wrap{padding-bottom:0}
+  /* 모드별 표시 — 첫 페인트부터 깜빡임 없이 (html[data-mode] + hidden 둘 다 사용)
+     리포트 | 심플 | 상세 | 조건식 | 내 종목 — 다섯 뷰 중 하나만 보인다 */
+  html[data-mode="report"] #viewSimple,html[data-mode="report"] #viewDetail,
+  html[data-mode="report"] #viewScanner,html[data-mode="report"] #viewPortfolio,
+  html[data-mode="simple"] #viewReport,html[data-mode="simple"] #viewDetail,
+  html[data-mode="simple"] #viewScanner,html[data-mode="simple"] #viewPortfolio,
+  html[data-mode="detail"] #viewReport,html[data-mode="detail"] #viewSimple,
+  html[data-mode="detail"] #viewScanner,html[data-mode="detail"] #viewPortfolio,
+  html[data-mode="scanner"] #viewReport,html[data-mode="scanner"] #viewSimple,
+  html[data-mode="scanner"] #viewDetail,html[data-mode="scanner"] #viewPortfolio,
+  html[data-mode="portfolio"] #viewReport,html[data-mode="portfolio"] #viewSimple,
+  html[data-mode="portfolio"] #viewDetail,html[data-mode="portfolio"] #viewScanner{display:none !important}
+  #viewReport[hidden],#viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden],#viewPortfolio[hidden]{display:none !important}
+  /* 세션 탭은 지수·세션·섹터를 다루는 심플·상세에만 — 리포트는 자체 구간 머리를 쓴다 */
+  body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs,body.mode-report .topbar .tabs{display:none}
+  body.mode-simple .wrap,body.mode-scanner .wrap,body.mode-report .wrap{padding-bottom:0}
 
   /* ============================================================
      수급 시나리오 — 큰 판의 배경 · 체크 변수 (상세 뷰)
@@ -2940,9 +3042,9 @@ html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:
 .ps-row .ps-nm b{display:block;font-size:10.5px;font-weight:820;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ps-row .ps-nm em{display:block;font-style:normal;font-size:8.5px;line-height:1.35;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ps-row .ps-nm em.ps-mc{color:var(--mute);font-weight:700;font-variant-numeric:tabular-nums}
-.ps-row .ps-rt{text-align:right;font-variant-numeric:tabular-nums}
-.ps-row .ps-rt b{display:block;font-size:10px;font-weight:850}
-.ps-row .ps-rt s{display:block;font-size:8px;text-decoration:none;color:var(--mute)}
+.ps-row .ps-rt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ps-row .ps-rt b{display:block;font-size:10px;font-weight:850;white-space:nowrap;line-height:1.3}
+.ps-row .ps-rt s{display:block;font-size:8px;line-height:1.25;text-decoration:none;color:var(--mute);white-space:nowrap}
 .ps-row .pm-up{color:var(--up)}
 .ps-row .pm-dn{color:var(--down)}
 .ps-meta{display:flex;flex-wrap:wrap;gap:2px 6px;margin:3px 0 0;font-size:8.5px;color:var(--mute);font-variant-numeric:tabular-nums}
@@ -3083,6 +3185,20 @@ html[data-theme="dark"] .pm-badge{color:#ffc87f;background:#2a2011;border-color:
   }
   .shot-x:hover{color:var(--ink-2);border-color:#cfd6e4}
   .shot-body{position:relative;flex:1 1 auto;min-height:0}
+  /* 캡쳐 미리보기 아래 — PNG로 저장 (스레드·카톡에 바로 올릴 수 있게) */
+  .shot-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 2px 0;flex-wrap:wrap}
+  .shot-save{
+    appearance:none;-webkit-appearance:none;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+    font-size:12.5px;font-weight:850;letter-spacing:-.02em;
+    color:#fff;background:#6d28d9;border:1px solid #5b21b6;border-radius:11px;padding:9px 15px;
+    box-shadow:0 8px 18px -12px rgba(91,33,182,.9);
+  }
+  .shot-save:hover{background:#5b21b6}
+  .shot-save:active{transform:translateY(1px)}
+  .shot-save:disabled{opacity:.6;cursor:default}
+  .shot-save:focus-visible{outline:2px solid #a78bfa;outline-offset:2px}
+  .shot-foot span{font-size:9.5px;font-weight:650;color:var(--mute);line-height:1.4}
 
   .sh-card{
     position:absolute;left:50%;top:50%;
@@ -3507,14 +3623,6 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
      · 저장은 이 브라우저 localStorage 에만 — 서버·GitHub 전송 없음
      · 색은 토큰만 쓴다 (라이트·다크 공통)
      ============================================================ */
-  html[data-mode="portfolio"] #viewSimple,
-  html[data-mode="portfolio"] #viewDetail,
-  html[data-mode="portfolio"] #viewScanner{display:none !important}
-  html[data-mode="simple"] #viewPortfolio,
-  html[data-mode="detail"] #viewPortfolio,
-  html[data-mode="scanner"] #viewPortfolio{display:none !important}
-  #viewPortfolio[hidden]{display:none !important}
-  html[data-mode="portfolio"] #issueBar{display:none !important}
   body.mode-portfolio .topbar .tabs,
   body.mode-portfolio .datenav{display:none}
   body.mode-portfolio .wrap{padding-bottom:28px}
@@ -3771,6 +3879,7 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <span class="brand-name">국내 증시 수급 대시보드</span>
       </div>
       <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="보기 방식">
+        <button type="button" role="tab" data-mode="report" aria-selected="false">리포트</button>
         <button type="button" role="tab" data-mode="simple" aria-selected="true">심플</button>
         <button type="button" role="tab" data-mode="detail" aria-selected="false">상세</button>
         <button type="button" role="tab" data-mode="scanner" aria-selected="false">조건식</button>
@@ -3807,8 +3916,38 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
     <nav class="tabs" id="tabs" role="tablist" aria-label="세션 선택"></nav>
   </div>
 
-  <!-- ======================= 시장 이슈 배너 (심플·상세 공통) ======================= -->
-  <section class="issuebar" id="issueBar" aria-label="시장 핵심 이슈" aria-live="polite" hidden></section>
+  <!-- ======================= 리포트 뷰 (상단 `리포트` 탭) =======================
+       ① 전일 미장 강세 섹터(캡쳐 버튼) ② 하루 세 구간 이슈 리포트 장전→정규장→애프터
+       · 심플·상세 맨 위에 늘 떠 있던 이슈 배너는 여기로 옮겼다(2026-11-28) -->
+  <main id="viewReport" aria-label="리포트" hidden>
+    <div class="rp-head">
+      <h1 class="rp-h1">오늘의 리포트</h1>
+      <p class="rp-sub" id="rpSub">—</p>
+    </div>
+
+    <!-- 🇺🇸 전일 미장 강세 섹터 — data.json usMarket 이 있는 날짜에만 -->
+    <div id="usHost"></div>
+
+    <!-- 구간 이슈 리포트 (장전·정규장·애프터) -->
+    <section class="issuebar" id="issueBar" aria-label="시장 핵심 이슈" aria-live="polite" hidden></section>
+  </main>
+
+  <!-- 📸 미장 섹터 캡쳐 — 화면 밖 390px 카드를 PNG로 굽는다 -->
+  <div id="usShotStage" aria-hidden="true"></div>
+  <div id="pngStage" aria-hidden="true"></div>
+
+  <!-- ======================= 🇺🇸 미장 강세 섹터 캡쳐 미리보기 ======================= -->
+  <dialog class="pf-shotdlg" id="usShotDlg" aria-label="미장 강세 섹터 캡쳐">
+    <div class="pf-shotbar">
+      <b>📸 미장 강세 섹터</b>
+      <button type="button" class="pf-shotx" id="usShotClose" aria-label="미장 캡쳐 닫기">✕</button>
+    </div>
+    <div class="pf-shotbody"><img id="usShotImg" alt="미장 강세 섹터 캡쳐 이미지"></div>
+    <div class="pf-shotfoot">
+      <button type="button" class="pf-primary" id="usShotSave">💾 저장하기</button>
+      <span id="usShotMsg">PNG로 저장해 스레드에 바로 올릴 수 있어요</span>
+    </div>
+  </dialog>
 
   <div id="viewDetail">
 
@@ -4240,8 +4379,8 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   </div>
   <div class="pf-shotbody"><img id="pfShotImg" alt="내 종목 수익 인증 카드 이미지"></div>
   <div class="pf-shotfoot">
-    <button type="button" class="pf-primary" id="pfShotSave">이미지 저장</button>
-    <span>금액 가림 상태가 그대로 담깁니다 · 길게 눌러 저장도 됩니다</span>
+    <button type="button" class="pf-primary" id="pfShotSave">💾 저장하기</button>
+    <span>금액 가림 상태가 그대로 담긴 PNG로 저장됩니다 · 길게 눌러 저장도 됩니다</span>
   </div>
 </dialog>
 
@@ -4328,6 +4467,10 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
       <button type="button" class="shot-x" id="shotClose" aria-label="캡처 화면 닫기">✕</button>
     </div>
     <div class="shot-body" id="shotBody"></div>
+    <div class="shot-foot">
+      <button type="button" class="shot-save" id="shotSave">💾 저장하기</button>
+      <span id="shotSaveMsg">PNG로 저장됩니다 · 스레드에 바로 올릴 수 있어요</span>
+    </div>
   </div>
 </dialog>
 
@@ -6793,9 +6936,11 @@ const REPORT_DATA = [
   }
 
   /* ============================================================
-     시장 이슈 배너
+     리포트 탭 — 구간 이슈 리포트
      ------------------------------------------------------------
-     · data.json 의 session.issue(세션별) → day.issue(공통) 순으로 읽는다.
+     · 2026-11-28: 헤더 바로 아래 늘 떠 있던 이슈 배너를 `리포트` 탭 안으로 옮겼다.
+       심플·상세는 지수·세션·섹터·관찰 5선부터 바로 시작한다.
+     · data.json 의 session.issue(세션별)를 장전 → 정규장 → 애프터 순으로 쌓는다.
        issue = {
          badge:"🚨 장전 급락", tone:"down"|"up"|"info",
          title:"한 줄 핵심 요약", time:"08:50 기준",
@@ -6803,12 +6948,13 @@ const REPORT_DATA = [
          facts:[{label, dir?}] | ["문장"],
          note:"한 줄 체크포인트", links:[{label, url}]
        }
-     · 이슈가 비어 있으면 배너를 그리지 않는다(기존 화면 유지).
-     · 접기/펼치기 상태는 화면을 다시 그려도 유지한다.
+     · 세션 이슈가 하나도 없고 day.issue 만 있으면 그것 하나를 보여준다.
+     · 지금 시각 구간(activeSession) 카드는 펼친 채, 나머지는 접힌 채로 두고
+       손으로 접고 펴면 그 값을 기억한다.
      ============================================================ */
   const TONES = { down: 1, up: 1, info: 1 };
-  /* null = 자동 (좁은 화면은 접힌 채, 넓은 화면은 펼친 채) — 사용자가 직접 접거나 펴면 그 값을 따른다 */
-  let issueOpen = null;
+  const RPT_OPEN = {};
+  const RPT_NAME = { pre: "장전", krx: "정규장", aft: "애프터", day: "오늘" };
 
   const hasIssue = (it) => !!it && typeof it === "object" &&
     !!(it.title || (it.reasons && it.reasons.length) || (it.facts && it.facts.length));
@@ -6819,21 +6965,30 @@ const REPORT_DATA = [
     return null;
   }
 
-  function renderIssue(report) {
-    const host = $("#issueBar");
-    if (!host) return;
-    const it = issueOf(report, sessionOf(report));
-    if (!it) {
-      host.hidden = true;
-      host.innerHTML = "";
-      return;
+  /* 리포트 탭에 쌓을 이슈 목록 — 구간 순서 그대로 */
+  function issueList(report) {
+    const out = [];
+    ((report && report.sessions) || []).forEach((s) => {
+      if (!s || !hasIssue(s.issue)) return;
+      out.push({
+        key: s.key || "",
+        name: RPT_NAME[s.key] || s.name || s.tab || "구간",
+        window: s.window || "",
+        issue: s.issue
+      });
+    });
+    if (!out.length && hasIssue(report && report.issue)) {
+      out.push({ key: "day", name: RPT_NAME.day, window: "", issue: report.issue });
     }
+    return out;
+  }
 
+  function issueCardHTML(it, open) {
     const tone = TONES[it.tone] ? it.tone : "info";
     const reasons = (it.reasons || []).map((r, i) => {
       if (r && typeof r === "object") {
         return '<li><i class="n">' + (i + 1) + "</i><span>" +
-          (r.title ? "<b>" + rich(r.title) + "</b>" : "") +
+          (r.title ? '<b class="ibt">' + rich(r.title) + "</b>" : "") +
           (r.body ? rich(r.body) : "") + "</span></li>";
       }
       return '<li><i class="n">' + (i + 1) + "</i><span>" + esc(r) + "</span></li>";
@@ -6851,8 +7006,7 @@ const REPORT_DATA = [
       '<a href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' +
       esc(l.label || "원문") + "</a>").join(" · ");
 
-    let h = '<details class="issue" data-tone="' + tone + '"' +
-      ((issueOpen === null ? window.innerWidth >= 640 : issueOpen) ? " open" : "") + ">" +
+    return '<details class="issue" data-tone="' + tone + '"' + (open ? " open" : "") + ">" +
       '<summary class="issue-sum">' +
         '<span class="issue-top">' +
           '<span class="issue-badge">' + esc(it.badge || "시장 이슈") + "</span>" +
@@ -6868,11 +7022,263 @@ const REPORT_DATA = [
         (links ? '<p class="issue-links">근거 ' + links + "</p>" : "") +
       "</div>" +
     "</details>";
+  }
 
+  function renderIssue(report) {
+    const host = $("#issueBar");
+    if (!host) return;
+    const sub = $("#rpSub");
+    const head = ((report && report.shortLabel) || "") +
+      (report && report.date ? " (" + dowOfDate(report.date) + ")" : "");
+    const list = issueList(report);
+    if (!list.length) {
+      host.hidden = false;
+      host.innerHTML = '<p class="rp-empty">이 날짜에는 저장된 구간 이슈 리포트가 없습니다 · 지수·수급은 심플·상세에서 볼 수 있습니다</p>';
+      if (sub) sub.textContent = (head ? head + " · " : "") + "이 날짜에는 저장된 이슈 리포트가 없습니다";
+      return;
+    }
+    if (sub) {
+      sub.textContent = (head ? head + " · " : "") +
+        "전일 미장 섹터 · 이슈 리포트 " + list.map((r) => r.name).join(" → ") +
+        " · 접힌 구간은 눌러 펼칩니다";
+    }
+    host.innerHTML = list.map((r) => {
+      const open = RPT_OPEN[r.key] != null ? RPT_OPEN[r.key] : (r.key === activeSession);
+      return '<section class="rblock" data-rkey="' + esc(r.key) + '">' +
+        '<div class="rblock-head">' +
+          '<span class="rchip">' + esc(r.name) + "</span>" +
+          (r.window ? '<span class="rwin">' + esc(r.window) + "</span>" : "") +
+        "</div>" +
+        issueCardHTML(r.issue, open) +
+      "</section>";
+    }).join("");
     host.hidden = false;
-    host.innerHTML = h;
-    const det = host.querySelector("details");
-    if (det) det.addEventListener("toggle", () => { issueOpen = det.open; });
+    Array.prototype.forEach.call(host.querySelectorAll("details.issue"), (det) => {
+      const blk = det.closest("[data-rkey]");
+      const key = blk ? blk.getAttribute("data-rkey") : "";
+      det.addEventListener("toggle", () => { RPT_OPEN[key] = det.open; });
+    });
+  }
+
+  /* ============================================================
+     🇺🇸 전일 미장 강세 섹터 — data.json usMarket
+     ------------------------------------------------------------
+     usMarket = {
+       asOf:"미국 11/27(금) 마감 · 블랙프라이데이 단축장", date:"2026-11-27",
+       indices:[{name, value, chg}], note:"한 줄 요약",
+       sectors:[{name, etf, chg, sub, stocks:[{name, chg}]}]
+     }
+     · usMarket 이 없는 날짜(과거 기록)에는 섹션을 아예 그리지 않는다.
+     · 📸 캡쳐 = 390px 카드를 PNG로 만들어 미리보기 다이얼로그에 띄운다.
+     ============================================================ */
+  const US_SHOT_W = 390;
+  const US_SNAPSHOT = { url: "", name: "" };
+
+  function usIndexHTML(u) {
+    return (u.indices || []).map((ix) =>
+      '<div class="us-ix">' +
+        '<span class="k">' + esc(ix.name) + "</span>" +
+        '<span class="v">' + esc(ix.value) + "</span>" +
+        '<span class="d ' + dir(ix.chg) + '">' + pct(ix.chg) + "</span>" +
+      "</div>").join("");
+  }
+
+  function usStockTags(s) {
+    return (s.stocks || []).map((st) =>
+      "<span><b>" + esc(st.name) + '</b><i class="' + dir(st.chg) + '">' + pct(st.chg) + "</i></span>").join("");
+  }
+
+  function usMarketHTML(u) {
+    const rows = (u.sectors || []).map((s) =>
+      '<li class="us-row">' +
+        '<div class="us-rh">' +
+          '<b class="us-nm">' + esc(s.name) + "</b>" +
+          (s.etf ? '<span class="us-etf">' + esc(s.etf) + "</span>" : "") +
+          (s.sub ? '<span class="us-sub">' + esc(s.sub) + "</span>" : "") +
+          '<span class="us-chg ' + dir(s.chg) + '">' + pct(s.chg) + "</span>" +
+        "</div>" +
+        ((s.stocks || []).length ? '<div class="us-st">' + usStockTags(s) + "</div>" : "") +
+      "</li>").join("");
+    const idx = usIndexHTML(u);
+    return '<section class="us" aria-labelledby="usTitle">' +
+      '<div class="us-head">' +
+        '<div class="us-head-main">' +
+          '<h2 class="us-title" id="usTitle">🇺🇸 전일 미장 강세 섹터</h2>' +
+          '<p class="us-asof">' + esc(u.asOf || "") + "</p>" +
+        "</div>" +
+        '<button type="button" class="shot-btn" id="usShotBtn" aria-haspopup="dialog">📸 캡쳐</button>' +
+      "</div>" +
+      (idx ? '<div class="us-idx">' + idx + "</div>" : "") +
+      (u.note ? '<p class="us-note">' + rich(u.note) + "</p>" : "") +
+      '<ul class="us-list">' + rows + "</ul>" +
+    "</section>";
+  }
+
+  function renderUsMarket(report) {
+    const host = $("#usHost");
+    if (!host) return;
+    const u = report && report.usMarket;
+    if (!u || !((u.sectors || []).length)) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = usMarketHTML(u);
+    const btn = $("#usShotBtn");
+    if (btn) btn.addEventListener("click", () => openUsShot(report));
+  }
+
+  /* 캡쳐용 390px 카드 — 화면 테마와 무관하게 항상 라이트(스레드 공유용) */
+  function usShotCardHTML(u, report) {
+    const date = String(u.date || (report && report.date) || "").replace(/-/g, ".");
+    const dow = dowOfDate(u.date || (report && report.date));
+    const rows = (u.sectors || []).map((s) =>
+      '<div class="ush-sec">' +
+        '<div class="ush-sh">' +
+          '<b>' + esc(s.name) + "</b>" +
+          (s.etf ? '<em>' + esc(s.etf) + " " + pct(s.chg) + "</em>" : "") +
+          (s.sub ? '<u>' + esc(s.sub) + "</u>" : "") +
+        "</div>" +
+        ((s.stocks || []).length ? '<div class="ush-st">' + usStockTags(s) + "</div>" : "") +
+      "</div>").join("");
+    const idx = (u.indices || []).map((ix) =>
+      '<div class="ush-ix"><span class="k">' + esc(ix.name) + "</span>" +
+        '<span class="v">' + esc(ix.value) + '</span><span class="d ' + dir(ix.chg) + '">' + pct(ix.chg) + "</span></div>").join("");
+    return '<article class="ushot">' +
+      '<div class="ush-top">' +
+        '<span class="ush-tag">US · 전일 미장</span>' +
+        '<span class="ush-date">' + esc(date) + (dow ? " (" + esc(dow) + ")" : "") + " 마감</span>" +
+      "</div>" +
+      '<h2 class="ush-h">강세 섹터 &amp; 대표 종목</h2>' +
+      (u.asOf ? '<p class="ush-asof">' + esc(u.asOf) + "</p>" : "") +
+      (idx ? '<div class="ush-idx">' + idx + "</div>" : "") +
+      '<div class="ush-list">' + rows + "</div>" +
+      (u.note ? '<p class="ush-note">' + esc(String(u.note).replace(/<[^>]*>/g, "")) + "</p>" : "") +
+      '<p class="ush-disc"><span>국내 증시 수급 대시보드 · 미장 마감 리포트</span><span>정보 정리용 · 투자 권유 아님</span></p>' +
+    "</article>";
+  }
+
+  function openUsShot(report) {
+    const stage = $("#usShotStage"), dlg = $("#usShotDlg"), img = $("#usShotImg"), msg = $("#usShotMsg");
+    const u = report && report.usMarket;
+    if (!stage || !dlg || !img || !u) return;
+    stage.innerHTML = usShotCardHTML(u, report);
+    const card = stage.firstElementChild;
+    US_SNAPSHOT.url = "";
+    US_SNAPSHOT.name = "today-us-sectors-" +
+      String(u.date || report.date || "").replace(/-/g, "") + ".png";
+    img.removeAttribute("src");
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
+    else dlg.setAttribute("open", "");
+    if (msg) msg.textContent = "카드를 만드는 중…";
+    pngFromNode(card, { width: US_SHOT_W, scale: 2, bg: "#ffffff" }).then((url) => {
+      US_SNAPSHOT.url = url;
+      img.src = url;
+      if (msg) msg.textContent = "PNG로 저장해 스레드에 바로 올릴 수 있어요";
+    }).catch(() => {
+      if (msg) msg.textContent = "이미지를 만들지 못했습니다 · 화면을 캡쳐해 주세요";
+    });
+  }
+
+  function closeUsShot() {
+    const dlg = $("#usShotDlg");
+    if (!dlg) return;
+    if (typeof dlg.close === "function" && dlg.open) dlg.close();
+    else dlg.removeAttribute("open");
+  }
+
+  /* ============================================================
+     DOM 카드 → PNG — 외부 라이브러리 없이
+     ------------------------------------------------------------
+     · 카드를 복제해 계산된 스타일을 인라인으로 굳힌 뒤(레이아웃 그대로)
+       SVG <foreignObject> 로 그리고 canvas 에 담는다.
+     · 카드 안에는 외부 이미지·웹폰트가 없다(글자·이모지·그라데이션뿐) → canvas 가 오염되지 않는다.
+     ============================================================ */
+  /* 페이지 CSS를 SVG 안에서도 그대로 쓸 수 있게 고쳐 담는다
+     — html·:root 선택자는 #__pg 로 옮겨 같은 토큰·테마 규칙이 적용되게. */
+  const PNG_CSS = { text: "" };
+  function pngCssText() {
+    if (PNG_CSS.text) return PNG_CSS.text;
+    const st = document.querySelector("style");
+    let css = st ? st.textContent : "";
+    css = css.replace(/:root\s*\{/g, "#__pg{");
+    css = css.replace(/html\[data-theme/g, "#__pg[data-theme");
+    css = css.replace(/html\[data-mode/g, "#__pg[data-mode");
+    css = css.replace(/(^|[};])\s*html\s*\{/g, "$1#__pg{");
+    css = css.replace(/(^|[};])\s*body\s*\{/g, "$1#__pg{");
+    /* SVG(XML) 안에서는 주석의 '<'·'&'가 문서를 깨뜨린다 — 주석을 지우고 남은 글자를 엔티티로 */
+    css = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    css = css.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    PNG_CSS.text = css;
+    return css;
+  }
+
+  /* 카드 DOM → PNG
+     · 카드를 복제해 화면 밖에서 같은 CSS·같은 폭으로 한 번 재고(자연 높이),
+       그 높이의 SVG <foreignObject> 안에 페이지 CSS와 함께 담아 그린다.
+       → 화면에서 보이는 그대로(테마·글꼴·줄바꿈) 굽는다. 외부 이미지가 없어 canvas 가 오염되지 않는다. */
+  function pngFromNode(node, opt) {
+    return new Promise((resolve, reject) => {
+      const o = opt || {};
+      const stage = $("#pngStage");
+      const w = Math.round(o.width || (node && node.offsetWidth) || 0);
+      const scale = o.scale || 2;
+      if (!node || !w || !stage) { reject(new Error("카드를 찾지 못했습니다")); return; }
+      let svg = "", h = 0;
+      try {
+        const clone = node.cloneNode(true);
+        clone.removeAttribute("id");
+        Array.prototype.forEach.call(clone.querySelectorAll("[id]"), (n) => n.removeAttribute("id"));
+        clone.setAttribute("style", "position:static;transform:none;left:auto;top:auto;right:auto;" +
+          "bottom:auto;margin:0;width:" + w + "px;");
+        stage.innerHTML = "";
+        stage.appendChild(clone);
+        h = Math.round(clone.offsetHeight);
+        if (!h) { stage.innerHTML = ""; reject(new Error("카드 높이를 읽지 못했습니다")); return; }
+        const pg = document.createElement("div");
+        pg.id = "__pg";
+        pg.setAttribute("data-theme", document.documentElement.getAttribute("data-theme") || "dark");
+        pg.setAttribute("style", "width:" + w + "px;margin:0;padding:0;min-height:0;background:transparent;");
+        pg.appendChild(clone);
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
+          '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' +
+          '<div xmlns="http://www.w3.org/1999/xhtml">' +
+          "<style>" + pngCssText() + "</style>" + pg.outerHTML +
+          "</div></foreignObject></svg>";
+        stage.innerHTML = "";
+      } catch (e) { reject(e); return; }
+
+      const done = (img) => {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = Math.round(w * scale);
+          cv.height = Math.round(h * scale);
+          const g = cv.getContext("2d");
+          g.fillStyle = o.bg || "#ffffff";
+          g.fillRect(0, 0, cv.width, cv.height);
+          g.drawImage(img, 0, 0, cv.width, cv.height);
+          resolve(cv.toDataURL("image/png"));
+        } catch (e) { reject(e); }
+      };
+      const img = new Image();
+      img.onload = () => done(img);
+      img.onerror = () => reject(new Error("SVG 카드를 그리지 못했습니다"));
+      /* data: URL 로만 그린다 — blob: 으로 그린 SVG 이미지는 canvas 를 오염시켜 PNG 추출이 막힌다 */
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    });
+  }
+
+  /* PNG 저장 — <a download> 로 기기에 바로 내려받는다 */
+  function pngDownload(url, name) {
+    if (!url) return false;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name || "today-capture.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
   }
 
   /* ---------------- 섹터 카드 ---------------- */
@@ -7674,7 +8080,50 @@ const REPORT_DATA = [
     document.body.classList.remove("shot-lock");
   }
 
-  /* 자금순 | 회전율순 · 거래대금순 | 회전율순 — 누른 기준으로 다시 그리고 상태는 DOM_VIEW 에 남긴다 */
+  /* 한화면 캡쳐 → PNG 저장 — 카드 DOM을 그대로 구워 내려받는다 */
+  function saveShotPng() {
+    const card = $("#shotCard"), btn = $("#shotSave"), msg = $("#shotSaveMsg");
+    if (!card || !btn) return;
+    const rep = findReport(activeDate);
+    const sess = sessionOf(rep);
+    const key = (sess && sess.key) || activeSession || "";
+    const stamp = rep && String(rep.date || "").replace(/-/g, "");
+    /* 같은 날·같은 구간에 카드가 여러 장이라 파일 이름에 카드 종류를 붙인다 */
+    const kind = card.querySelector(".sh-list") ? "watch"
+      : (card.getAttribute("data-sess") === "pre" ? "pre-sectors" : "sectors");
+    const name = "today-capture-" + (stamp || "") + "-" + kind + ".png";
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "저장 중…";
+    pngFromNode(card, { width: Math.round(card.offsetWidth), scale: 2, bg: "#ffffff" })
+      .then((url) => {
+        if (pngDownload(url, name) && msg) msg.textContent = "저장 완료 · " + name;
+      })
+      .catch(() => {
+        if (msg) msg.textContent = "이미지를 만들지 못했습니다 · 카드를 길게 눌러 저장해 주세요";
+      })
+      .then(() => { btn.disabled = false; btn.textContent = label; });
+  }
+
+  /* 리포트 탭 — 미장 섹터 캡쳐 저장 배선 */
+  function wireReport() {
+    const x = $("#usShotClose");
+    if (x) x.addEventListener("click", closeUsShot);
+    const dlg = $("#usShotDlg");
+    if (dlg) dlg.addEventListener("click", (e) => { if (e.target === dlg) closeUsShot(); });
+    const save = $("#usShotSave");
+    if (save) save.addEventListener("click", () => {
+      const msg = $("#usShotMsg");
+      if (!US_SNAPSHOT.url) {
+        if (msg) msg.textContent = "이미지를 만드는 중입니다 · 잠시 후 다시 눌러 주세요";
+        return;
+      }
+      if (pngDownload(US_SNAPSHOT.url, US_SNAPSHOT.name) && msg) {
+        msg.textContent = "저장 완료 · " + US_SNAPSHOT.name;
+      }
+    });
+  }
+
   function wireDomViews() {
     document.addEventListener("click", (e) => {
       const b = e.target.closest && e.target.closest("[data-dommode],[data-domsort]");
@@ -7700,6 +8149,8 @@ const REPORT_DATA = [
     });
     const x = $("#shotClose");
     if (x) x.addEventListener("click", closeShot);
+    const saveBtn = $("#shotSave");
+    if (saveBtn) saveBtn.addEventListener("click", saveShotPng);
     /* 카드 바깥(배경)을 누르면 닫기 — 카드 영역은 그대로 */
     dlg.addEventListener("click", (e) => {
       if (!(e.target.closest && e.target.closest(".sh-card"))) closeShot();
@@ -12108,8 +12559,8 @@ const REPORT_DATA = [
     syncSimplePanels();
   }
 
-  /* ---------------- 보기 전환 (심플 ↔ 상세 ↔ 조건식 ↔ 내 종목) ---------------- */
-  const MODE_ORDER = ["simple", "detail", "scanner", "portfolio"];
+  /* ---------------- 보기 전환 (리포트 ↔ 심플 ↔ 상세 ↔ 조건식 ↔ 내 종목) ---------------- */
+  const MODE_ORDER = ["report", "simple", "detail", "scanner", "portfolio"];
 
   function normMode(mode) {
     return MODE_ORDER.indexOf(mode) >= 0 ? mode : "simple";
@@ -12125,18 +12576,22 @@ const REPORT_DATA = [
 
   function applyMode(mode) {
     dashMode = normMode(mode);
+    const report = dashMode === "report";
     const simple = dashMode === "simple";
     const detail = dashMode === "detail";
     const scanner = dashMode === "scanner";
     const portfolio = dashMode === "portfolio";
     document.documentElement.setAttribute("data-mode", dashMode);
+    document.body.classList.toggle("mode-report", report);
     document.body.classList.toggle("mode-simple", simple);
     document.body.classList.toggle("mode-scanner", scanner);
     document.body.classList.toggle("mode-portfolio", portfolio);
+    const vr = $("#viewReport");
     const vs = $("#viewSimple");
     const vd = $("#viewDetail");
     const vc = $("#viewScanner");
     const vp = $("#viewPortfolio");
+    if (vr) vr.hidden = !report;
     if (vs) vs.hidden = !simple;
     if (vd) vd.hidden = !detail;
     if (vc) vc.hidden = !scanner;
@@ -13761,6 +14216,7 @@ const REPORT_DATA = [
     const report = findReport(activeDate);
     renderChrome(report);
     renderSwitcher(report);
+    renderUsMarket(report);
     renderIssue(report);
     renderRole(report);
     renderSessBrief(report);
@@ -15132,7 +15588,7 @@ const REPORT_DATA = [
     if (!PF.url) return;
     const a = document.createElement("a");
     a.href = PF.url;
-    a.download = "내종목_수익인증_" + pfToday().replace(/-/g, "") + ".png";
+    a.download = "today-cert-" + pfToday().replace(/-/g, "") + ".png";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -15279,6 +15735,7 @@ const REPORT_DATA = [
   wireTaFull();
   wireTaExpert();
   wireShot();
+  wireReport();
   wireStockClicks();
   wireRefresh();
 

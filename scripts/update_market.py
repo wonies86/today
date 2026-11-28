@@ -4148,7 +4148,7 @@ def merge_entry(new, old):
         return out
     for key in ("label", "shortLabel", "context", "articles",
                 "disclaimer", "rangeLabels", "axis", "stages", "issue", "threads",
-                "preMarket"):
+                "preMarket", "usMarket"):
         if key in old:
             out[key] = old[key]
 
@@ -4691,6 +4691,11 @@ def main(argv):
     if dominance:
         new_entry["sectorDominance"] = dominance
     entry = merge_entry(new_entry, old_entry)
+    # 전일 미장 섹터(usMarket) — 사람이 확인해 넣은 블록이라 자동 계산으로 만들 수 없다.
+    # 새 날짜 항목에는 아직 없으므로 직전 기록의 마지막 미장 블록을 이어 받는다.
+    # (블록 안의 date·asOf 가 그 미장 마감일을 그대로 말하므로 날짜가 드러난다.)
+    if not entry.get("usMarket") and isinstance(prev_entry, dict) and prev_entry.get("usMarket"):
+        entry["usMarket"] = prev_entry["usMarket"]
     entry.pop("_prices", None)
     entry.pop("_industry_metric", None)
     entry.pop("_value_ranks", None)
