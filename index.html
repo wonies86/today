@@ -2829,7 +2829,7 @@
   font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 #viewScanner .sc-l2{margin-top:3px;font-size:10.5px;font-weight:750;line-height:1.4;color:#5b21b6}
-/* 🧲 급등후 눌림목 — 단기 정배열(5>10>20) + 5·10·20일선 이격도 칩 (390px에서 한두 줄로 접힌다) */
+/* 🧲 급등후 눌림목 — 단기 정배열(5>10>20) + 이평선끼리 이격(5·10/10·20/5·20) 칩 (390px에서 두 줄로 접힌다) */
 #viewScanner .sc-ma{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:4px;min-width:0}
 #viewScanner .sc-ma-a{
   flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:-.02em;line-height:1.5;
@@ -13614,7 +13614,7 @@ const REPORT_DATA = [
           '<span class="v">' + esc(bt.summary || "과거 신호 기록이 없습니다.") + "</span></div>" +
         '<div class="ta-block"><span class="k">당일 수급 · 이격</span>' +
           '<span class="v">' + esc(verdict) + " · " + esc(supply) + "</span></div>" +
-        (pbk && item.ma5GapPct != null
+        (pbk && item.ma5_10SpreadPct != null
           ? '<div class="ta-block' + (item.maOverheat ? " is-key" : "") + '">' +
             '<span class="k">이평선 이격도</span>' +
             '<span class="v">' + esc(pbMaText(item)) + "</span></div>"
@@ -14175,33 +14175,37 @@ const REPORT_DATA = [
       '거래일 전' + (d >= 6 ? " (확대 창)" : " (기본 창)") + '">' + d + "<i>일전</i></span>";
   }
 
-  /* 급등후 눌림목 — 단기 이평 정배열(5>10>20) + 5·10·20일선 이격도 칩 (h.ma*GapPct).
+  /* 급등후 눌림목 — 단기 이평 정배열(5>10>20) + 이평선끼리 이격 칩
+     (5·10 = (5이평−10이평)/10이평, 10·20 = (10이평−20이평)/20이평, 5·20 = (5이평−20이평)/20이평).
      값은 조건식이 실측해 실어 보낸 그대로만 쓴다(계산·반올림 없음). 값이 없으면 안 그린다. */
   function pullbackMaHTML(h, scannerId, cur) {
     const isPb = scannerId === "pullback" || !!(cur && cur.id === "pullback");
-    if (!isPb || !h || h.ma5GapPct == null) return "";
+    if (!isPb || !h || h.ma5_10SpreadPct == null) return "";
     const g = (v) => (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
-    const chip = (label, v) => '<span class="sc-ma-c"><i>' + label + "</i>" + g(v) + "</span>";
+    const chip = (label, v, tip) => '<span class="sc-ma-c" title="' + tip + '"><i>' +
+      label + "</i>" + g(v) + "</span>";
     return '<div class="sc-ma">' +
       '<span class="sc-ma-a" title="5이평 > 10이평 > 20이평 — 눌려도 추세가 살아 있는 자리">' +
         "정배열 5&gt;10&gt;20</span>" +
-      chip("5일", h.ma5GapPct) + chip("10일", h.ma10GapPct) + chip("20일", h.ma20GapPct) +
+      chip("5·10", h.ma5_10SpreadPct, "5이평과 10이평의 이격 — (5이평−10이평)/10이평") +
+      chip("10·20", h.ma10_20SpreadPct, "10이평과 20이평의 이격 — (10이평−20이평)/20이평") +
+      chip("5·20", h.ma5_20SpreadPct, "5이평과 20이평의 이격 — (5이평−20이평)/20이평") +
       (h.maOverheat
-        ? '<span class="sc-ma-x" title="20일선 이격 25% 이상 — 눌림 폭이 작아도 추세는 과열된 자리">' +
+        ? '<span class="sc-ma-x" title="5·20 이격 20% 이상 — 눌림 폭이 작아도 추세는 과열된 자리">' +
           "이격과열</span>"
         : "") +
       "</div>";
   }
 
-  /* 급등후 눌림목 모달용 — 이평선 이격도 한 줄 문장(5일선 +1.2% · 10일선 +5.4% …) */
+  /* 급등후 눌림목 모달용 — 이평선끼리 이격 한 줄 문장
+     (5·10 +1.2% · 10·20 +5.4% · 5·20 +6.7% · 단기 정배열(5>10>20)) */
   function pbMaText(item) {
-    if (!item || item.ma5GapPct == null) return "";
+    if (!item || item.ma5_10SpreadPct == null) return "";
     const g = (v) => (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
-    let txt = "5일선 " + g(item.ma5GapPct) + " · 10일선 " + g(item.ma10GapPct) +
-      " · 20일선 " + g(item.ma20GapPct);
-    if (item.ma5_20SpreadPct != null) txt += " · 5·20 벌어짐 " + g(item.ma5_20SpreadPct);
+    let txt = "5·10 " + g(item.ma5_10SpreadPct) + " · 10·20 " + g(item.ma10_20SpreadPct) +
+      " · 5·20 " + g(item.ma5_20SpreadPct);
     txt += item.maAlign === false ? " · 정배열 아님" : " · 단기 정배열(5>10>20)";
-    if (item.maOverheat) txt += " · 이격과열(20일선 25%↑)";
+    if (item.maOverheat) txt += " · 이격과열(5·20 20%↑)";
     return txt;
   }
 

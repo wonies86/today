@@ -480,6 +480,18 @@ def main(argv) -> int:
               f"설명문에 정배열 없음: {pb.get('summary')}")
         check(bool(pb.get("summary")) and bool(pb.get("rawNote")),
               "급등후 눌림목 설명·주의 문구 있음", "급등후 눌림목 설명 없음")
+        # ── 이격도는 종가 대비가 아니라 이평선끼리 (2026-11-28 #14018)
+        pb_note = str(pb.get("rawNote") or "")
+        check("이평선끼리" in pb_note and "(5이평−10이평)" in pb_note
+              and "(10이평−20이평)" in pb_note and "(5이평−20이평)" in pb_note,
+              "급등후 눌림목 주의 문구에 이평선끼리 이격 3종 공식",
+              f"주의 문구에 이평선끼리 이격 공식 없음: {pb_note[:120]}")
+        check("20%" in pb_note and "이격과열" in pb_note,
+              "급등후 눌림목 주의 문구에 이격과열 5·20 20% 기준",
+              f"이격과열 기준 문구 이상: {pb_note[-160:]}")
+        check("종가 대비 이격이 아님" in pb_note,
+              "급등후 눌림목 주의 문구에 '종가 대비 아님' 명시",
+              "종가 대비 아님 문구 없음")
         pb_hits = pb.get("hits") or []
         for item in pb_hits:
             nm = item.get("name")
@@ -503,25 +515,30 @@ def main(argv) -> int:
             check((item.get("ma20dist") or 0) >= -3.0,
                   f"[급등후 눌림목] {nm}: 20일선 이격 {item.get('ma20dist')}% (3% 이내)",
                   f"[급등후 눌림목] {nm}: 20일선 이탈 {item.get('ma20dist')}%")
-            # ── 단기 이평 정배열·이격도 — 숫자가 있어야 화면 칩·모달이 확인된다
-            g = {k: item.get(k) for k in ("ma5GapPct", "ma10GapPct", "ma20GapPct",
+            # ── 단기 이평 정배열·이평선끼리 이격 — 숫자가 있어야 화면 칩·모달이 확인된다
+            g = {k: item.get(k) for k in ("ma5_10SpreadPct", "ma10_20SpreadPct",
                                           "ma5_20SpreadPct")}
             ok_nums = all(isinstance(v, (int, float)) for v in g.values())
-            check(ok_nums, f"[급등후 눌림목] {nm}: 이격도 4개 값 있음 {g}",
-                  f"[급등후 눌림목] {nm}: 이격도 값 이상 {g}")
+            check(ok_nums, f"[급등후 눌림목] {nm}: 이격 3개 값 있음 {g}",
+                  f"[급등후 눌림목] {nm}: 이격 값 이상 {g}")
             if ok_nums:
-                check(g["ma5GapPct"] < g["ma10GapPct"] < g["ma20GapPct"],
-                      f"[급등후 눌림목] {nm}: 이격 5일 {g['ma5GapPct']}% < 10일 "
-                      f"{g['ma10GapPct']}% < 20일 {g['ma20GapPct']}% (정배열)",
-                      f"[급등후 눌림목] {nm}: 이격 순서가 정배열과 다름 {g}")
+                check(g["ma5_10SpreadPct"] > 0 and g["ma10_20SpreadPct"] > 0,
+                      f"[급등후 눌림목] {nm}: 이격 5·10 {g['ma5_10SpreadPct']}% · "
+                      f"10·20 {g['ma10_20SpreadPct']}% (둘 다 플러스 = 정배열)",
+                      f"[급등후 눌림목] {nm}: 이평선 이격이 정배열과 다름 {g}")
                 check(g["ma5_20SpreadPct"] > 0,
-                      f"[급등후 눌림목] {nm}: 5·20 벌어짐 {g['ma5_20SpreadPct']}% (플러스)",
-                      f"[급등후 눌림목] {nm}: 5·20 벌어짐 {g['ma5_20SpreadPct']}% (정배열 아님)")
-                check(bool(item.get("maOverheat")) == (g["ma20GapPct"] >= 25.0),
+                      f"[급등후 눌림목] {nm}: 이격 5·20 {g['ma5_20SpreadPct']}% (플러스)",
+                      f"[급등후 눌림목] {nm}: 5·20 이격 {g['ma5_20SpreadPct']}% (정배열 아님)")
+                # 5·20 이격 = (5이평−20이평)/20이평 — 다른 두 이격과 같은 순서로 맞는지
+                check(g["ma5_20SpreadPct"] >= g["ma5_10SpreadPct"],
+                      f"[급등후 눌림목] {nm}: 5·20 {g['ma5_20SpreadPct']}% ≥ "
+                      f"5·10 {g['ma5_10SpreadPct']}%",
+                      f"[급등후 눌림목] {nm}: 5·20 이격이 5·10보다 작음 {g}")
+                check(bool(item.get("maOverheat")) == (g["ma5_20SpreadPct"] >= 20.0),
                       f"[급등후 눌림목] {nm}: 이격과열 표시 {'있음' if item.get('maOverheat') else '없음'}"
-                      f" (20일선 {g['ma20GapPct']}%)",
-                      f"[급등후 눌림목] {nm}: 이격과열 표시와 이격도 불일치 "
-                      f"{item.get('maOverheat')} / {g['ma20GapPct']}%")
+                      f" (5·20 {g['ma5_20SpreadPct']}%)",
+                      f"[급등후 눌림목] {nm}: 이격과열 표시와 5·20 이격 불일치 "
+                      f"{item.get('maOverheat')} / {g['ma5_20SpreadPct']}%")
             check(item.get("maAlign") is True,
                   f"[급등후 눌림목] {nm}: maAlign 참", f"[급등후 눌림목] {nm}: maAlign {item.get('maAlign')}")
             wr = str(item.get("winRate") or "")
