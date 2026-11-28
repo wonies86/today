@@ -288,12 +288,17 @@ BREAKOUT_MIN_SCORE = 51   # 목록에 올릴 최소 점수 — 51점 초과(52�
 #   급등일 창을 2~5 → 2~7거래일로 넓힌다(11/27 포착 3종목 → 6종목: 지니언스·안랩·마녀공장·
 #   JYP Ent.·에스엠·스튜디오드래곤). 화면에는 종목명 옆에 '며칠 전 급등' 배지를 붙여
 #   2~5거래일(기본 창)과 6~7거래일(확대 창)을 한눈에 구분한다.
+#   2026-11-28 사용자 요청 3차: "정배열을 조건으로 넣어줘 그리고 이평선 이격도도 체크할수 있어?"
+#   — 단기 이평 정배열(5>10>20)을 필수 조건 E로 넣고, 종목마다 5·10·20일선 이격도와
+#   5·20 벌어짐(%)을 실어 화면 칩·모달로 보여준다(20일선 이격 25%↑는 '이격과열').
 PULLBACK_MIN_VALUE = 100      # 당일 거래대금 교집합(억 원) — 작은 종목도 후보
 PULLBACK_SURGE_MIN = 10.0     # 급등일 종가 등락률 하한(%)
 PULLBACK_SURGE_GAP = (2, 7)   # 급등일 위치 — 오늘을 뺀 2~7거래일 전(강의 '5일 룰'을 7거래일로 넓힘)
 PULLBACK_DROP_RANGE = (-11.0, -4.0)   # 최근 10거래일 고점 대비 눌림 폭(%), 안쪽이면 통과
 PULLBACK_HIGH_DAYS = 10       # 눌림 기준 고점 창(거래일, 오늘 고가 포함)
 PULLBACK_MA20_TOL = 0.97      # 20일선 지지 — 오늘 종가가 20이평의 97% 이상
+PULLBACK_MA_TRIPLE = (5, 10, 20)      # 필수 조건 E — 단기 이평 정배열(5 > 10 > 20)
+PULLBACK_MA_OVERHEAT = 25.0   # 20일선 이격도 과열 기준(%) — 이 이상이면 '이격과열'
 PULLBACK_WIN_BARS = 120       # D+1 승률 백테스트 창(거래일)
 MINUTE_URL = FCHART + "?symbol={code}&timeframe=minute&count=400&requestType=0"
 
@@ -2474,6 +2479,35 @@ def breakout_score_scan(rows, ctx):
 
 
 # ---------------------------------------------------------------- 급등후 눌림목
+def ma_alignment(closes, i):
+    """i봉 종가 기준 단기 이평(5·10·20)과 종가 이격도 — 정배열 여부까지 한 번에.
+
+    · 이격도(%) = (종가 − 이평) ÷ 이평 × 100 — 종가가 그 이평에서 몇 % 위/아래인지
+    · ma5_20SpreadPct = (5이평 − 20이평) ÷ 20이평 × 100 — 단기·중기 이평이 벌어진 정도
+    · maAlign = 5이평 > 10이평 > 20이평 (단기 정배열)
+    · maOverheat = 20일선 이격도 ≥ PULLBACK_MA_OVERHEAT (눌려도 추세가 과열된 자리)
+    """
+    fast, mid, slow = PULLBACK_MA_TRIPLE
+    if i < slow - 1 or i >= len(closes):
+        return None
+    close = closes[i]
+    ma5 = _mean(closes[i - fast + 1:i + 1])
+    ma10 = _mean(closes[i - mid + 1:i + 1])
+    ma20 = _mean(closes[i - slow + 1:i + 1])
+    if not close or not (ma5 and ma10 and ma20):
+        return None
+    gap20 = (close / ma20 - 1) * 100
+    return {
+        "ma5": round(ma5, 2), "ma10": round(ma10, 2), "ma20": round(ma20, 2),
+        "ma5GapPct": round((close / ma5 - 1) * 100, 2),
+        "ma10GapPct": round((close / ma10 - 1) * 100, 2),
+        "ma20GapPct": round(gap20, 2),
+        "ma5_20SpreadPct": round((ma5 / ma20 - 1) * 100, 2),
+        "maAlign": bool(ma5 > ma10 > ma20),
+        "maOverheat": bool(gap20 >= PULLBACK_MA_OVERHEAT),
+    }
+
+
 def pullback_state(closes, opens, highs, vols, i):
     """i봉을 '오늘'로 봤을 때 급등후 눌림목 자리인지 — i 시점 값만 쓴다(미래 참조 없음).
 
@@ -2481,6 +2515,7 @@ def pullback_state(closes, opens, highs, vols, i):
     B [당일] 오늘 거래량 < 전일 거래량 (눌림 종배 — 거래대금이 줄어야 함)
     C [일] 최근 10거래일 고점(오늘 고가 포함) 대비 오늘 종가 -4~-11%
     D [일] 오늘 종가 ≥ 20이평 × 0.97 (20일선 지지)
+    E [일] 5이평 > 10이평 > 20이평 (단기 이평 정배열 — 눌려도 추세는 살아 있어야)
 
     급등일이 창 밖이면 None — '급등을 하지 않은 종목'과 구분하기 위한 값이다.
     """
@@ -2501,6 +2536,7 @@ def pullback_state(closes, opens, highs, vols, i):
         return None
     hi = max(highs[i - PULLBACK_HIGH_DAYS + 1:i + 1])
     drop = (closes[i] / hi - 1) * 100 if hi else None
+    ma = ma_alignment(closes, i) or {}
     ma20 = _mean(closes[i - 19:i + 1])
     prev_vol = vols[i - 1] if i >= 1 else None
     surge_prev = closes[surge_i - 1]
@@ -2510,6 +2546,7 @@ def pullback_state(closes, opens, highs, vols, i):
         "B": bool(prev_vol and vols[i] < prev_vol),
         "C": bool(drop is not None and PULLBACK_DROP_RANGE[0] <= drop <= PULLBACK_DROP_RANGE[1]),
         "D": bool(ma20 and closes[i] >= ma20 * PULLBACK_MA20_TOL),
+        "E": bool(ma.get("maAlign")),
     }
     return {
         "conditions": cond,
@@ -2517,6 +2554,7 @@ def pullback_state(closes, opens, highs, vols, i):
         "drop": drop,
         "high10": hi,
         "ma20": ma20,
+        "ma": ma,
         "surge_i": surge_i,
         "surgeGap": surge_gap,
         "surgePct": surge_pct,
@@ -2557,11 +2595,12 @@ def pullback_d1(rows, window=PULLBACK_WIN_BARS):
 
 
 def pullback_scan(rows, ctx=None):
-    """급등후 눌림목 — 급등 뒤 거래량이 줄며 고점에서 -4~-11% 눌린 20일선 위 종목.
+    """급등후 눌림목 — 급등 뒤 거래량이 줄며 고점에서 -4~-11% 눌린 20일선 위 정배열 종목.
 
-    조건식: A and B and C and D — 당일 거래대금 100억↑ 교집합(SCANNER_DEFS.minValue)
-    결과에는 눌림 폭·급등일/등락률·20일선 이격·거래량 비율과 최근 120거래일 같은 자리의
-    D+1 승률·평균 수익률을 함께 싣는다(화면 한 줄 요약이 이 값을 그대로 쓴다).
+    조건식: A and B and C and D and E — 당일 거래대금 100억↑ 교집합(SCANNER_DEFS.minValue)
+    (E = 단기 이평 5>10>20 정배열 — 눌려도 추세가 살아 있는 자리만 남긴다)
+    결과에는 눌림 폭·급등일/등락률·5·10·20일선 이격도와 5·20 벌어짐·거래량 비율,
+    최근 120거래일 같은 자리의 D+1 승률·평균 수익률을 함께 싣는다(화면 칩·한 줄 요약이 쓴다).
     """
     closes = [r["c"] for r in rows or []]
     opens = [r["o"] for r in rows or []]
@@ -2574,17 +2613,25 @@ def pullback_scan(rows, ctx=None):
     st = pullback_state(closes, opens, highs, vols, n - 1)
     if st is None:
         # 급등일이 창 안에 없는 종목 — A 미충족. 실측 종목 수(scanned)에는 남긴다.
+        #  이평 이격도는 급등 여부와 상관없이 실측해 둔다(모달에서 그대로 보여준다).
+        ma = ma_alignment(closes, n - 1) or {}
         ma20 = _mean(closes[-20:])
         return {"gap": 0.0,
                 "conditions": {"A": False, "B": bool(vols[-1] < vols[-2]),
                                "C": False,
-                               "D": bool(ma20 and closes[-1] >= ma20 * PULLBACK_MA20_TOL)},
-                "pass": False, "line2": ""}
+                               "D": bool(ma20 and closes[-1] >= ma20 * PULLBACK_MA20_TOL),
+                               "E": bool(ma.get("maAlign"))},
+                "pass": False, "line2": "",
+                **{k: v for k, v in ma.items() if k not in ("ma5", "ma10", "ma20")}}
     drop = st["drop"] or 0.0
     ma20dist = ((closes[-1] / st["ma20"]) - 1) * 100 if st["ma20"] else None
+    mas = {k: v for k, v in (st.get("ma") or {}).items()
+           if k not in ("ma5", "ma10", "ma20")}
     bits = [f"고점 {drop:+.1f}%",
             f"급등 {_mmdd(dates[st['surge_i']])} {st['surgePct']:+.1f}%"]
-    if ma20dist is not None:
+    if not mas.get("maAlign") and ma20dist is not None:
+        # 정배열·이격은 화면 칩(.sc-ma)과 모달 `이평선 이격도`가 맡는다 — 줄 요약에는 넣지 않는다.
+        #  정배열이 아닌 참고용 항목(모달 reactions)만 20일선 이격을 글자로 남긴다.
         bits.append(f"20일선 {ma20dist:+.1f}%")
     out = {
         "gap": round(drop, 2),
@@ -2596,6 +2643,7 @@ def pullback_scan(rows, ctx=None):
                   "daysAgo": st["surgeGap"]},
         "ma20dist": round(ma20dist, 2) if ma20dist is not None else None,
         "volRatio": round(st["volRatio"], 3) if st["volRatio"] is not None else None,
+        **mas,
     }
     if st["pass"]:
         wr = pullback_d1(rows)
@@ -2770,12 +2818,13 @@ SCANNER_DEFS = [
     {
         "id": "pullback",
         "name": "급등후 눌림목",
-        "summary": f"오늘을 뺀 {PULLBACK_SURGE_GAP[0]}~{PULLBACK_SURGE_GAP[1]}거래일 전 종가 "
-                   f"+{PULLBACK_SURGE_MIN:.0f}%↑ 장대양봉 뒤 거래량이 줄며, 최근 "
-                   f"{PULLBACK_HIGH_DAYS}거래일 고점 대비 "
-                   f"{PULLBACK_DROP_RANGE[1]:.0f}~{PULLBACK_DROP_RANGE[0]:.0f}% 눌리고 20일선 위 — "
-                   f"당일 거래대금 {PULLBACK_MIN_VALUE}억↑ (종가베팅: 다음 날 오전 반등 노림)",
-        "formula": "A and B and C and D",
+        # 화면 설명은 두 줄까지만 보인다 — 정배열까지 앞쪽에 오도록 짧게 쓴다
+        "summary": f"{PULLBACK_SURGE_GAP[0]}~{PULLBACK_SURGE_GAP[1]}거래일 전 "
+                   f"+{PULLBACK_SURGE_MIN:.0f}%↑ 급등 뒤 거래량 감소 · 고점 대비 "
+                   f"{PULLBACK_DROP_RANGE[1]:.0f}~{PULLBACK_DROP_RANGE[0]:.0f}% 눌림 · "
+                   "20일선 위 · 단기 이평 5>10>20 정배열 — "
+                   "종가베팅(다음 날 오전 반등)",
+        "formula": "A and B and C and D and E",
         "minValue": PULLBACK_MIN_VALUE,
         "ctx": True,
         "pm": True,
@@ -2790,6 +2839,8 @@ SCANNER_DEFS = [
                        f"오늘 종가가 {PULLBACK_DROP_RANGE[1]:.0f}%~{PULLBACK_DROP_RANGE[0]:.0f}%"},
             {"key": "D", "label": "20일선 지지",
              "detail": f"오늘 종가 ≥ 20이평 × {PULLBACK_MA20_TOL} (20일선 3% 이내)"},
+            {"key": "E", "label": "단기 이평 정배열 5>10>20",
+             "detail": "오늘 5이평 > 10이평 > 20이평 — 눌려도 상승 추세는 살아 있는 자리만"},
         ],
         "intersection": f"당일 거래대금 {PULLBACK_MIN_VALUE}억+",
         "rawSource": "시루 자체 조건식 (일봉 실측 · 11/27 강의 노트 '눌림 매매' 재현)",
@@ -2803,14 +2854,20 @@ SCANNER_DEFS = [
                                   f"{PULLBACK_DROP_RANGE[1]:.0f}%~{PULLBACK_DROP_RANGE[0]:.0f}% (눌림 폭)"},
             {"key": "D", "text": f"가격-이동평균 비교:[일]0봉전 종가 ≥ 20이평 × {PULLBACK_MA20_TOL} "
                                   "(20일선 지지·이탈 아님)"},
+            {"key": "E", "text": "주가이평배열:[일]0봉전 5이평 > 10이평 > 20이평 "
+                                  "(단기 이평 정배열)"},
         ],
-        "rawFormula": "A and B and C and D",
+        "rawFormula": "A and B and C and D and E",
         "rawIntersection": f"당일 거래대금 {PULLBACK_MIN_VALUE}억+ 교집합",
         "rawNote": f"급등일은 오늘을 뺀 {PULLBACK_SURGE_GAP[0]}~{PULLBACK_SURGE_GAP[1]}거래일 전"
                    "(강의의 5일 룰을 7거래일까지 넓힘)에서 가장 최근 하나만 봅니다. "
                    "종목명 옆 배지의 숫자가 급등일이 며칠 전인지이고, 6~7일 전은 확대 창입니다. "
                    f"눌림 폭은 최근 {PULLBACK_HIGH_DAYS}거래일 고점(오늘 고가 포함) 대비 종가이고, "
-                   f"지지는 20이평 {PULLBACK_MA20_TOL * 100:.0f}% 이상입니다. D+1 승률은 그 종목의 최근 "
+                   f"지지는 20이평 {PULLBACK_MA20_TOL * 100:.0f}% 이상이고, 5·10·20이평이 5>10>20 "
+                   "정배열인 종목만 봅니다(눌려도 추세가 살아 있는 자리). "
+                   "종목 줄의 `5일·10일·20일` 칩은 종가가 그 이평에서 몇 % 떨어져 있는지(이격도)이고, "
+                   f"20일선 이격 {PULLBACK_MA_OVERHEAT:.0f}% 이상이면 `이격과열`로 표시합니다. "
+                   "D+1 승률은 그 종목의 최근 "
                    f"{PULLBACK_WIN_BARS}거래일 같은 자리 다음날 종가 기준입니다.",
         "evaluate": pullback_scan,
         "pick": lambda scan: bool(scan["pass"]),
@@ -3078,7 +3135,9 @@ def build_scanner_scan(definition, series, info, extra_codes, now, *, deep_serie
             item["line2"] = scan["line2"]
         for key in ("score", "scoreParts", "scoreDetail", "winRate", "avgD1",
                     "winN", "winM", "winRule", "relPct",
-                    "pullback", "surge", "ma20dist", "volRatio"):
+                    "pullback", "surge", "ma20dist", "volRatio",
+                    "ma5GapPct", "ma10GapPct", "ma20GapPct", "ma5_20SpreadPct",
+                    "maAlign", "maOverheat"):
             if scan.get(key) is not None:
                 item[key] = scan[key]
         if is_extra and not passed:

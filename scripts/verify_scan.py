@@ -456,25 +456,37 @@ def main(argv) -> int:
                   f"[주도돌파] {item.get('name')}: A·B·C 충족",
                   f"[주도돌파] {item.get('name')}: A·B·C 미충족 {item.get('conditions')}")
 
-    # ── 급등후 눌림목 — 강의 노트 '눌림 매매' 재현 (2026-11-28 추가) ──
+    # ── 급등후 눌림목 — 강의 노트 '눌림 매매' 재현 (2026-11-28 추가 · 같은 날 단기 정배열 E 추가) ──
     pb = next((s for s in scanners if s.get("id") == "pullback"), None)
     check(bool(pb), "급등후 눌림목 조건식 있음", "급등후 눌림목 조건식 없음")
     if pb:
-        check(pb.get("formula") == "A and B and C and D",
-              "급등후 눌림목 수식 A and B and C and D", f"수식 다름 {pb.get('formula')}")
+        check(pb.get("formula") == "A and B and C and D and E",
+              "급등후 눌림목 수식 A and B and C and D and E", f"수식 다름 {pb.get('formula')}")
+        check(pb.get("rawFormula") == "A and B and C and D and E",
+              "급등후 눌림목 원본 수식에 정배열 E 포함", f"원본 수식 다름 {pb.get('rawFormula')}")
         check(pb.get("minValue") == 100, "급등후 눌림목 교집합 100억",
               f"교집합 다름 {pb.get('minValue')}")
-        check(len(pb.get("rules") or []) == 4, "급등후 눌림목 필터 기준 4개(A~D)",
-              f"필터 기준 개수 다름 {len(pb.get('rules') or [])}")
+        pb_rules = pb.get("rules") or []
+        check(len(pb_rules) == 5, "급등후 눌림목 필터 기준 5개(A~E)",
+              f"필터 기준 개수 다름 {len(pb_rules)}")
+        check([r.get("key") for r in pb_rules] == ["A", "B", "C", "D", "E"],
+              "급등후 눌림목 필터 키 A~E 순서",
+              f"필터 키 이상 {[r.get('key') for r in pb_rules]}")
+        check(any("정배열" in str(r.get("label", "")) for r in pb_rules),
+              "급등후 눌림목 필터에 '단기 이평 정배열' 표시",
+              "급등후 눌림목 필터에 정배열 기준 없음")
+        check("정배열" in str(pb.get("summary") or ""),
+              "급등후 눌림목 설명문에 정배열 포함",
+              f"설명문에 정배열 없음: {pb.get('summary')}")
         check(bool(pb.get("summary")) and bool(pb.get("rawNote")),
               "급등후 눌림목 설명·주의 문구 있음", "급등후 눌림목 설명 없음")
         pb_hits = pb.get("hits") or []
         for item in pb_hits:
             nm = item.get("name")
             cnd = item.get("conditions") or {}
-            check(all(cnd.get(k) for k in ("A", "B", "C", "D")),
-                  f"[급등후 눌림목] {nm}: A·B·C·D 충족",
-                  f"[급등후 눌림목] {nm}: A·B·C·D 미충족 {cnd}")
+            check(all(cnd.get(k) for k in ("A", "B", "C", "D", "E")),
+                  f"[급등후 눌림목] {nm}: A·B·C·D·E 충족",
+                  f"[급등후 눌림목] {nm}: A·B·C·D·E 미충족 {cnd}")
             drop = (item.get("pullback") or {}).get("pct")
             check(isinstance(drop, (int, float)) and -11.0 <= drop <= -4.0,
                   f"[급등후 눌림목] {nm}: 고점 대비 {drop}% (-4~-11)",
@@ -491,11 +503,36 @@ def main(argv) -> int:
             check((item.get("ma20dist") or 0) >= -3.0,
                   f"[급등후 눌림목] {nm}: 20일선 이격 {item.get('ma20dist')}% (3% 이내)",
                   f"[급등후 눌림목] {nm}: 20일선 이탈 {item.get('ma20dist')}%")
+            # ── 단기 이평 정배열·이격도 — 숫자가 있어야 화면 칩·모달이 확인된다
+            g = {k: item.get(k) for k in ("ma5GapPct", "ma10GapPct", "ma20GapPct",
+                                          "ma5_20SpreadPct")}
+            ok_nums = all(isinstance(v, (int, float)) for v in g.values())
+            check(ok_nums, f"[급등후 눌림목] {nm}: 이격도 4개 값 있음 {g}",
+                  f"[급등후 눌림목] {nm}: 이격도 값 이상 {g}")
+            if ok_nums:
+                check(g["ma5GapPct"] < g["ma10GapPct"] < g["ma20GapPct"],
+                      f"[급등후 눌림목] {nm}: 이격 5일 {g['ma5GapPct']}% < 10일 "
+                      f"{g['ma10GapPct']}% < 20일 {g['ma20GapPct']}% (정배열)",
+                      f"[급등후 눌림목] {nm}: 이격 순서가 정배열과 다름 {g}")
+                check(g["ma5_20SpreadPct"] > 0,
+                      f"[급등후 눌림목] {nm}: 5·20 벌어짐 {g['ma5_20SpreadPct']}% (플러스)",
+                      f"[급등후 눌림목] {nm}: 5·20 벌어짐 {g['ma5_20SpreadPct']}% (정배열 아님)")
+                check(bool(item.get("maOverheat")) == (g["ma20GapPct"] >= 25.0),
+                      f"[급등후 눌림목] {nm}: 이격과열 표시 {'있음' if item.get('maOverheat') else '없음'}"
+                      f" (20일선 {g['ma20GapPct']}%)",
+                      f"[급등후 눌림목] {nm}: 이격과열 표시와 이격도 불일치 "
+                      f"{item.get('maOverheat')} / {g['ma20GapPct']}%")
+            check(item.get("maAlign") is True,
+                  f"[급등후 눌림목] {nm}: maAlign 참", f"[급등후 눌림목] {nm}: maAlign {item.get('maAlign')}")
             wr = str(item.get("winRate") or "")
             check(wr == "표본 없음" or re.fullmatch(r"\d+(\.\d+)?% \(\d+/\d+\)", wr) is not None,
                   f"[급등후 눌림목] {nm}: D+1 승률 '{wr}'", f"[급등후 눌림목] {nm}: 승률 표기 이상 '{wr}'")
-            check(bool(item.get("line2")), f"[급등후 눌림목] {nm}: 한 줄 요약 있음",
+            line2 = str(item.get("line2") or "")
+            check(bool(line2), f"[급등후 눌림목] {nm}: 한 줄 요약 있음",
                   f"[급등후 눌림목] {nm}: 한 줄 요약 없음")
+            check("고점" in line2 and "급등" in line2,
+                  f"[급등후 눌림목] {nm}: 요약에 고점·급등 표시",
+                  f"[급등후 눌림목] {nm}: 요약에 고점·급등 없음 '{line2}'")
 
     charts = entry.get("charts") or charts_by_date.get(str(entry.get("date"))) or {}
     check("charts" not in entry or not entry.get("charts"),

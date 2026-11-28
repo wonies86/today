@@ -2829,6 +2829,24 @@
   font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 #viewScanner .sc-l2{margin-top:3px;font-size:10.5px;font-weight:750;line-height:1.4;color:#5b21b6}
+/* 🧲 급등후 눌림목 — 단기 정배열(5>10>20) + 5·10·20일선 이격도 칩 (390px에서 한두 줄로 접힌다) */
+#viewScanner .sc-ma{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:4px;min-width:0}
+#viewScanner .sc-ma-a{
+  flex:0 0 auto;font-size:9.5px;font-weight:900;letter-spacing:-.02em;line-height:1.5;
+  color:#5b21b6;background:#f5f0ff;border:1px solid #ddd0ff;border-radius:5px;padding:0 5px;
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+#viewScanner .sc-ma-c{
+  flex:0 0 auto;display:inline-flex;align-items:baseline;gap:2px;border-radius:5px;
+  font-size:9.5px;font-weight:850;line-height:1.5;color:#475569;background:#f6f8fc;
+  border:1px solid #e6ebf4;padding:0 5px;white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+#viewScanner .sc-ma-c i{font-style:normal;font-size:8.5px;font-weight:750;color:#8b93a7}
+#viewScanner .sc-ma-x{
+  flex:0 0 auto;font-size:9.5px;font-weight:900;line-height:1.5;letter-spacing:-.02em;
+  color:#b91c1c;background:#fff1f2;border:1px solid #fecdd3;border-radius:5px;padding:0 5px;
+  white-space:nowrap;
+}
 #viewScanner .sc-l3{margin-top:2px;font-size:10px;font-weight:600;line-height:1.45;color:var(--mute)}
 /* 🎯 주도돌파 100점 — 점수 배지·D+1 승률·배점 막대 (점수 조건식 행에서만) */
 #viewScanner .sc-scoreline{display:flex;align-items:center;gap:7px;margin-top:5px;min-width:0}
@@ -3542,6 +3560,10 @@ html[data-theme="dark"] #viewScanner .sc-mk{color:#9aa4b8;background:#141924}
 html[data-theme="dark"] #viewScanner .sc-pbd{color:#c4b5fd;background:#1c1530;border-color:#46327b}
 html[data-theme="dark"] #viewScanner .sc-pbd.ext{color:#f4cf6f;background:#2a2010;border-color:#5c4a1f}
 html[data-theme="dark"] #viewScanner .sc-l2{color:#c4b5fd}
+html[data-theme="dark"] #viewScanner .sc-ma-a{color:#c4b5fd;background:#1c1530;border-color:#46327b}
+html[data-theme="dark"] #viewScanner .sc-ma-c{color:#c8d2e4;background:#141924;border-color:#252c3a}
+html[data-theme="dark"] #viewScanner .sc-ma-c i{color:#8b97ac}
+html[data-theme="dark"] #viewScanner .sc-ma-x{color:#fca5a5;background:#2a1216;border-color:#5c2126}
 html[data-theme="dark"] #viewScanner .sc-wr{color:#c3cbdb}
 html[data-theme="dark"] #viewScanner .sc-wr b{color:#e9eef8}
 html[data-theme="dark"] #viewScanner .sc-score.t1{color:#ff8da1;background:#2b1419;border-color:#5f2530}
@@ -13592,6 +13614,11 @@ const REPORT_DATA = [
           '<span class="v">' + esc(bt.summary || "과거 신호 기록이 없습니다.") + "</span></div>" +
         '<div class="ta-block"><span class="k">당일 수급 · 이격</span>' +
           '<span class="v">' + esc(verdict) + " · " + esc(supply) + "</span></div>" +
+        (pbk && item.ma5GapPct != null
+          ? '<div class="ta-block' + (item.maOverheat ? " is-key" : "") + '">' +
+            '<span class="k">이평선 이격도</span>' +
+            '<span class="v">' + esc(pbMaText(item)) + "</span></div>"
+          : "") +
       "</div>" +
       (bt.recentText ? '<p class="scan-sample"><b>' + esc(bt.recentText) + "</b></p>" : "") +
       '<p class="ta-note">' + esc((meta.basis || "최근 120거래일") + " 일봉") +
@@ -14148,6 +14175,36 @@ const REPORT_DATA = [
       '거래일 전' + (d >= 6 ? " (확대 창)" : " (기본 창)") + '">' + d + "<i>일전</i></span>";
   }
 
+  /* 급등후 눌림목 — 단기 이평 정배열(5>10>20) + 5·10·20일선 이격도 칩 (h.ma*GapPct).
+     값은 조건식이 실측해 실어 보낸 그대로만 쓴다(계산·반올림 없음). 값이 없으면 안 그린다. */
+  function pullbackMaHTML(h, scannerId, cur) {
+    const isPb = scannerId === "pullback" || !!(cur && cur.id === "pullback");
+    if (!isPb || !h || h.ma5GapPct == null) return "";
+    const g = (v) => (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
+    const chip = (label, v) => '<span class="sc-ma-c"><i>' + label + "</i>" + g(v) + "</span>";
+    return '<div class="sc-ma">' +
+      '<span class="sc-ma-a" title="5이평 > 10이평 > 20이평 — 눌려도 추세가 살아 있는 자리">' +
+        "정배열 5&gt;10&gt;20</span>" +
+      chip("5일", h.ma5GapPct) + chip("10일", h.ma10GapPct) + chip("20일", h.ma20GapPct) +
+      (h.maOverheat
+        ? '<span class="sc-ma-x" title="20일선 이격 25% 이상 — 눌림 폭이 작아도 추세는 과열된 자리">' +
+          "이격과열</span>"
+        : "") +
+      "</div>";
+  }
+
+  /* 급등후 눌림목 모달용 — 이평선 이격도 한 줄 문장(5일선 +1.2% · 10일선 +5.4% …) */
+  function pbMaText(item) {
+    if (!item || item.ma5GapPct == null) return "";
+    const g = (v) => (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
+    let txt = "5일선 " + g(item.ma5GapPct) + " · 10일선 " + g(item.ma10GapPct) +
+      " · 20일선 " + g(item.ma20GapPct);
+    if (item.ma5_20SpreadPct != null) txt += " · 5·20 벌어짐 " + g(item.ma5_20SpreadPct);
+    txt += item.maAlign === false ? " · 정배열 아님" : " · 단기 정배열(5>10>20)";
+    if (item.maOverheat) txt += " · 이격과열(20일선 25%↑)";
+    return txt;
+  }
+
   function scannerRowHTML(h, i, report, scannerId, cur) {
     const bt = h.backtest || {};
     const gap = h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%";
@@ -14173,6 +14230,7 @@ const REPORT_DATA = [
       "</div>" +
       (score ? scoreLineHTML(h) : "") +
       (line2 ? '<div class="sc-l2">' + esc(line2) + "</div>" : "") +
+      pullbackMaHTML(h, scannerId, cur) +
       (score ? scorePartsHTML(h) : "") +
       edgeBadges(h) +
       '<div class="sc-l3">' + esc(h.patternText || "") + "</div>" +
