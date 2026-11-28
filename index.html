@@ -14321,8 +14321,11 @@ const REPORT_DATA = [
   }
   function pfCopyJournal() {
     const btn = $("#pfJrCopy");
-    if (!PF.jr.length) { pfToast("복사할 매매 일지가 없습니다"); return; }
     const n = pfJrList().length;
+    if (!n) {
+      pfToast(PF.jrMonth ? PF.jrMonth + " 청산 기록이 없습니다" : "복사할 매매 일지가 없습니다");
+      return;
+    }
     const txt = pfJrCopyText();
     const ok = () => {
       pfToast((PF.jrMonth || "전체") + " 매매 일지 " + n + "건을 복사했습니다");
