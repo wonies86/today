@@ -1585,7 +1585,10 @@
   .us[hidden]{display:none}
   .us-head{display:flex;align-items:flex-start;gap:8px;padding:10px 12px 9px 15px;border-bottom:1px solid var(--line-2)}
   .us-head-main{min-width:0}
-  .us-title{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink)}
+  .us-title{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink);display:flex;align-items:center;gap:5px}
+  /* 국기 이모지(🇺🇸)는 윈도우·일부 안드로이드에서 'US' 글자나 빈 네모로 깨진다 — 글자 배지로 대신 */
+  .us-tag{flex:0 0 auto;font-size:9px;font-weight:900;letter-spacing:.02em;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-radius:999px;padding:2px 7px}
   .us-asof{margin:2px 0 0;font-size:9.5px;font-weight:700;color:var(--mute);line-height:1.4}
   .us-idx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:9px 12px 0 15px}
   .us-ix{min-width:0;background:var(--bg-soft);border:1px solid var(--line-2);border-radius:9px;padding:5px 6px}
@@ -7103,7 +7106,7 @@ const REPORT_DATA = [
     return '<section class="us" aria-labelledby="usTitle">' +
       '<div class="us-head">' +
         '<div class="us-head-main">' +
-          '<h2 class="us-title" id="usTitle">🇺🇸 전일 미장 강세 섹터</h2>' +
+          '<h2 class="us-title" id="usTitle"><span class="us-tag">US</span>전일 미장 강세 섹터</h2>' +
           '<p class="us-asof">' + esc(u.asOf || "") + "</p>" +
         "</div>" +
         '<button type="button" class="shot-btn" id="usShotBtn" aria-haspopup="dialog">📸 캡쳐</button>' +
