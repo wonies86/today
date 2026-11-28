@@ -1600,6 +1600,11 @@
     .ta-scroll{max-height:none}
     .issuebar{margin-top:8px}
     .issue-sum{padding:9px 11px 9px 13px}
+    /* 이슈 배너 머리 — 시간이 길어지면(정규장: "15:30 마감 · 코스피 …") 한 줄에 다 못 들어가 글자가 잘린다
+       → ▾ 는 오른쪽에 두고, 시간은 아랫줄에 오른쪽 정렬로 내려 꾸김이 없이 읽힌다 */
+    .issue-top{flex-wrap:wrap;row-gap:2px}
+    .issue-caret{order:2;margin-left:auto}
+    .issue-time{order:3;flex:1 1 100%;margin-left:0;text-align:right;white-space:normal}
     .issue-body{padding:0 11px 10px 13px;margin-top:8px;padding-top:8px}
     .issue-title{font-size:12px}
   }
@@ -2333,6 +2338,14 @@
     .datechip{padding:4px 7px;font-size:10.5px;gap:4px}
     .datechip .cal{font-size:9.5px}
     .datearrow{width:15px;height:24px;font-size:14px}
+  }
+
+  /* 430px 이하 폰: 한 줄에 다 들어가지 않아 로고가 0px 로 짜부라지고 새로고침이 화면 밖으로 밀린다
+     → 보기 토글(심플·상세·조건식·내 종목)을 아랫줄로 내려 두 줄로 정리한다 */
+  @media (max-width:430px){
+    .topbar-in{flex-wrap:wrap;row-gap:6px}
+    .brand{min-width:28px}
+    .mode-toggle{order:9;flex:0 0 100%;justify-content:space-around}
   }
 
 /* ============================================================
