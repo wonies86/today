@@ -2766,9 +2766,11 @@ SCANNER_DEFS = [
     {
         "id": "pullback",
         "name": "급등후 눌림목",
-        "summary": "오늘을 뺀 2~5거래일 전 종가 +10%↑ 장대양봉 뒤 거래량이 줄며, "
-                   "최근 10거래일 고점 대비 -4~-11% 눌리고 20일선 위 — 당일 거래대금 100억↑ "
-                   "(종가베팅: 다음 날 오전 반등 노림)",
+        "summary": f"오늘을 뺀 {PULLBACK_SURGE_GAP[0]}~{PULLBACK_SURGE_GAP[1]}거래일 전 종가 "
+                   f"+{PULLBACK_SURGE_MIN:.0f}%↑ 장대양봉 뒤 거래량이 줄며, 최근 "
+                   f"{PULLBACK_HIGH_DAYS}거래일 고점 대비 "
+                   f"{PULLBACK_DROP_RANGE[1]:.0f}~{PULLBACK_DROP_RANGE[0]:.0f}% 눌리고 20일선 위 — "
+                   f"당일 거래대금 {PULLBACK_MIN_VALUE}억↑ (종가베팅: 다음 날 오전 반등 노림)",
         "formula": "A and B and C and D",
         "minValue": PULLBACK_MIN_VALUE,
         "ctx": True,
@@ -2800,9 +2802,11 @@ SCANNER_DEFS = [
         ],
         "rawFormula": "A and B and C and D",
         "rawIntersection": f"당일 거래대금 {PULLBACK_MIN_VALUE}억+ 교집합",
-        "rawNote": "급등일은 오늘을 뺀 2~5거래일 전(강의의 5일 룰)에서 가장 최근 하나만 봅니다. "
-                   "눌림 폭은 최근 10거래일 고점(오늘 고가 포함) 대비 종가이고, 지지는 20이평 "
-                   "97% 이상입니다. D+1 승률은 그 종목의 최근 120거래일 같은 자리 다음날 종가 기준입니다.",
+        "rawNote": f"급등일은 오늘을 뺀 {PULLBACK_SURGE_GAP[0]}~{PULLBACK_SURGE_GAP[1]}거래일 전"
+                   "(강의의 5일 룰)에서 가장 최근 하나만 봅니다. "
+                   f"눌림 폭은 최근 {PULLBACK_HIGH_DAYS}거래일 고점(오늘 고가 포함) 대비 종가이고, "
+                   f"지지는 20이평 {PULLBACK_MA20_TOL * 100:.0f}% 이상입니다. D+1 승률은 그 종목의 최근 "
+                   f"{PULLBACK_WIN_BARS}거래일 같은 자리 다음날 종가 기준입니다.",
         "evaluate": pullback_scan,
         "pick": lambda scan: bool(scan["pass"]),
     },
