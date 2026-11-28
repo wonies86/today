@@ -3688,6 +3688,30 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   .pf-jdel{appearance:none;flex:0 0 auto;background:transparent;border:0;color:var(--mute);
     font-size:11px;padding:2px 4px;cursor:pointer;line-height:1}
   .pf-jdel:hover{color:var(--rose)}
+  /* 매매 일지 월별 조회 — 가로 스크롤 알약 버튼 */
+  .pf-jfilter{display:flex;align-items:center;gap:4px;overflow-x:auto;margin:0 2px 8px;padding:0 0 2px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .pf-jfilter[hidden]{display:none}
+  .pf-jfilter::-webkit-scrollbar{display:none}
+  .pf-chip{appearance:none;flex:0 0 auto;font-family:inherit;font-size:10px;font-weight:800;letter-spacing:-.01em;
+    color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:4px 9px;cursor:pointer;white-space:nowrap;line-height:1.35}
+  .pf-chip:hover{color:var(--ink);border-color:var(--line-3)}
+  .pf-chip[aria-pressed="true"]{background:var(--violet-soft);border-color:var(--violet);color:var(--violet)}
+  .pf-chip:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+  .pf-chip .c{margin-left:4px;font-weight:750;color:var(--mute);font-variant-numeric:tabular-nums}
+  .pf-chip[aria-pressed="true"] .c{color:var(--violet)}
+  .pf-jstats{margin:0 2px 8px;font-size:10px;font-weight:700;color:var(--ink-2);line-height:1.5}
+  .pf-jstats[hidden]{display:none}
+  .pf-jstats b{font-weight:850;color:var(--ink);font-variant-numeric:tabular-nums}
+  .pf-jstats b.up{color:var(--up)}
+  .pf-jstats b.down{color:var(--down)}
+  .pf-tool.ok{color:var(--teal);background:var(--teal-soft);border-color:var(--teal-soft)}
+  .pf-copyarea{display:block;width:100%;min-width:0;min-height:180px;max-height:calc(94vh - 190px);resize:vertical;
+    appearance:none;font-family:inherit;font-size:11px;font-weight:650;line-height:1.6;color:var(--ink);
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 11px;
+    white-space:pre-wrap;overflow:auto}
+  .pf-copyarea:focus{border-color:var(--violet);outline:none}
   .pf-empty{padding:14px 10px;text-align:center;font-size:11px;font-weight:650;color:var(--mute);
     line-height:1.6;background:var(--bg-soft);border:1px dashed var(--line);border-radius:12px}
   .pf-fine{margin:12px 0 0;font-size:9.5px;font-weight:600;color:var(--mute);line-height:1.55;text-align:center}
@@ -4171,11 +4195,17 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
       <div class="pf-list" id="pfList"></div>
     </section>
 
-    <!-- 매매 일지 -->
+    <!-- 매매 일지 (월별 조회 · 복사) -->
     <section class="pf-sec" aria-labelledby="pfJrTitle">
       <div class="pf-sechead">
         <h2 id="pfJrTitle">📒 매매 일지</h2><span class="n" id="pfJrCount">0</span>
+        <div class="pf-headtools">
+          <button type="button" class="pf-tool" id="pfJrCopy"
+                  title="지금 보이는 매매 일지를 글로 복사합니다 (금액 가림 상태 그대로)">📋 일지 복사</button>
+        </div>
       </div>
+      <div class="pf-jfilter" id="pfJrFilter" role="group" aria-label="매매 일지 월별 조회" hidden></div>
+      <p class="pf-jstats" id="pfJrStats" hidden></p>
       <div class="pf-jlist" id="pfJournal"></div>
     </section>
 
@@ -4195,6 +4225,21 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   <div class="pf-shotfoot">
     <button type="button" class="pf-primary" id="pfShotSave">이미지 저장</button>
     <span>금액 가림 상태가 그대로 담깁니다 · 길게 눌러 저장도 됩니다</span>
+  </div>
+</dialog>
+
+<!-- ======================= 📋 매매 일지 복사 (클립보드 실패 시 직접 복사) ======================= -->
+<dialog class="pf-shotdlg" id="pfCopyDlg" aria-label="매매 일지 복사 텍스트">
+  <div class="pf-shotbar">
+    <b>📋 매매 일지 복사</b>
+    <button type="button" class="pf-shotx" id="pfCopyClose" aria-label="복사 창 닫기">✕</button>
+  </div>
+  <div class="pf-shotbody">
+    <textarea class="pf-copyarea" id="pfCopyArea" readonly spellcheck="false"
+              aria-label="복사할 매매 일지 텍스트"></textarea>
+  </div>
+  <div class="pf-shotfoot">
+    <span>클립보드를 쓰지 못했습니다 · 길게 눌러 전체 선택한 뒤 복사하세요</span>
   </div>
 </dialog>
 
@@ -13732,12 +13777,13 @@ const REPORT_DATA = [
      · 수수료·세금 기본값 — 매수 0.015% · 매도 0.015% · 거래세 KOSPI/KOSDAQ 0.20%
        (키움 실현손익 안랩 20주 160,800→165,600 = 총 96,000 − 세금 6,624 − 수수료 ~950 = 88,427 과 맞춘 값)
      · 금액 가림: 수량·금액을 숨기고 수익률·단가·날짜·근거만 남긴다(스레드 인증용)
+     · 매매 일지: 매도일(YYYY-MM) 기준 월별 조회 · 지금 보이는 목록을 글로 복사(금액 가림 연동)
      ========================================================================== */
   const PF = {
     K_POS: "siru_today_portfolio_v1",
     K_JR: "siru_today_journal_v1",
     K_CFG: "siru_today_pf_cfg_v1",
-    cfg: null, pos: [], jr: [], open: null, pick: null, sug: [], loaded: false, url: ""
+    cfg: null, pos: [], jr: [], open: null, pick: null, sug: [], loaded: false, url: "", jrMonth: ""
   };
   const PF_DEF = { auto: true, buyFee: 0.015, sellFee: 0.015, taxKospi: 0.2, taxKosdaq: 0.2, mask: false };
   const PF_FONT = "'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic','Segoe UI',sans-serif";
@@ -13934,12 +13980,8 @@ const REPORT_DATA = [
     const feeTax = rows.reduce((a, r) => a + r.feeTax, 0);
     const netPct = cost > 0 ? net / cost * 100 : 0;
     const mask = PF.cfg.mask;
-
-    const jr = PF.jr;
-    const wins = jr.filter((t) => t.net > 0).length;
-    const winRate = jr.length ? wins / jr.length * 100 : 0;
-    const avgPct = jr.length ? jr.reduce((a, t) => a + t.netPct, 0) / jr.length : 0;
-    const realized = jr.reduce((a, t) => a + t.net, 0);
+    /* 일지 줄은 고른 달이 있으면 그 달 기준(pfJrSumHTML) */
+    const jrLine = pfJrSumHTML(mask);
 
     const big = mask ? pct(netPct) : pfSigned(net) + "원";
     const bigDir = dir(net);
@@ -13960,20 +14002,12 @@ const REPORT_DATA = [
         '<div class="pf-cell"><span class="k">총 매입금</span><span class="v">' + pfMoney(cost) + "원</span></div>" +
         '<div class="pf-cell"><span class="k">총 평가금</span><span class="v">' + pfMoney(evalAmt) + "원</span></div>" +
       "</div>") +
-      '<div class="pf-sum-jr">' +
-        (jr.length
-          ? '<span class="t">📒 매매 일지</span>청산 <b>' + jr.length + "건</b> · 승률 <b>" + Math.round(winRate) +
-            "%</b> · 평균 <b class='" + dir(avgPct) + "'>" + pct(avgPct) + "</b>" +
-            (mask ? "" : " · 누적 실현 <b class='" + dir(realized) + "'>" + pfSigned(realized) + "원</b>")
-          : '<span class="t">📒 매매 일지</span>아직 없음 · 매도 기록을 남기면 승률·평균 수익률이 쌓입니다') +
-      "</div>";
+      '<div class="pf-sum-jr">' + jrLine + "</div>";
     if (!rows.length) {
       html = '<div class="pf-sum-main"><span class="pf-sum-label">기록된 종목</span>' +
         '<span class="pf-sum-big flat">0종목</span></div>' +
         '<p class="pf-sub" style="margin-top:5px">매수 기록을 넣으면 현재가·수익률·손익이 바로 계산됩니다</p>' +
-        (jr.length ? '<div class="pf-sum-jr"><span class="t">📒 매매 일지</span>청산 <b>' + jr.length +
-          "건</b> · 승률 <b>" + Math.round(winRate) + "%</b> · 평균 <b class='" + dir(avgPct) + "'>" + pct(avgPct) + "</b>" +
-          (mask ? "" : " · 누적 실현 <b class='" + dir(realized) + "'>" + pfSigned(realized) + "원</b>") + "</div>" : "");
+        (PF.jr.length ? '<div class="pf-sum-jr">' + jrLine + "</div>" : "");
     }
     box.innerHTML = html;
   }
@@ -14144,18 +14178,94 @@ const REPORT_DATA = [
     box.innerHTML = PF.pos.map((p) => pfRowHTML(p, idx)).join("");
   }
 
-  /* ---------------- 매매 일지 ---------------- */
+  /* ---------------- 매매 일지 · 월별 조회 ---------------- */
+  /* 매도일(YYYY-MM) 기준으로 달을 고른다. 선택은 이 화면 안에서만 쓰고, 새로 열면 ‘전체’로 시작한다 */
+  function pfJrMonthOf(t) {
+    const m = String((t && t.sellDate) || "").match(/^(\d{4})-(\d{2})/);
+    return m ? m[1] + "-" + m[2] : "";
+  }
+  /* 고를 수 있는 달 = 일지에 있는 달 + 이번 달, 최신순 */
+  function pfJrMonths() {
+    const seen = {};
+    PF.jr.forEach((t) => { const k = pfJrMonthOf(t); if (k) seen[k] = 1; });
+    seen[pfToday().slice(0, 7)] = 1;
+    return Object.keys(seen).sort().reverse();
+  }
+  function pfJrList() {
+    const sel = PF.jrMonth;
+    return PF.jr.filter((t) => !sel || pfJrMonthOf(t) === sel)
+      .slice().sort((a, b) => String(b.sellDate).localeCompare(String(a.sellDate)));
+  }
+  function pfJrStats(list) {
+    const n = list.length;
+    const wins = list.filter((t) => t.net > 0).length;
+    return { n: n, wins: wins, winRate: n ? wins / n * 100 : 0,
+             avgPct: n ? list.reduce((a, t) => a + t.netPct, 0) / n : 0,
+             realized: list.reduce((a, t) => a + t.net, 0) };
+  }
+  function pfJrLabel() { return PF.jrMonth ? "📒 " + PF.jrMonth + " 일지" : "📒 매매 일지"; }
+  /* 요약 카드 안의 일지 한 줄 — 고른 달이 있으면 그 달 기준으로 바꿔 보여준다 */
+  function pfJrSumHTML(mask) {
+    const jr = pfJrList();
+    const label = '<span class="t">' + esc(pfJrLabel()) + "</span>";
+    if (!jr.length) {
+      return label + (PF.jrMonth ? "이 달 청산 기록 없음"
+        : "아직 없음 · 매도 기록을 남기면 승률·평균 수익률이 쌓입니다");
+    }
+    const s = pfJrStats(jr);
+    return label + "청산 <b>" + s.n + "건</b> · 승률 <b>" + Math.round(s.winRate) +
+      "%</b> · 평균 <b class='" + dir(s.avgPct) + "'>" + pct(s.avgPct) + "</b>" +
+      (mask ? "" : " · 누적 실현 <b class='" + dir(s.realized) + "'>" + pfSigned(s.realized) + "원</b>");
+  }
+
+  function pfRenderJrMonths() {
+    const box = $("#pfJrFilter");
+    if (!box) return;
+    if (!PF.jr.length) { box.hidden = true; box.innerHTML = ""; return; }
+    const counts = {};
+    PF.jr.forEach((t) => { const k = pfJrMonthOf(t); if (k) counts[k] = (counts[k] || 0) + 1; });
+    box.innerHTML = '<button type="button" class="pf-chip" data-jmonth="" aria-pressed="' +
+        (PF.jrMonth ? "false" : "true") + '" title="모든 달의 매매 일지">전체<span class="c">' +
+        PF.jr.length + "</span></button>" +
+      pfJrMonths().map((m) => {
+        const n = counts[m] || 0;
+        return '<button type="button" class="pf-chip" data-jmonth="' + esc(m) + '" aria-pressed="' +
+          (PF.jrMonth === m ? "true" : "false") + '" title="' + esc(m) + " 매매 일지" +
+          (n ? " · " + n + "건" : "") + '">' + esc(m) +
+          (n ? '<span class="c">' + n + "</span>" : "") +
+          "</button>";
+      }).join("");
+    box.hidden = false;
+  }
+
+  function pfRenderJrStats() {
+    const el = $("#pfJrStats");
+    if (!el) return;
+    if (!PF.jr.length) { el.hidden = true; el.innerHTML = ""; return; }
+    const s = pfJrStats(pfJrList());
+    el.innerHTML = (PF.jrMonth ? esc(PF.jrMonth) : "전체") + " " + s.n + "건 · 승률 <b>" +
+      Math.round(s.winRate) + "%</b> · 평균 <b class=\"" + dir(s.avgPct) + "\">" + pct(s.avgPct) + "</b>" +
+      (PF.cfg.mask ? "" : " · 실현 <b class=\"" + dir(s.realized) + "\">" + pfSigned(s.realized) + "원</b>");
+    el.hidden = false;
+  }
+
   function pfRenderJournal() {
     const box = $("#pfJournal");
     const cnt = $("#pfJrCount");
-    if (cnt) cnt.textContent = String(PF.jr.length);
+    const list = pfJrList();
+    if (cnt) cnt.textContent = PF.jrMonth ? list.length + "/" + PF.jr.length : String(PF.jr.length);
+    pfRenderJrMonths();
+    pfRenderJrStats();
     if (!box) return;
     if (!PF.jr.length) {
       box.innerHTML = '<div class="pf-empty">청산한 기록이 없습니다<br>보유 카드의 <b>매도</b>를 누르면 실현손익이 여기로 옮겨집니다</div>';
       return;
     }
+    if (!list.length) {
+      box.innerHTML = '<div class="pf-empty">' + esc(PF.jrMonth) + ' 청산 기록이 없습니다<br><b>전체</b>를 누르면 모든 달이 보입니다</div>';
+      return;
+    }
     const mask = PF.cfg.mask;
-    const list = PF.jr.slice().sort((a, b) => String(b.sellDate).localeCompare(String(a.sellDate)));
     box.innerHTML = list.map((t) => {
       const dates = pfDateShort(t.buyDate) + " → " + pfDateShort(t.sellDate);
       const prices = pfMoney(t.buyPrice) + " → " + pfMoney(t.sellPrice);
@@ -14174,10 +14284,70 @@ const REPORT_DATA = [
     }).join("");
   }
 
+  /* ---------------- 매매 일지 복사 (스레드·SNS 붙여넣기용) ----------------
+     · 지금 보이는 목록(고른 달 또는 전체)과 요약을 글로 만든다
+     · 금액 가림이면 금액(원)·수량·단가를 한 글자도 넣지 않고 수익률만 남긴다 */
+  function pfJrCopyText() {
+    const mask = PF.cfg.mask;
+    const list = pfJrList();
+    const s = pfJrStats(list);
+    const head = "📒 매매일지 · " + (PF.jrMonth || "전체") + " (" + s.n + "건)";
+    if (!s.n) return head + "\n청산한 기록이 없습니다";
+    const lines = [head,
+      "승률 " + Math.round(s.winRate) + "% · 평균 " + pct(s.avgPct) +
+        (mask ? "" : " · 실현 " + pfSigned(s.realized) + "원"),
+      ""];
+    list.forEach((t) => {
+      let row = (pfDateShort(t.sellDate) || "—") + " " + t.name + " " + pct(t.netPct);
+      if (!mask) row += " (" + pfSigned(t.net) + "원)";
+      if (t.reason) row += " — " + t.reason;
+      lines.push(row);
+    });
+    return lines.join("\n");
+  }
+  function pfCloseCopy() {
+    const dlg = $("#pfCopyDlg");
+    if (!dlg) return;
+    if (typeof dlg.close === "function" && dlg.open) dlg.close();
+    else dlg.removeAttribute("open");
+  }
+  function pfShowCopyText(txt) {
+    const dlg = $("#pfCopyDlg"), ta = $("#pfCopyArea");
+    if (!dlg || !ta) return;
+    ta.value = txt;
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); }
+    else dlg.setAttribute("open", "");
+    try { ta.focus(); ta.select(); } catch (e) {}
+  }
+  function pfCopyJournal() {
+    const btn = $("#pfJrCopy");
+    if (!PF.jr.length) { pfToast("복사할 매매 일지가 없습니다"); return; }
+    const n = pfJrList().length;
+    const txt = pfJrCopyText();
+    const ok = () => {
+      pfToast((PF.jrMonth || "전체") + " 매매 일지 " + n + "건을 복사했습니다");
+      if (!btn) return;
+      btn.textContent = "✅ 복사됨";
+      btn.classList.add("ok");
+      clearTimeout(btn._t);
+      btn._t = setTimeout(() => { btn.textContent = "📋 일지 복사"; btn.classList.remove("ok"); }, 1900);
+    };
+    const ng = () => {
+      pfToast("클립보드에 못 넣었습니다 · 열린 글을 길게 눌러 복사하세요");
+      pfShowCopyText(txt);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      navigator.clipboard.writeText(txt).then(ok, () => (pfTxtCopyFallback(txt) ? ok() : ng()));
+    } else if (pfTxtCopyFallback(txt)) ok();
+    else ng();
+  }
+
   function renderPortfolio(force) {
     const root = $("#viewPortfolio");
     if (!root) return;
     if (!PF.loaded) pfLoad();
+    /* 고른 달이 사라졌으면(기록 삭제 등) ‘전체’로 되돌린다 */
+    if (PF.jrMonth && pfJrMonths().indexOf(PF.jrMonth) < 0) PF.jrMonth = "";
     const rep = pfLatestReport();
     const stamp = $("#pfStamp");
     if (stamp) stamp.textContent = (rep && (rep.stamp || rep.asOf)) || "갱신 전";
@@ -15018,6 +15188,23 @@ const REPORT_DATA = [
     }
     const jr = $("#pfJournal");
     if (jr) jr.addEventListener("click", pfJournalClick);
+
+    /* 매매 일지 월별 조회 · 복사 */
+    const jrFilter = $("#pfJrFilter");
+    if (jrFilter) jrFilter.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-jmonth]");
+      if (!b) return;
+      const m = b.getAttribute("data-jmonth") || "";
+      if (m === PF.jrMonth) return;
+      PF.jrMonth = m;
+      renderPortfolio(true);
+    });
+    const jrCopy = $("#pfJrCopy");
+    if (jrCopy) jrCopy.addEventListener("click", pfCopyJournal);
+    const copyClose = $("#pfCopyClose");
+    if (copyClose) copyClose.addEventListener("click", pfCloseCopy);
+    const copyDlg = $("#pfCopyDlg");
+    if (copyDlg) copyDlg.addEventListener("click", (e) => { if (e.target === copyDlg) pfCloseCopy(); });
 
     const sample = $("#pfSample");
     if (sample) sample.addEventListener("click", pfSampleFill);
