@@ -1591,7 +1591,7 @@
   .us::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
   .us[hidden]{display:none}
   .us-head{display:flex;align-items:flex-start;gap:8px;padding:10px 12px 9px 15px;border-bottom:1px solid var(--line-2)}
-  .us-head-main{min-width:0}
+  .us-head-main{flex:1 1 auto;min-width:0}
   .us-title{margin:0;font-size:12.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink);display:flex;align-items:center;gap:5px}
   /* 국기 이모지(🇺🇸)는 윈도우·일부 안드로이드에서 'US' 글자나 빈 네모로 깨진다 — 글자 배지로 대신 */
   .us-tag{flex:0 0 auto;font-size:9px;font-weight:900;letter-spacing:.02em;color:#fff;
@@ -1605,23 +1605,52 @@
     font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .us-ix .d{display:block;font-size:9.5px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
   .us-note{margin:7px 12px 0 15px;font-size:9.5px;line-height:1.45;font-weight:650;color:var(--mute)}
-  .us-list{list-style:none;margin:0;padding:8px 12px 10px 15px;display:grid;gap:5px}
-  .us-row{border:1px solid var(--line-2);border-radius:10px;background:linear-gradient(180deg,var(--bg-soft),var(--card) 78%);padding:6px 8px}
-  .us-rh{display:flex;align-items:center;gap:5px;min-width:0}
-  .us-nm{font-size:11px;font-weight:850;letter-spacing:-.025em;color:var(--ink);white-space:nowrap}
-  .us-etf{flex:0 0 auto;font-size:9px;font-weight:800;color:var(--violet);background:var(--violet-soft);
-    border-radius:4px;padding:1px 4px;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .us-sub{margin-left:2px;min-width:0;font-size:9px;font-weight:700;color:var(--mute);
+  /* 테마판 — 1초 스캔용 그리드 (테마당 한 칸, 강한 테마부터 좌상단)
+     · 모바일 2열 · 태블릿 3열 · 데스크톱 4열, 칸 안 종목 줄은 데스크톱에서 2열 정렬 */
+  .us-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:9px 12px 12px 15px;align-items:start}
+  .us-tile{position:relative;min-width:0;padding:6px 7px 6px 9px;border:1px solid var(--line-2);
+    border-radius:10px;background:var(--card);overflow:hidden}
+  /* 왼쪽 열기(熱氣) 막대 — 오른쪽부터 약해진다 */
+  .us-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line-2)}
+  .us-tile.h3::before{background:var(--up)}
+  .us-tile.h2::before{background:var(--amber)}
+  .us-tile.h1::before{background:var(--slate)}
+  .us-tile.h3{background:linear-gradient(180deg,var(--up-soft),var(--card) 62%);border-color:var(--line-3)}
+  .us-th{display:flex;align-items:center;gap:3px;min-width:0;padding-bottom:4px;border-bottom:1px solid var(--line-2)}
+  .us-tn{flex:1 1 auto;min-width:0;font-size:9.5px;font-weight:850;letter-spacing:-.03em;color:var(--ink);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .us-chg{margin-left:auto;padding-left:6px;font-size:10.5px;font-weight:850;
+  .us-tc{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:1px;padding:0 4px;border-radius:999px;
+    background:var(--bg-soft);border:1px solid var(--line-2);font-size:7.5px;font-weight:800;line-height:1.55;
+    color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .us-tc b{font-weight:900;color:var(--ink-2)}
+  .us-tc em{font-style:normal;font-weight:750}
+  .us-tc.mix{background:var(--amber-soft);border-color:transparent;color:var(--amber)}
+  .us-tc.mix b{color:var(--amber)}
+  .us-ta{flex:0 0 auto;margin-left:auto;padding-left:3px;font-size:9.5px;font-weight:900;letter-spacing:-.02em;
     font-variant-numeric:tabular-nums;white-space:nowrap}
-  .us-st{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px}
-  .us-st span{display:inline-flex;align-items:baseline;gap:2px;font-size:9.5px;font-weight:750;color:var(--ink-2);
-    background:var(--card);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;
-    font-variant-numeric:tabular-nums;white-space:nowrap}
-  .us-st b{font-weight:850;letter-spacing:-.02em;color:var(--ink)}
-  .us-st i{font-style:normal;font-weight:850}
-  html[data-theme="dark"] .us-row{background:linear-gradient(180deg,#131a26,#161c28 78%)}
+  .us-tr{display:grid;grid-template-columns:minmax(0,1fr);margin-top:3px;gap:0 8px}
+  .us-r{display:flex;align-items:baseline;justify-content:space-between;gap:4px;min-width:0;
+    padding:1px 0;font-size:9.5px;line-height:1.45;font-variant-numeric:tabular-nums}
+  .us-r b{min-width:0;font-weight:850;letter-spacing:-.02em;color:var(--ink-2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .us-r i{font-style:normal;font-weight:800;white-space:nowrap}
+  /* +5% 이상 — 굵게·알약 배경으로 먼저 눈에 들어오게 */
+  .us-r i.hot{font-weight:900;padding:0 3px;border-radius:4px;background:var(--up-soft)}
+  .us-r i.hot.down{background:var(--down-soft)}
+  .us-tsub{margin-top:4px;font-size:8px;font-weight:700;color:var(--mute);line-height:1.4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 칸이 넓어지면 테마 3열 → 종목 줄 2열, 더 넓으면 테마 4열 */
+  @media (min-width:641px){
+    .us-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    .us-tr{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .us-tn{font-size:10px}
+    .us-tc{font-size:8px}
+    .us-ta{font-size:10px}
+    .us-r{font-size:9.5px}
+  }
+  @media (min-width:1024px){
+    .us-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  }
 
   /* ---- 구간 리포트 카드 ---- */
   .rblock + .rblock{margin-top:10px}
@@ -1636,42 +1665,76 @@
   .rp-empty{margin:0;padding:16px 14px;border:1px dashed var(--line-3);border-radius:var(--radius);
     background:var(--card);font-size:11.5px;font-weight:700;color:var(--mute);text-align:center}
 
-  /* ---- 📸 캡쳐 카드 → PNG (측정용 스테이지 + 390px 미장 카드 · 항상 라이트) ---- */
+  /* ---- 📸 캡쳐 카드 → PNG (측정용 스테이지 + 760px 미장 테마판 · 항상 라이트) ----
+     · 폭을 760px로 넓혔다 — 테마 12개가 3열로 한 화면에 들어가 스레드에서도 1초에 읽힌다.
+     · 색은 테마와 무관하게 고정값(#…)을 쓴다. 테마 토큰은 어두운 테마에서 값이 바뀌어
+       흰 카드 위 대비가 깨지기 때문(카드는 늘 라이트로 굽는다). */
   #pngStage{position:fixed;left:-10000px;top:0;width:420px;pointer-events:none;z-index:-1}
-  #usShotStage{position:fixed;left:-10000px;top:0;width:390px;pointer-events:none;z-index:-1}
-  .ushot{width:390px;box-sizing:border-box;background:#fff;color:#0f172a;padding:16px 16px 13px;
-    border-radius:18px;font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",
+  #usShotStage{position:fixed;left:-10000px;top:0;width:760px;pointer-events:none;z-index:-1}
+  .ushot{width:760px;box-sizing:border-box;background:#fff;color:#0f172a;padding:18px 18px 14px;
+    border-radius:20px;font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",
     "Malgun Gothic","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  .ush-top{display:flex;align-items:center;gap:6px}
-  .ush-tag{flex:0 0 auto;font-size:10px;font-weight:850;color:#fff;
-    background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-radius:999px;padding:3px 8px}
-  .ush-date{margin-left:auto;font-size:10.5px;font-weight:800;color:#63718b;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .ush-h{margin:9px 0 0;font-size:19px;font-weight:860;letter-spacing:-.04em;color:#0f172a}
-  .ush-asof{margin:3px 0 0;font-size:10px;font-weight:700;color:#8a94a8;line-height:1.4}
-  .ush-idx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:10px}
-  .ush-ix{min-width:0;background:#f7f9fd;border:1px solid #e8edf6;border-radius:9px;padding:5px 6px}
-  .ush-ix .k{display:block;font-size:8.5px;font-weight:800;color:#8a94a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ush-ix .v{display:block;font-size:11px;font-weight:850;color:#0f172a;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .ush-ix .d{display:block;font-size:9.5px;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .ush-list{margin-top:9px;display:grid;gap:5px}
-  .ush-sec{border:1px solid #eef1f7;border-radius:10px;background:#fafbfe;padding:6px 8px}
-  .ush-sh{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}
-  .ush-sh b{font-size:11.5px;font-weight:850;letter-spacing:-.02em;color:#0f172a}
-  .ush-sh em{font-style:normal;font-size:9.5px;font-weight:800;color:#6d28d9;background:#f4efff;border-radius:4px;padding:1px 4px;font-variant-numeric:tabular-nums}
-  .ush-sh u{text-decoration:none;font-size:9px;font-weight:700;color:#8a94a8}
-  .ush-st{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px}
-  .ush-st span{display:inline-flex;align-items:baseline;gap:2px;font-size:9.5px;font-weight:750;color:#44506a;
-    background:#fff;border:1px solid #e8edf6;border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .ush-st b{font-weight:850;letter-spacing:-.02em;color:#0f172a}
-  .ush-st i{font-style:normal;font-weight:850}
-  .ush-st .up{color:#e11d48}
-  .ush-st .down{color:#2563eb}
-  .ush-st .flat{color:#63718b}
-  .ush-note{margin:9px 0 0;font-size:9.5px;line-height:1.45;font-weight:650;color:#63718b}
-  .ush-disc{display:flex;justify-content:space-between;gap:8px;margin:11px 0 0;padding-top:8px;
-    border-top:1px dashed #e6eaf2;font-size:8.5px;font-weight:700;color:#9aa5ba}
+  .ush-top{display:flex;align-items:center;gap:8px}
+  .ush-tag{flex:0 0 auto;font-size:11px;font-weight:900;letter-spacing:.02em;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#8b5cf6);border-radius:999px;padding:3px 9px}
+  .ush-h{margin:0;font-size:22px;font-weight:880;letter-spacing:-.045em;color:#0f172a}
+  .ush-date{margin-left:auto;font-size:12px;font-weight:850;color:#4a5670;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-asof{margin:5px 0 0;font-size:10.5px;font-weight:700;color:#8a94a8;line-height:1.4}
+  .ush-idx{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:11px}
+  .ush-ix{min-width:0;background:#f7f9fd;border:1px solid #e8edf6;border-radius:10px;padding:6px 8px;
+    display:flex;align-items:baseline;gap:6px}
+  .ush-ix .k{flex:0 0 auto;font-size:10px;font-weight:850;color:#8a94a8;white-space:nowrap}
+  .ush-ix .v{flex:1 1 auto;font-size:13px;font-weight:880;color:#0f172a;font-variant-numeric:tabular-nums;text-align:right}
+  .ush-ix .d{flex:0 0 auto;font-size:11px;font-weight:880;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:11px;align-items:start}
+  .ush-tile{position:relative;min-width:0;padding:8px 9px 8px 11px;border:1px solid #eaeef6;
+    border-radius:11px;background:#fafbfe;overflow:hidden}
+  .ush-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#e3e8f2}
+  .ush-tile.h3::before{background:#e11d48}
+  .ush-tile.h2::before{background:#d97706}
+  .ush-tile.h1::before{background:#94a3b8}
+  .ush-tile.h3{background:linear-gradient(180deg,#fff5f7,#fafbfe 70%);border-color:#f6dde3}
+  .ush-th{display:flex;align-items:center;gap:5px;min-width:0;padding-bottom:5px;border-bottom:1px solid #eef1f7}
+  .ush-tn{flex:1 1 auto;min-width:0;font-size:12px;font-weight:880;letter-spacing:-.03em;color:#0f172a;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ush-tc{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:2px;padding:0 5px;border-radius:999px;
+    background:#eef1f7;font-size:9px;font-weight:850;line-height:1.6;color:#63718b;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-tc b{font-weight:900;color:#44506a}
+  .ush-tc em{font-style:normal;font-weight:800}
+  .ush-tc.mix{background:#fff6e8;color:#b45309}
+  .ush-tc.mix b{color:#b45309}
+  .ush-ta{flex:0 0 auto;margin-left:auto;font-size:12px;font-weight:900;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ush-tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;margin-top:4px}
+  .ush-r{display:flex;align-items:baseline;justify-content:space-between;gap:5px;min-width:0;
+    padding:1px 0;font-size:10px;line-height:1.5;font-variant-numeric:tabular-nums}
+  .ush-r b{min-width:0;font-weight:880;letter-spacing:-.02em;color:#40506b;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ush-r i{font-style:normal;font-weight:850;white-space:nowrap}
+  .ush-r i.hot{font-weight:900;padding:0 3px;border-radius:4px;background:#fff1f4}
+  .ush-r i.hot.down{background:#eef3ff}
+  .ush-r i.up{color:#e11d48}
+  .ush-r i.down{color:#2563eb}
+  .ush-r i.flat{color:#63718b}
+  .ush-tsub{margin-top:4px;font-size:9px;font-weight:750;color:#8a94a8;line-height:1.4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ush-note{margin:10px 0 0;font-size:10px;line-height:1.5;font-weight:700;color:#63718b}
+  .ush-disc{display:flex;justify-content:space-between;gap:8px;margin:12px 0 0;padding-top:9px;
+    border-top:1px dashed #e6eaf2;font-size:9px;font-weight:750;color:#9aa5ba}
   @media (max-width:430px){
-    .us-idx{grid-template-columns:repeat(2,minmax(0,1fr))}
+    /* 좁은 화면에서도 지수 4개는 한 줄 — 세로를 아끼고 바로 눈에 들어오게 */
+    .us-idx{gap:4px;padding:8px 12px 0 15px}
+    .us-ix{padding:4px 5px}
+    .us-ix .v{font-size:10.5px}
+  }
+  /* 360px 안드로이드에서 테마명이 잘리지 않게 — 배지의 '상승' 글자를 빼고 폭을 내준다 */
+  @media (max-width:374px){
+    .us-th{gap:2px}
+    .us-tc em{display:none}
+  }
+  /* 그보다 좀은 화면(320~359)은 한 줄에 테마 하나 — 이름을 줄이지 않는다 */
+  @media (max-width:359px){
+    .us-grid{grid-template-columns:minmax(0,1fr)}
   }
 
   /* ============================================================
@@ -3906,6 +3969,8 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   .pf-shotdlg{width:min(420px,calc(100vw - 20px));max-height:94vh;padding:0;border:1px solid var(--line-3);
     border-radius:18px;background:var(--card);color:var(--ink);overflow:hidden}
   .pf-shotdlg::backdrop{background:rgba(4,7,12,.78)}
+  /* 미장 테마판은 760px 가로 카드 — 미리보기도 넓게 띄워 글자가 읽히게 */
+  #usShotDlg{width:min(820px,calc(100vw - 20px))}
   .pf-shotbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
   .pf-shotbar b{font-size:12px;font-weight:850;letter-spacing:-.02em}
   .pf-shotx{appearance:none;margin-left:auto;width:26px;height:26px;display:inline-flex;align-items:center;
@@ -3994,9 +4059,9 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
   <div id="pngStage" aria-hidden="true"></div>
 
   <!-- ======================= 🇺🇸 미장 강세 섹터 캡쳐 미리보기 ======================= -->
-  <dialog class="pf-shotdlg" id="usShotDlg" aria-label="미장 강세 섹터 캡쳐">
+  <dialog class="pf-shotdlg" id="usShotDlg" aria-label="전일 미장 테마판 캡쳐">
     <div class="pf-shotbar">
-      <b>📸 미장 강세 섹터</b>
+      <b>📸 전일 미장 테마판</b>
       <button type="button" class="pf-shotx" id="usShotClose" aria-label="미장 캡쳐 닫기">✕</button>
     </div>
     <div class="pf-shotbody"><img id="usShotImg" alt="미장 강세 섹터 캡쳐 이미지"></div>
@@ -7123,12 +7188,16 @@ const REPORT_DATA = [
      usMarket = {
        asOf:"미국 11/27(금) 마감 · 블랙프라이데이 단축장", date:"2026-11-27",
        indices:[{name, value, chg}], note:"한 줄 요약",
-       sectors:[{name, etf, chg, sub, stocks:[{name, chg}]}]
+       sectors:[{name:"광통신", upCount:2, totalCount:2, avgPct:11.03,
+                 stocks:[{ticker:"COHR", pct:14.07}]}]          ← 테마판(2026-11-28~)
      }
+     · 옛 모양(sectors:[{name, etf, chg, sub, stocks:[{name, chg}]}])도 그대로 그린다 —
+       usThemesOf()가 두 모양을 한 가지로 맞춘다.
      · usMarket 이 없는 날짜(과거 기록)에는 섹션을 아예 그리지 않는다.
-     · 📸 캡쳐 = 390px 카드를 PNG로 만들어 미리보기 다이얼로그에 띄운다.
+     · 테마는 평균 등락률이 센 순서로 늘어놓는다(좌상단 = 그날 가장 센 테마).
+     · 📸 캡쳐 = 760px 테마판을 PNG로 만들어 미리보기 다이얼로그에 띄운다.
      ============================================================ */
-  const US_SHOT_W = 390;
+  const US_SHOT_W = 760;            /* 캡쳐 테마판 가로 폭 — 테마 3열 + 종목 2열 */
   const US_SNAPSHOT = { url: "", name: "" };
 
   function usIndexHTML(u) {
@@ -7140,22 +7209,65 @@ const REPORT_DATA = [
       "</div>").join("");
   }
 
-  function usStockTags(s) {
-    return (s.stocks || []).map((st) =>
-      "<span><b>" + esc(st.name) + '</b><i class="' + dir(st.chg) + '">' + pct(st.chg) + "</i></span>").join("");
+  /* usMarket.sectors → 테마 목록 (옛 섹터 모양도 같은 모양으로)
+     { name, etf, sub, avg, up, total, stocks:[{t, p}] } · 평균 내림차순 */
+  function usThemesOf(u) {
+    const list = ((u && u.sectors) || []).map((s) => {
+      const stocks = ((s.stocks) || []).map((x) => ({
+        t: String(x.ticker || x.name || ""),
+        p: typeof x.pct === "number" ? x.pct : (typeof x.chg === "number" ? x.chg : 0)
+      })).filter((x) => x.t);
+      stocks.sort((a, b) => b.p - a.p);
+      const n = stocks.length;
+      const avg = typeof s.avgPct === "number" ? s.avgPct
+        : typeof s.chg === "number" ? s.chg
+          : (n ? stocks.reduce((a, x) => a + x.p, 0) / n : 0);
+      return {
+        name: String(s.name || ""),
+        etf: String(s.etf || ""),
+        sub: String(s.sub || ""),
+        avg: avg,
+        up: typeof s.upCount === "number" ? s.upCount : stocks.filter((x) => x.p > 0).length,
+        total: typeof s.totalCount === "number" ? s.totalCount : n,
+        stocks: stocks
+      };
+    }).filter((s) => s.name);
+    list.sort((a, b) => b.avg - a.avg);
+    return list;
+  }
+
+  /* 열기 단계 — 그날 가장 센 테마를 기준으로 상대 비교(날마다 기준이 달라도 같은 모양) */
+  function usHeat(avg, max) {
+    if (!(max > 0)) return "h0";
+    const r = avg / max;
+    return r >= 0.7 ? "h3" : r >= 0.45 ? "h2" : r >= 0.25 ? "h1" : "h0";
+  }
+
+  /* 테마 한 칸 — pre="us"(리포트 탭) / "ush"(캡쳐 테마판)로 같은 구조를 쓴다 */
+  function usTileHTML(s, max, pre) {
+    const p = pre || "us";
+    const rows = s.stocks.map((x) =>
+      '<span class="' + p + '-r"><b>' + esc(x.t) + '</b>' +
+        '<i class="' + dir(x.p) + (Math.abs(x.p) >= 5 ? " hot" : "") + '">' + pct(x.p) + "</i></span>").join("");
+    const allUp = s.total > 0 && s.up === s.total;
+    return '<div class="' + p + '-tile ' + usHeat(s.avg, max) + '">' +
+      '<div class="' + p + '-th">' +
+        '<b class="' + p + '-tn">' + esc(s.name) + "</b>" +
+        '<span class="' + p + '-tc' + (allUp ? "" : " mix") + '" title="' +
+          esc(s.up + "/" + s.total + " 상승") + '"><b>' + esc(s.up + "/" + s.total) +
+          '</b><em>상승</em></span>' +
+        '<span class="' + p + '-ta ' + dir(s.avg) + '">' + pct(s.avg) + "</span>" +
+      "</div>" +
+      (rows ? '<div class="' + p + '-tr">' + rows + "</div>" : "") +
+      (s.etf || s.sub
+        ? '<div class="' + p + '-tsub">' + esc([s.etf, s.sub].filter(Boolean).join(" · ")) + "</div>"
+        : "") +
+    "</div>";
   }
 
   function usMarketHTML(u) {
-    const rows = (u.sectors || []).map((s) =>
-      '<li class="us-row">' +
-        '<div class="us-rh">' +
-          '<b class="us-nm">' + esc(s.name) + "</b>" +
-          (s.etf ? '<span class="us-etf">' + esc(s.etf) + "</span>" : "") +
-          (s.sub ? '<span class="us-sub">' + esc(s.sub) + "</span>" : "") +
-          '<span class="us-chg ' + dir(s.chg) + '">' + pct(s.chg) + "</span>" +
-        "</div>" +
-        ((s.stocks || []).length ? '<div class="us-st">' + usStockTags(s) + "</div>" : "") +
-      "</li>").join("");
+    const themes = usThemesOf(u);
+    const max = themes.reduce((a, s) => Math.max(a, s.avg), 0);
     const idx = usIndexHTML(u);
     return '<section class="us" aria-labelledby="usTitle">' +
       '<div class="us-head">' +
@@ -7167,7 +7279,7 @@ const REPORT_DATA = [
       "</div>" +
       (idx ? '<div class="us-idx">' + idx + "</div>" : "") +
       (u.note ? '<p class="us-note">' + rich(u.note) + "</p>" : "") +
-      '<ul class="us-list">' + rows + "</ul>" +
+      '<div class="us-grid">' + themes.map((s) => usTileHTML(s, max, "us")).join("") + "</div>" +
     "</section>";
   }
 
@@ -7175,7 +7287,7 @@ const REPORT_DATA = [
     const host = $("#usHost");
     if (!host) return;
     const u = report && report.usMarket;
-    if (!u || !((u.sectors || []).length)) {
+    if (!u || !usThemesOf(u).length) {
       host.hidden = true;
       host.innerHTML = "";
       return;
@@ -7186,31 +7298,24 @@ const REPORT_DATA = [
     if (btn) btn.addEventListener("click", () => openUsShot(report));
   }
 
-  /* 캡쳐용 390px 카드 — 화면 테마와 무관하게 항상 라이트(스레드 공유용) */
+  /* 캡쳐용 760px 테마판 — 화면 테마와 무관하게 항상 라이트(스레드 공유용) */
   function usShotCardHTML(u, report) {
     const date = String(u.date || (report && report.date) || "").replace(/-/g, ".");
     const dow = dowOfDate(u.date || (report && report.date));
-    const rows = (u.sectors || []).map((s) =>
-      '<div class="ush-sec">' +
-        '<div class="ush-sh">' +
-          '<b>' + esc(s.name) + "</b>" +
-          (s.etf ? '<em>' + esc(s.etf) + " " + pct(s.chg) + "</em>" : "") +
-          (s.sub ? '<u>' + esc(s.sub) + "</u>" : "") +
-        "</div>" +
-        ((s.stocks || []).length ? '<div class="ush-st">' + usStockTags(s) + "</div>" : "") +
-      "</div>").join("");
+    const themes = usThemesOf(u);
+    const max = themes.reduce((a, s) => Math.max(a, s.avg), 0);
     const idx = (u.indices || []).map((ix) =>
       '<div class="ush-ix"><span class="k">' + esc(ix.name) + "</span>" +
         '<span class="v">' + esc(ix.value) + '</span><span class="d ' + dir(ix.chg) + '">' + pct(ix.chg) + "</span></div>").join("");
     return '<article class="ushot">' +
       '<div class="ush-top">' +
-        '<span class="ush-tag">US · 전일 미장</span>' +
+        '<span class="ush-tag">US</span>' +
+        '<h2 class="ush-h">전일 미장 테마판</h2>' +
         '<span class="ush-date">' + esc(date) + (dow ? " (" + esc(dow) + ")" : "") + " 마감</span>" +
       "</div>" +
-      '<h2 class="ush-h">강세 섹터 &amp; 대표 종목</h2>' +
       (u.asOf ? '<p class="ush-asof">' + esc(u.asOf) + "</p>" : "") +
       (idx ? '<div class="ush-idx">' + idx + "</div>" : "") +
-      '<div class="ush-list">' + rows + "</div>" +
+      '<div class="ush-grid">' + themes.map((s) => usTileHTML(s, max, "ush")).join("") + "</div>" +
       (u.note ? '<p class="ush-note">' + esc(String(u.note).replace(/<[^>]*>/g, "")) + "</p>" : "") +
       '<p class="ush-disc"><span>국내 증시 수급 대시보드 · 미장 마감 리포트</span><span>정보 정리용 · 투자 권유 아님</span></p>' +
     "</article>";

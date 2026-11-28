@@ -38,102 +38,266 @@
       ],
       "sectors": [
         {
-          "name": "기술·반도체",
-          "etf": "XLK",
-          "chg": 2.8,
-          "sub": "SOX +4.69%",
+          "name": "광통신",
+          "upCount": 2,
+          "totalCount": 2,
+          "avgPct": 11.03,
           "stocks": [
             {
-              "name": "SNDK",
-              "chg": 15.96
+              "ticker": "COHR",
+              "pct": 14.07
             },
             {
-              "name": "LITE",
-              "chg": 7.98
+              "ticker": "LITE",
+              "pct": 7.98
+            }
+          ]
+        },
+        {
+          "name": "메모리·스토리지",
+          "upCount": 4,
+          "totalCount": 4,
+          "avgPct": 9.67,
+          "stocks": [
+            {
+              "ticker": "SNDK",
+              "pct": 15.96
             },
             {
-              "name": "STX",
-              "chg": 7.9
+              "ticker": "STX",
+              "pct": 7.9
             },
             {
-              "name": "MU",
-              "chg": 7.6
+              "ticker": "MU",
+              "pct": 7.6
             },
             {
-              "name": "MRVL",
-              "chg": 7.34
+              "ticker": "WDC",
+              "pct": 7.22
+            }
+          ]
+        },
+        {
+          "name": "네트워킹·연결",
+          "upCount": 5,
+          "totalCount": 5,
+          "avgPct": 5.85,
+          "stocks": [
+            {
+              "ticker": "ALAB",
+              "pct": 8.67
             },
             {
-              "name": "INTC",
-              "chg": 5.38
+              "ticker": "CRDO",
+              "pct": 8.22
             },
             {
-              "name": "NVDA",
-              "chg": 0.8
+              "ticker": "ANET",
+              "pct": 6.55
+            },
+            {
+              "ticker": "CSCO",
+              "pct": 3.01
+            },
+            {
+              "ticker": "APH",
+              "pct": 2.82
+            }
+          ]
+        },
+        {
+          "name": "클라우드·서버",
+          "upCount": 6,
+          "totalCount": 6,
+          "avgPct": 4.44,
+          "stocks": [
+            {
+              "ticker": "DELL",
+              "pct": 6.7
+            },
+            {
+              "ticker": "IREN",
+              "pct": 5.91
+            },
+            {
+              "ticker": "NBIS",
+              "pct": 5.26
+            },
+            {
+              "ticker": "CRWV",
+              "pct": 3.71
+            },
+            {
+              "ticker": "ORCL",
+              "pct": 3.13
+            },
+            {
+              "ticker": "SMCI",
+              "pct": 1.93
+            }
+          ]
+        },
+        {
+          "name": "반도체 장비",
+          "upCount": 4,
+          "totalCount": 4,
+          "avgPct": 4.42,
+          "stocks": [
+            {
+              "ticker": "TER",
+              "pct": 5.1
+            },
+            {
+              "ticker": "KLAC",
+              "pct": 4.96
+            },
+            {
+              "ticker": "LRCX",
+              "pct": 4.15
+            },
+            {
+              "ticker": "AMAT",
+              "pct": 3.49
+            }
+          ]
+        },
+        {
+          "name": "AI 칩·설계",
+          "upCount": 5,
+          "totalCount": 5,
+          "avgPct": 4.38,
+          "stocks": [
+            {
+              "ticker": "MRVL",
+              "pct": 7.34
+            },
+            {
+              "ticker": "INTC",
+              "pct": 5.38
+            },
+            {
+              "ticker": "AMD",
+              "pct": 4.56
+            },
+            {
+              "ticker": "AVGO",
+              "pct": 3.82
+            },
+            {
+              "ticker": "NVDA",
+              "pct": 0.8
+            }
+          ]
+        },
+        {
+          "name": "전력·냉각",
+          "upCount": 3,
+          "totalCount": 3,
+          "avgPct": 4.18,
+          "stocks": [
+            {
+              "ticker": "BE",
+              "pct": 6.63
+            },
+            {
+              "ticker": "VRT",
+              "pct": 3.08
+            },
+            {
+              "ticker": "GEV",
+              "pct": 2.84
+            }
+          ]
+        },
+        {
+          "name": "아날로그 반도체",
+          "upCount": 2,
+          "totalCount": 2,
+          "avgPct": 4.1,
+          "stocks": [
+            {
+              "ticker": "TXN",
+              "pct": 4.32
+            },
+            {
+              "ticker": "ADI",
+              "pct": 3.87
+            }
+          ]
+        },
+        {
+          "name": "원자재·금융",
+          "upCount": 2,
+          "totalCount": 2,
+          "avgPct": 3.65,
+          "stocks": [
+            {
+              "ticker": "NEM",
+              "pct": 5.35
+            },
+            {
+              "ticker": "JPM",
+              "pct": 1.96
+            }
+          ]
+        },
+        {
+          "name": "보안",
+          "upCount": 3,
+          "totalCount": 3,
+          "avgPct": 3.5,
+          "stocks": [
+            {
+              "ticker": "CRWD",
+              "pct": 3.77
+            },
+            {
+              "ticker": "ZS",
+              "pct": 3.74
+            },
+            {
+              "ticker": "PANW",
+              "pct": 2.98
             }
           ]
         },
         {
           "name": "경기소비",
-          "etf": "XLY",
-          "chg": 2.11,
-          "sub": "블랙프라이데이",
+          "upCount": 2,
+          "totalCount": 2,
+          "avgPct": 3.11,
           "stocks": [
             {
-              "name": "TSLA",
-              "chg": 5.22
+              "ticker": "TSLA",
+              "pct": 5.22
             },
             {
-              "name": "AMZN",
-              "chg": 3.96
-            },
-            {
-              "name": "COST",
-              "chg": 1.01
-            },
-            {
-              "name": "WMT",
-              "chg": 0.9
+              "ticker": "COST",
+              "pct": 1.01
             }
           ]
         },
         {
-          "name": "커뮤니케이션",
-          "etf": "XLC",
-          "chg": 1.99,
-          "sub": "",
+          "name": "하이퍼스케일러",
+          "upCount": 4,
+          "totalCount": 4,
+          "avgPct": 2.09,
           "stocks": [
             {
-              "name": "META",
-              "chg": 3.13
+              "ticker": "AMZN",
+              "pct": 3.96
             },
             {
-              "name": "GOOGL",
-              "chg": 0.68
-            }
-          ]
-        },
-        {
-          "name": "소재",
-          "etf": "XLB",
-          "chg": 1.84,
-          "sub": "금 +3.8% · 은 +9.1% · 구리 +3.3%",
-          "stocks": [
+              "ticker": "META",
+              "pct": 3.13
+            },
             {
-              "name": "NEM",
-              "chg": 5.4
-            }
-          ]
-        },
-        {
-          "name": "산업재·금융",
-          "etf": "XLI",
-          "chg": 1.6,
-          "sub": "XLF +1.15%",
-          "stocks": [
+              "ticker": "GOOGL",
+              "pct": 0.68
+            },
             {
-              "name": "JPM",
-              "chg": 1.92
+              "ticker": "MSFT",
+              "pct": 0.6
             }
           ]
         }
