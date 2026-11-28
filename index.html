@@ -15,14 +15,15 @@
       localStorage.setItem("kr_dash_mode", "simple");
       m = "simple";
     }
-    /* 조건식 탭은 숨은 탭 — 좌측 로고를 5번 두드려 이 탭 세션에서 연 적이 있을 때만 5번째로 보인다.
-       kr_scan_revealed_v1 은 sessionStorage 라 창을 닫으면 사라진다(2026-11-28) */
+    /* 조건식·스레드 탭은 숨은 탭 — 좌측 로고를 5번 두드려 이 탭 세션에서 연 적이 있을 때만 나온다.
+       kr_scan_revealed_v1 은 sessionStorage 라 창을 닫으면 사라진다(2026-11-28, 스레드 2026-11-29) */
     var scOn = false;
     try { scOn = sessionStorage.getItem("kr_scan_revealed_v1") === "1"; } catch (e2) { scOn = false; }
     if (scOn) document.documentElement.setAttribute("data-scan", "on");
-    if (m === "scanner" && !scOn) m = "simple";   /* 숨은 탭으로 저장돼 있었으면 심플로 */
+    if ((m === "scanner" || m === "threads") && !scOn) m = "simple";   /* 숨은 탭으로 저장돼 있었으면 심플로 */
     document.documentElement.setAttribute("data-mode",
-      m === "report" || m === "detail" || m === "scanner" || m === "portfolio" ? m : "simple");
+      m === "report" || m === "detail" || m === "scanner" || m === "threads" || m === "portfolio"
+        ? m : "simple");
   } catch (e) {
     document.documentElement.setAttribute("data-mode", "simple");
   }
@@ -2095,62 +2096,85 @@
 #viewSimple .core-lead b{
   font-weight:760
 }
-/* ---------------- 스레드 관점 — 5분할 개별 게시용 카드 ---------------- */
-#viewSimple .th-note{
-  margin:6px 2px 7px;font-size:10.5px;color:var(--mute);letter-spacing:-.01em
+/* ---------------- 스레드 관점 — 숨은 탭(로고 5연타) · 5분할 개별 게시용 카드 ---------------- */
+#viewThreads{
+  max-width:1000px;margin:0 auto;padding:10px 12px 26px;
+  font-family:var(--font);color:var(--ink);font-size:14px;line-height:1.45;
+  word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased
 }
-#viewSimple .th-list{
+#viewThreads button{font-family:inherit;color:inherit}
+#viewThreads .th-top{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:2px 2px 0
+}
+#viewThreads .th-eyebrow{
+  font-size:9.5px;font-weight:850;letter-spacing:.05em;color:#5b21b6;
+  background:var(--violet-soft);border:1px solid #e3d8ff;border-radius:5px;padding:2px 6px
+}
+#viewThreads .th-h1{
+  margin:0;font-size:19px;font-weight:850;letter-spacing:-.03em;color:var(--ink)
+}
+#viewThreads .th-lockbtn{
+  margin-left:auto;flex:0 0 auto;appearance:none;cursor:pointer;
+  border:1px solid var(--line-3);background:var(--card);color:var(--ink-2);
+  border-radius:999px;padding:5px 10px;font-size:10px;font-weight:800;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent
+}
+#viewThreads .th-lockbtn:hover{background:var(--bg-soft)}
+#viewThreads .th-note{
+  margin:8px 2px 9px;font-size:10.5px;color:var(--mute);letter-spacing:-.01em
+}
+#viewThreads .th-list{
   display:grid;gap:8px
 }
-#viewSimple .th-card{
+#viewThreads .th-card{
   background:var(--card);border:1px solid var(--line);border-radius:14px;
   box-shadow:var(--shadow);padding:10px 12px 11px
 }
-#viewSimple .th-head{
+#viewThreads .th-head{
   display:flex;align-items:center;gap:6px
 }
-#viewSimple .th-title{
+#viewThreads .th-title{
   font-size:12.5px;font-weight:760;letter-spacing:-.01em
 }
-#viewSimple .th-card.wait .th-title{
+#viewThreads .th-card.wait .th-title{
   color:var(--ink-2)
 }
-#viewSimple .th-hint{
+#viewThreads .th-hint{
   margin-left:auto;font-size:9.5px;color:var(--mute);white-space:nowrap
 }
-#viewSimple .th-copy{
+#viewThreads .th-copy{
   appearance:none;-webkit-appearance:none;cursor:pointer;font-family:inherit;
   flex:0 0 auto;font-size:10px;font-weight:780;letter-spacing:-.01em;
   color:#5b21b6;background:#f6f2ff;border:1px solid #e4d9fc;border-radius:999px;
   padding:3px 9px;line-height:1.4;white-space:nowrap;-webkit-tap-highlight-color:transparent;
   transition:background .15s,border-color .15s,color .15s
 }
-#viewSimple .th-copy:hover{
+#viewThreads .th-copy:hover{
   background:#efe8ff;border-color:#d9c9fa
 }
-#viewSimple .th-copy:active{
+#viewThreads .th-copy:active{
   transform:translateY(1px)
 }
-#viewSimple .th-copy.ok{
+#viewThreads .th-copy.ok{
   background:#ecfdf5;border-color:#bbf7d0;color:#15803d
 }
-#viewSimple .th-copy[disabled]{
+#viewThreads .th-copy[disabled]{
   color:#a6aec0;background:#f4f5f9;border-color:var(--line-2);cursor:default
 }
-#viewSimple .th-body{
+#viewThreads .th-body{
   margin:8px 0 0;font-size:12.5px;line-height:1.68;color:#1e2739;
   white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere
 }
-#viewSimple .th-body.wait{
+#viewThreads .th-body.wait{
   margin:7px 0 1px;font-size:11px;color:var(--mute)
 }
-#viewSimple .th-toast{
+#viewThreads .th-toast{
   position:fixed;left:50%;bottom:22px;z-index:80;transform:translate(-50%,8px);
   background:rgba(16,24,40,.93);color:#fff;font-size:11.5px;font-weight:650;
   padding:7px 13px;border-radius:999px;box-shadow:0 8px 22px rgba(16,24,40,.28);
   opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;white-space:nowrap
 }
-#viewSimple .th-toast.on{
+#viewThreads .th-toast.on{
   opacity:1;transform:translate(-50%,0)
 }
 #viewSimple .rot{
@@ -2410,8 +2434,9 @@
     box-shadow:inset 0 0 0 1px var(--line-3), 0 1px 2px rgba(16,24,40,.08);
   }
   .mode-toggle button:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
-  /* 숨은 탭 — 조건식은 로고 5연타로 연 세션에서만 5번째 버튼이 나온다(기본은 4탭) */
-  html:not([data-scan="on"]) .mode-toggle button[data-mode="scanner"]{display:none}
+  /* 숨은 탭 — 조건식·스레드는 로고 5연타로 연 세션에서만 버튼이 나온다(기본은 4탭) */
+  html:not([data-scan="on"]) .mode-toggle button[data-mode="scanner"],
+  html:not([data-scan="on"]) .mode-toggle button[data-mode="threads"]{display:none}
 
   /* 모드별 표시 — 첫 페인트부터 깜빡임 없이 (html[data-mode] + hidden 둘 다 사용)
      리포트 | 심플 | 상세 | 조건식 | 내 종목 — 다섯 뷰 중 하나만 보인다 */
@@ -2425,9 +2450,15 @@
   html[data-mode="scanner"] #viewDetail,html[data-mode="scanner"] #viewPortfolio,
   html[data-mode="portfolio"] #viewReport,html[data-mode="portfolio"] #viewSimple,
   html[data-mode="portfolio"] #viewDetail,html[data-mode="portfolio"] #viewScanner{display:none !important}
-  #viewReport[hidden],#viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden],#viewPortfolio[hidden]{display:none !important}
+  #viewReport[hidden],#viewDetail[hidden],#viewSimple[hidden],#viewScanner[hidden],#viewPortfolio[hidden],#viewThreads[hidden]{display:none !important}
+  /* 숨은 스레드 뷰 — threads 모드에서만 보이고, 다른 모드에서는 늘 감춘다(공개 전 세션은 modes 자체가 심플로 떨어진다) */
+  html[data-mode="threads"] #viewReport,html[data-mode="threads"] #viewSimple,
+  html[data-mode="threads"] #viewDetail,html[data-mode="threads"] #viewScanner,
+  html[data-mode="threads"] #viewPortfolio{display:none !important}
+  html:not([data-mode="threads"]) #viewThreads{display:none !important}
+  html:not([data-scan="on"]) #viewThreads{display:none !important}
   /* 세션 탭은 지수·세션·섹터를 다루는 심플·상세에만 — 리포트는 자체 구간 머리를 쓴다 */
-  body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs,body.mode-report .topbar .tabs{display:none}
+  body.mode-simple .topbar .tabs,body.mode-scanner .topbar .tabs,body.mode-report .topbar .tabs,body.mode-threads .topbar .tabs{display:none}
   body.mode-simple .wrap,body.mode-scanner .wrap,body.mode-report .wrap{padding-bottom:0}
 
   /* ============================================================
@@ -2537,6 +2568,18 @@
     .topbar-in{flex-wrap:wrap;row-gap:6px}
     .brand{min-width:28px}
     .mode-toggle{order:9;flex:0 0 100%;justify-content:space-around}
+  }
+
+  /* 숨은 탭(조건식·스레드)까지 나온 6탭 세션 — 폭이 좁으면 보기 토글을 아랫줄로 내려
+     가로 넘침 0. 980px 위로는 topbar-in 이 980px 로 묶여 있어 6탭이 한 줄에 들어간다 */
+  @media (max-width:980px){
+    html[data-scan="on"] .topbar-in{flex-wrap:wrap;row-gap:6px}
+    html[data-scan="on"] .brand{min-width:28px}
+    html[data-scan="on"] .mode-toggle{order:9;flex:0 0 100%;justify-content:center;gap:2px}
+  }
+  @media (max-width:430px){
+    html[data-scan="on"] .mode-toggle{justify-content:space-around}
+    html[data-scan="on"] .mode-toggle button{padding:4px 3px;font-size:10px;letter-spacing:-.03em}
   }
 
 /* ============================================================
@@ -3525,11 +3568,13 @@ html[data-theme="dark"] #viewSimple .sec-foot{color:#b2bbc9}
 html[data-theme="dark"] #viewSimple .core-tag{background:#201933;border:1px solid #45327b}
 html[data-theme="dark"] #viewSimple .core-lead{color:#dde5f2}
 html[data-theme="dark"] #viewSimple .core-lead em{color:#fb8fa6;background:linear-gradient(transparent 64%, #331920 0)}
-html[data-theme="dark"] #viewSimple .th-copy{color:#c4b5fd;background:#141924;border:1px solid #4a3578}
-html[data-theme="dark"] #viewSimple .th-copy:hover{background:#211933;border-color:#4b3677}
-html[data-theme="dark"] #viewSimple .th-copy.ok{background:#193327;border-color:#38764d;color:#4ade80}
-html[data-theme="dark"] #viewSimple .th-copy[disabled]{color:#b2bbc9;background:#141924}
-html[data-theme="dark"] #viewSimple .th-body{color:#dde5f2}
+html[data-theme="dark"] #viewThreads .th-copy{color:#c4b5fd;background:#141924;border:1px solid #4a3578}
+html[data-theme="dark"] #viewThreads .th-copy:hover{background:#211933;border-color:#4b3677}
+html[data-theme="dark"] #viewThreads .th-copy.ok{background:#193327;border-color:#38764d;color:#4ade80}
+html[data-theme="dark"] #viewThreads .th-copy[disabled]{color:#b2bbc9;background:#141924}
+html[data-theme="dark"] #viewThreads .th-body{color:#dde5f2}
+html[data-theme="dark"] #viewThreads .th-eyebrow{color:#c4b5fd;border:1px solid #47327b}
+html[data-theme="dark"] #viewThreads .th-lockbtn{background:#161c28}
 html[data-theme="dark"] #viewSimple .rot-badge.a{color:#fb8fa6}
 html[data-theme="dark"] #viewSimple .rot-badge.b{background:#191f33;color:#9d99e1}
 html[data-theme="dark"] #viewSimple .rot-badge.c{background:#193327;color:#5eead4}
@@ -4021,6 +4066,7 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <button type="button" role="tab" data-mode="simple" aria-selected="true">심플</button>
         <button type="button" role="tab" data-mode="detail" aria-selected="false">상세</button>
         <button type="button" role="tab" data-mode="scanner" aria-selected="false">조건식</button>
+        <button type="button" role="tab" data-mode="threads" aria-selected="false">스레드</button>
         <button type="button" role="tab" data-mode="portfolio" aria-selected="false">내 종목</button>
       </div>
       <div class="datenav">
@@ -4244,7 +4290,6 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
         <nav class="seg seg-5" id="sBottomTabs" role="tablist" aria-label="하단 보기 선택">
           <button type="button" role="tab" data-panel="watch" aria-selected="true">관찰 5선</button>
           <button type="button" role="tab" data-panel="core" aria-selected="false">수급 시나리오</button>
-          <button type="button" role="tab" data-panel="threads" aria-selected="false">스레드 관점</button>
           <button type="button" role="tab" data-panel="rank" aria-selected="false">상승·거래대금</button>
           <button type="button" role="tab" data-panel="news" aria-selected="false">관련 기사</button>
         </nav>
@@ -4260,12 +4305,7 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
           <section class="card core" id="sCore" aria-label="오늘 핵심 · 수급 시나리오"></section>
         </div>
 
-        <!-- 스레드 관점 — 5분할(장전·장중 오전·장중 오후·애프터·내일 생각) 개별 게시용 -->
-        <div class="panel" id="sPanel-threads" role="tabpanel" hidden>
-          <p class="th-note">구어체 · 팩트 기반 · 주도주 수급 중심 (5분할 개별 게시용)</p>
-          <div class="th-list" id="sThreadList"></div>
-          <div class="th-toast" id="sThreadToast" role="status" aria-live="polite"></div>
-        </div>
+        <!-- 스레드 관점은 공개 화면에서 빠졌다 — 숨은 `스레드` 탭(#viewThreads)으로 옮김(2026-11-29) -->
 
         <div class="panel" id="sPanel-rank" role="tabpanel" hidden>
           <nav class="seg" id="sRankTabs" role="tablist" aria-label="순위 기준" style="margin-top:8px;max-width:230px">
@@ -4327,6 +4367,23 @@ html[data-theme="dark"] .sh-disc{border-top:1px dashed #2a3242}
 
       <p class="fine" id="sFine"></p>
     </div>
+  </main>
+
+  <!-- ======================= 스레드 관점 (숨은 탭) =======================
+       · 공개 4탭(리포트 | 심플 | 상세 | 내 종목)에는 없다 — 좌측 로고를 2초 안에 5번 두드린
+         이 탭 세션에서만 모드 바에 `스레드`로 나온다(sessionStorage kr_scan_revealed_v1)
+       · data.json threads.pre / krxAm(옛 krx) / krxPm / aft / next 를 그대로 읽는다 — 스키마 변경 없음
+       · `🔒 다시 잠그기`면 조건식과 함께 다시 잠그고 심플로 돌아간다
+       ===================================================================== -->
+  <main id="viewThreads" aria-label="스레드 관점" hidden>
+    <div class="th-top">
+      <span class="th-eyebrow">스레드 관점</span>
+      <h1 class="th-h1">5분할 게시 글</h1>
+      <button type="button" class="th-lockbtn" id="thLockBtn" title="숨은 탭을 다시 잠급니다">🔒 다시 잠그기</button>
+    </div>
+    <p class="th-note">구어체 · 팩트 기반 · 주도주 수급 중심 (5분할 개별 게시용)</p>
+    <div class="th-list" id="sThreadList"></div>
+    <div class="th-toast" id="sThreadToast" role="status" aria-live="polite"></div>
   </main>
 
   <!-- ======================= 조건식 관리 페이지 (상단 `조건식` 탭) =======================
@@ -12711,7 +12768,7 @@ const REPORT_DATA = [
 
   /* ---------------- 패널 전환 ---------------- */
   function syncSimplePanels() {
-    const map = [["watch", "#sPanel-watch"], ["core", "#sPanel-core"], ["threads", "#sPanel-threads"],
+    const map = [["watch", "#sPanel-watch"], ["core", "#sPanel-core"],
                  ["rank", "#sPanel-rank"], ["news", "#sPanel-news"]];
     map.forEach(([k, sel]) => {
       const p = $(sel);
@@ -12742,14 +12799,15 @@ const REPORT_DATA = [
     syncSimplePanels();
   }
 
-  /* ---------------- 보기 전환 (리포트 ↔ 심플 ↔ 상세 ↔ 조건식 ↔ 내 종목) ----------------
-     2026-11-28 숨은 탭 — `조건식`은 상단 좌측 로고를 2초 안에 5번 두드려 이 탭 세션에서 연다.
+  /* ---------------- 보기 전환 (리포트 ↔ 심플 ↔ 상세 ↔ 내 종목 / 숨은: 조건식·스레드) ----------------
+     2026-11-28 숨은 탭 — `조건식`·`스레드 관점`은 상단 좌측 로고를 2초 안에 5번 두드려 이 탭 세션에서 연다.
        · Layer 1: 탭 버튼 자체를 감춘다(기본 4탭: 리포트·심플·상세·내 종목).
          공개 여부는 sessionStorage(kr_scan_revealed_v1) — 창을 닫으면 사라진다
        · Layer 2: 기존 AES-256 잠금 그대로 — 탭이 보여도 비밀번호 전에는 내용이 없다
        · `🔒 다시 잠그기`면 복호화 세션·공개 플래그를 함께 지우고 심플로 돌아간다
      ========================================================================== */
-  const MODE_ORDER = ["report", "simple", "detail", "scanner", "portfolio"];
+  const MODE_ORDER = ["report", "simple", "detail", "scanner", "threads", "portfolio"];
+  const HIDDEN_MODES = ["scanner", "threads"];
   const SCAN_REVEAL_KEY = "kr_scan_revealed_v1";
 
   function scanRevealed() {
@@ -12765,13 +12823,13 @@ const REPORT_DATA = [
     else document.documentElement.removeAttribute("data-scan");
   }
 
-  /* 지금 쓸 수 있는 탭 — 숨은 조건식 탭은 공개된 세션에서만 목록에 넣는다(키보드 ←→ 이동용) */
+  /* 지금 쓸 수 있는 탭 — 숨은 탭(조건식·스레드)은 공개된 세션에서만 목록에 넣는다(키보드 ←→ 이동용) */
   function modeOrder() {
-    return scanRevealed() ? MODE_ORDER : MODE_ORDER.filter((m) => m !== "scanner");
+    return scanRevealed() ? MODE_ORDER : MODE_ORDER.filter((m) => HIDDEN_MODES.indexOf(m) < 0);
   }
 
   function normMode(mode) {
-    if (mode === "scanner" && !scanRevealed()) return "simple";   /* 숨은 탭으로는 못 간다 */
+    if (HIDDEN_MODES.indexOf(mode) >= 0 && !scanRevealed()) return "simple";   /* 숨은 탭으로는 못 간다 */
     return MODE_ORDER.indexOf(mode) >= 0 ? mode : "simple";
   }
 
@@ -12784,7 +12842,7 @@ const REPORT_DATA = [
     return m;
   }
 
-  /* 조건식 탭 다시 감추기 — 복호화 세션은 부르는 쪽에서 이미 지웠고, 여기서 공개 플래그를 지운 뒤
+  /* 조건식·스레드 탭 다시 감추기 — 복호화 세션은 부르는 쪽에서 이미 지웠고, 여기서 공개 플래그를 지운 뒤
      저장된 보기도 심플로 되돌린다(새로고침해도 4탭 심플) */
   function scanRelock() {
     scanRevealSet(false);
@@ -12833,21 +12891,25 @@ const REPORT_DATA = [
     const simple = dashMode === "simple";
     const detail = dashMode === "detail";
     const scanner = dashMode === "scanner";
+    const threads = dashMode === "threads";
     const portfolio = dashMode === "portfolio";
     document.documentElement.setAttribute("data-mode", dashMode);
     document.body.classList.toggle("mode-report", report);
     document.body.classList.toggle("mode-simple", simple);
     document.body.classList.toggle("mode-scanner", scanner);
+    document.body.classList.toggle("mode-threads", threads);
     document.body.classList.toggle("mode-portfolio", portfolio);
     const vr = $("#viewReport");
     const vs = $("#viewSimple");
     const vd = $("#viewDetail");
     const vc = $("#viewScanner");
+    const vt = $("#viewThreads");
     const vp = $("#viewPortfolio");
     if (vr) vr.hidden = !report;
     if (vs) vs.hidden = !simple;
     if (vd) vd.hidden = !detail;
     if (vc) vc.hidden = !scanner;
+    if (vt) vt.hidden = !threads;
     if (vp) vp.hidden = !portfolio;
     const t = $("#modeToggle");
     if (t) Array.prototype.forEach.call(t.children, (b) => {
@@ -14115,7 +14177,15 @@ const REPORT_DATA = [
       scanForget();
       SCANNER.id = null;
       scanLockMsg("");
-      scanRelock();                 /* 심플로 전환 + 조건식 탭 감춤 */
+      scanRelock();                 /* 심플로 전환 + 조건식·스레드 탭 감춤 */
+    });
+    /* 스레드 관점 탭의 같은 버튼 — 조건식 잠금과 함께 두 숨은 탭을 한 번에 감는다 */
+    const thBtn = $("#thLockBtn");
+    if (thBtn) thBtn.addEventListener("click", () => {
+      scanForget();
+      SCANNER.id = null;
+      scanLockMsg("");
+      scanRelock();
     });
   }
 
