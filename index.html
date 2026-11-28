@@ -514,8 +514,9 @@
   }
   .scard-head{
     display:flex;
+    flex-wrap:wrap;            /* 2열 좁은 카드에서는 오른쪽 수치가 다음 줄로 내려간다 — 1글자 폭으로 짜부라지지 않게 */
     align-items:flex-start;
-    gap:6px;
+    gap:2px 6px;
     min-height:52px;
     padding:8px 10px 7px;
     color:#fff;
@@ -529,15 +530,18 @@
   .scard-head .cname{
     flex:1 1 auto;
     min-width:0;
+    max-width:100%;
     font-size:12.5px;
     font-weight:850;
     letter-spacing:-.02em;
     line-height:1.3;
     text-shadow:0 1px 1px rgba(0,0,0,.12);
+    word-break:keep-all;       /* 한글을 한 글자씩 세로로 쪼개지 않는다 — 낱말 단위로만 줄바꿈 */
+    overflow-wrap:anywhere;    /* 낱말 하나가 폭보다 길 때만 마지막 수단으로 끊는다 */
   }
-  .scard-head .cmetric{flex:0 0 auto;text-align:right;line-height:1.2}
-  .scard-head .cmain{display:block;font-size:13px;font-weight:850;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .scard-head .csub{display:block;margin-top:1px;font-size:9.5px;font-weight:650;color:rgba(255,255,255,.86);font-variant-numeric:tabular-nums}
+  .scard-head .cmetric{flex:0 1 auto;min-width:0;max-width:100%;margin-left:auto;text-align:right;line-height:1.2}
+  .scard-head .cmain{display:block;font-size:13px;font-weight:850;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .scard-head .csub{display:block;margin-top:1px;font-size:9.5px;font-weight:650;color:rgba(255,255,255,.86);font-variant-numeric:tabular-nums;white-space:normal;overflow-wrap:anywhere}
   .scard-issue{
     padding:7px 10px 6px;
     font-size:11px;
@@ -6443,6 +6447,28 @@ const REPORT_DATA = [
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  /* 본문 정리 — 전부 글자로 막은(escape) 뒤 굵게(b)·기울임(em)·줄바꿈(br)만 되살린다.
+     data.json 문장은 핵심 숫자를 <b>…</b> 로 강조해 두었고, 'S&amp;P500' 처럼 미리 escape 된
+     엔티티도 섞여 있다. 그래서 ① 엔티티를 글자로 되돌리고 ② 허용 태그만 이름으로 남긴 뒤
+     ③ escape 하고 ④ 허용 태그만 다시 살린다 — 태그가 글자로 보이지도, 임의 태그가 살아나지도 않는다. */
+  const RICH_TAG = { b: "b", strong: "b", em: "em", i: "em", br: "br" };
+  const rich = (s) => {
+    let t = String(s == null ? "" : s);
+    for (let i = 0; i < 3; i++) {
+      const before = t;
+      t = t.replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"').replace(/&#0*39;/g, "'")
+        .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+      if (t === before) break;
+    }
+    t = t.replace(/<(\/?)([a-z][a-z0-9]*)(?:\s[^<>]*)?\s*\/?>/gi, (m, close, name) => {
+      const tag = RICH_TAG[String(name).toLowerCase()];
+      return tag ? "<" + close + tag + ">" : "";
+    });
+    return esc(t).replace(/&lt;(\/?)(b|em)&gt;/g, "<$1$2>")
+      .replace(/&lt;br&gt;/g, "<br>").replace(/&lt;\/br&gt;/g, "");
+  };
+
   const num = (n) => Number(n).toLocaleString("ko-KR");
 
   /* 섹터 그룹 정의 — 색상·라벨·표시 순서 */
@@ -6794,8 +6820,8 @@ const REPORT_DATA = [
     const reasons = (it.reasons || []).map((r, i) => {
       if (r && typeof r === "object") {
         return '<li><i class="n">' + (i + 1) + "</i><span>" +
-          (r.title ? "<b>" + r.title + "</b>" : "") +
-          (r.body ? esc(r.body) : "") + "</span></li>";
+          (r.title ? "<b>" + rich(r.title) + "</b>" : "") +
+          (r.body ? rich(r.body) : "") + "</span></li>";
       }
       return '<li><i class="n">' + (i + 1) + "</i><span>" + esc(r) + "</span></li>";
     }).join("");
@@ -6803,9 +6829,9 @@ const REPORT_DATA = [
     const facts = (it.facts || []).map((f) => {
       if (f && typeof f === "object") {
         const d = f.dir === "up" || f.dir === "down" ? ' class="ifchip ' + f.dir + '"' : ' class="ifchip"';
-        return "<span" + d + ">" + esc(f.label) + "</span>";
+        return "<span" + d + ">" + rich(f.label) + "</span>";
       }
-      return '<span class="ifchip">' + esc(f) + "</span>";
+      return '<span class="ifchip">' + rich(f) + "</span>";
     }).join("");
 
     const links = (it.links || []).filter((l) => l && l.url).map((l) =>
@@ -6820,12 +6846,12 @@ const REPORT_DATA = [
           (it.time ? '<span class="issue-time">' + esc(it.time) + "</span>" : "") +
           '<span class="issue-caret" aria-hidden="true">▾</span>' +
         "</span>" +
-        (it.title ? '<span class="issue-title">' + it.title + "</span>" : "") +
+        (it.title ? '<span class="issue-title">' + rich(it.title) + "</span>" : "") +
       "</summary>" +
       '<div class="issue-body">' +
         (reasons ? '<ul class="issue-why">' + reasons + "</ul>" : "") +
         (facts ? '<div class="issue-facts">' + facts + "</div>" : "") +
-        (it.note ? '<p class="issue-note">' + esc(it.note) + "</p>" : "") +
+        (it.note ? '<p class="issue-note">' + rich(it.note) + "</p>" : "") +
         (links ? '<p class="issue-links">근거 ' + links + "</p>" : "") +
       "</div>" +
     "</details>";
@@ -7119,12 +7145,12 @@ const REPORT_DATA = [
     if (!c) return;
 
     let h = '<div class="ctx-kicker">' + esc(c.kicker || "시장 맥락") + "</div>" +
-      "<h3>" + (c.headline || "") + "</h3>";
+      "<h3>" + rich(c.headline) + "</h3>";
     (c.reasons || []).forEach((r, i) => {
       h += '<div class="reason">' +
         '<span class="reason-num">' + (i + 1) + "</span>" +
         '<div class="reason-body">' +
-          "<strong>" + esc(r.title) + "</strong>" +
+          "<strong>" + rich(r.title) + "</strong>" +
           '<p class="sum" data-sum>' + sumInner(esc(r.body), esc(sumOf(r, "body"))) + "</p>" +
         "</div>" +
       "</div>";
@@ -7161,7 +7187,7 @@ const REPORT_DATA = [
     if (c.next) {
       const n = el("div", "ctxbox next");
       let nh = "<h4>" + esc(c.next.title) + '<span class="tagline">' + esc(c.next.tag) + "</span></h4><ul>";
-      (c.next.items || []).forEach((t) => { nh += "<li>" + esc(t) + "</li>"; });
+      (c.next.items || []).forEach((t) => { nh += "<li>" + rich(t) + "</li>"; });
       nh += "</ul>";
       n.innerHTML = nh;
       side.appendChild(n);
@@ -7232,9 +7258,10 @@ const REPORT_DATA = [
   }
 
   function sumInner(html, summary) {
-    const lead = summary == null ? "" : String(summary).trim();
+    /* 본문·요약 모두 여기서 정리한다 — 불러오는 쪽은 esc() 여부와 상관없이 넘겨도 된다 */
+    const lead = summary == null ? "" : rich(summary).trim();
     return (lead ? '<span class="sum-lead">' + lead + "</span>" : "") +
-      '<span class="sum-text">' + html + "</span>" +
+      '<span class="sum-text">' + rich(html) + "</span>" +
       '<button type="button" class="sum-tgl" aria-expanded="false" hidden>' +
         SUM_LBL.more + '<span class="sum-car" aria-hidden="true">' + SUM_LBL.car.more + "</span></button>";
   }
@@ -8080,7 +8107,7 @@ const REPORT_DATA = [
         '<p class="ta-note">지표는 ' + esc(indicatorBasis) +
           " 일봉 데이터로 계산된 값이며, " +
           "20일선은 출처별 기준일이 다를 수 있고, 20일선 괴리율은 당일 정규장 종가 기준입니다." +
-          (t.maNote ? " " + esc(t.maNote) : "") + "</p>" +
+          (t.maNote ? " " + rich(t.maNote) : "") + "</p>" +
       "</div>";
   }
 
@@ -8095,9 +8122,9 @@ const REPORT_DATA = [
         "</div>" +
         '<div class="ta-blocks">' +
           '<div class="ta-block is-key"><span class="k">핵심 재료</span>' +
-            '<span class="v">' + esc(p.catalyst || "—") + "</span></div>" +
+            '<span class="v">' + rich(p.catalyst || "—") + "</span></div>" +
           '<div class="ta-block"><span class="k">당일 분봉 흐름</span>' +
-            '<span class="v">' + esc(p.reason || "—") + "</span></div>" +
+            '<span class="v">' + rich(p.reason || "—") + "</span></div>" +
         "</div>" +
         '<p class="ta-note">분봉 패턴은 보조 기준입니다 — 선정은 재료·이슈가 1순위이고, ' +
           "1~4번 표준 패턴 중 당일 분봉에 실제로 맞는 것만 표시합니다.</p>" +
@@ -10519,12 +10546,9 @@ const REPORT_DATA = [
   const sDir = (v) => (sNull(v) ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat");
   const sEok = (v) => (sNull(v) ? "—" : (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(Number(v)).toLocaleString("ko-KR"));
 
-  /* 굵게(b/em/strong)만 허용하는 최소 정리 — headline·issue 문장용 */
+  /* 굵게(b/em/strong)만 허용하는 최소 정리 — headline·issue 문장용(상세 뷰와 같은 규칙) */
   function sRich(v) {
-    return String(v == null ? "" : v)
-      .replace(/<(?!\/?(b|em|strong|br)\b)[^>]*>/gi, "")
-      .replace(/<(\/?)(b|em|strong)\b[^>]*>/gi, "<$1$2>")
-      .replace(/<br\s*\/?>/gi, "<br>");
+    return rich(v);
   }
   const chgOfText = (t) => {
     const n = parseFloat(String(t == null ? "" : t).replace(/[^0-9.\-+]/g, ""));
@@ -11904,7 +11928,7 @@ const REPORT_DATA = [
             (ready ? "" : " disabled") + ' aria-label="' + esc(p.label) + ' 글 복사">복사</button>' +
         "</div>" +
         (ready
-          ? '<p class="th-body">' + esc(text) + "</p>"
+          ? '<p class="th-body">' + rich(text) + "</p>"
           : '<p class="th-body wait">업데이트 대기 중</p>') +
       "</section>";
     }).join("");
