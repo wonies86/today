@@ -2812,6 +2812,15 @@
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 #viewScanner .sc-mk{flex:0 0 auto;font-size:9px;font-weight:800;color:#8b93a7;background:#f2f4f9;border-radius:4px;padding:1px 4px}
+/* 🧲 급등후 눌림목 — 종목명 옆 '며칠 전 급등' 배지 (2~5일 기본 창 · 6~7일 확대 창) */
+#viewScanner .sc-pbd{
+  flex:0 0 auto;display:inline-flex;align-items:baseline;gap:1px;border-radius:5px;padding:1px 5px;
+  font-size:10px;font-weight:900;letter-spacing:-.03em;line-height:1.45;font-variant-numeric:tabular-nums;
+  color:#5b21b6;background:#f5f0ff;border:1px solid #ddd0ff;white-space:nowrap;
+}
+#viewScanner .sc-pbd i{font-style:normal;font-size:8.5px;font-weight:800;opacity:.85}
+#viewScanner .sc-pbd.ext{color:#a16207;background:#fffbeb;border-color:#fde68a}
+#viewScanner .sc-l1.has-pbd .sc-name{max-width:40%}
 #viewScanner .sc-chg{flex:0 0 auto;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
 #viewScanner .sc-chg.up{color:var(--up)}
 #viewScanner .sc-chg.down{color:var(--down)}
@@ -3530,6 +3539,8 @@ html[data-theme="dark"] #viewScanner .sc-row:active{background:#141924}
 html[data-theme="dark"] #viewScanner .sc-row:focus-visible{outline:2px solid #7039ef}
 html[data-theme="dark"] #viewScanner .sc-rank{background:#141924;color:#aab5c9}
 html[data-theme="dark"] #viewScanner .sc-mk{color:#9aa4b8;background:#141924}
+html[data-theme="dark"] #viewScanner .sc-pbd{color:#c4b5fd;background:#1c1530;border-color:#46327b}
+html[data-theme="dark"] #viewScanner .sc-pbd.ext{color:#f4cf6f;background:#2a2010;border-color:#5c4a1f}
 html[data-theme="dark"] #viewScanner .sc-l2{color:#c4b5fd}
 html[data-theme="dark"] #viewScanner .sc-wr{color:#c3cbdb}
 html[data-theme="dark"] #viewScanner .sc-wr b{color:#e9eef8}
@@ -14125,6 +14136,15 @@ const REPORT_DATA = [
       esc(h.avgD1 || "—") + "</b></span></div>";
   }
 
+  /* 급등후 눌림목 — 급등일이 며칠 전인지(h.surge.daysAgo). 6~7거래일은 확대 창 색으로 */
+  function pullbackDaysHTML(h, scannerId, cur) {
+    const isPb = scannerId === "pullback" || !!(cur && cur.id === "pullback");
+    const d = isPb && h && h.surge ? Math.round(Number(h.surge.daysAgo)) : NaN;
+    if (!(d >= 2)) return "";
+    return '<span class="sc-pbd' + (d >= 6 ? " ext" : "") + '" title="급등일이 ' + d +
+      '거래일 전' + (d >= 6 ? " (확대 창)" : " (기본 창)") + '">' + d + "<i>일전</i></span>";
+  }
+
   function scannerRowHTML(h, i, report, scannerId, cur) {
     const bt = h.backtest || {};
     const gap = h.gap == null ? "—" : Number(h.gap).toFixed(2) + "%";
@@ -14136,11 +14156,13 @@ const REPORT_DATA = [
       : (h.line2 || ((edge ? "" : "20·60 이격 " + gap) +
         (bt.n ? " · 과거 " + bt.m + "/" + bt.n + "회 5일 내 상승" : " · 과거 신호 없음")));
     const mk = h.market === "KOSDAQ" ? "KQ" : (h.market === "KOSPI" ? "KP" : "");
+    const pb = pullbackDaysHTML(h, scannerId, cur);
     return '<div class="sc-row" data-stock="' + esc(h.name) + '" role="button" tabindex="0" ' +
       'aria-label="' + esc(h.name) + ' 조건식·과거 차트 반응 보기">' +
-      '<div class="sc-l1">' +
+      '<div class="sc-l1' + (pb ? " has-pbd" : "") + '">' +
         '<span class="sc-rank">' + (i + 1) + "</span>" +
         streakNameHTML("span", "sc-name", h.name, report, h.code, 1) +
+        pb +
         (mk ? '<span class="sc-mk">' + mk + "</span>" : "") +
         '<span class="sc-chg ' + (h.chg == null ? "" : dir(h.chg)) + '">' +
           (h.chg == null ? "" : pct(h.chg)) + "</span>" +

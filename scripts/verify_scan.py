@@ -480,7 +480,7 @@ def main(argv) -> int:
                   f"[급등후 눌림목] {nm}: 고점 대비 {drop}% (-4~-11)",
                   f"[급등후 눌림목] {nm}: 눌림 폭 이상 {drop}")
             surge = item.get("surge") or {}
-            check(bool(surge.get("date")) and 2 <= int(surge.get("daysAgo") or 0) <= 5
+            check(bool(surge.get("date")) and 2 <= int(surge.get("daysAgo") or 0) <= 7
                   and (surge.get("pct") or 0) >= 10.0,
                   f"[급등후 눌림목] {nm}: 급등 {surge.get('date')} {surge.get('pct')}% "
                   f"({surge.get('daysAgo')}거래일 전)",
