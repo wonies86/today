@@ -3005,6 +3005,14 @@ def build_condition_scan(series, all_stocks, extra_codes, now, *, deep_series=No
                                   deep_series=deep_series, deep_map=deep_map,
                                   ctx_base=ctx_base)
                 for defn in SCANNER_DEFS]
+    if plan:
+        # 후보가 분봉 한도를 넘으면 판정 없이 빠진다 — 조용히 사라지지 않게 남긴다
+        lost = [c for c in dict.fromkeys(plan) if (flow.get(c) or {}).get("measured") is False]
+        if lost:
+            log(f"    · 오후장 분봉 한도({flow.limit}종목)로 판정 못 한 후보 {len(lost)}종목")
+            for defn, res in zip(SCANNER_DEFS, scanners):
+                if defn.get("pm"):
+                    res["pmDropped"] = len(lost)
     primary = scanners[0] if scanners else None
     if not primary:
         return None

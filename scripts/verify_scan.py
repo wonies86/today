@@ -409,6 +409,9 @@ def main(argv) -> int:
             if edge.get("pmMissed"):
                 warn(f"[{edge.get('name')}] 분봉을 못 받아 판정 못 한 목록 항목 "
                      f"{edge.get('pmMissed')}건 (조회 {edge.get('pmMeasured')}종목)")
+            if edge.get("pmDropped"):
+                warn(f"[{edge.get('name')}] 오후장 분봉 한도로 판정 못 한 후보 "
+                     f"{edge.get('pmDropped')}종목 — 목록에서 빠졌습니다")
         edge_items = edge_hits + list((edge.get("reactions") or {}).values())
         for item in edge_items:
             check_edge_item(edge, item)

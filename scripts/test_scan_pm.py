@@ -79,10 +79,10 @@ def make_series():
     return series, deep
 
 
-def make_all_stocks():
+def make_all_stocks(hot=(CAND,)):
     rows = []
     for i, code in enumerate(CODES):
-        chg = 5.0 if code == CAND else 0.5
+        chg = 5.0 if code in hot else 0.5
         px = 20000 + i * 100
         rows.append([code, f"종목{code}", "KOSPI", px, chg, 1000 - i * 20, "반도체", 5000, 1.2])
     return rows
@@ -115,8 +115,8 @@ def hit_of(scan, code):
 
 def run(now, **kwargs):
     series, deep = make_series()
-    return um.build_condition_scan(series, make_all_stocks(), kwargs.pop("extra", set()),
-                                   now, deep_series=deep,
+    return um.build_condition_scan(series, make_all_stocks(kwargs.pop("hot", (CAND,))),
+                                   kwargs.pop("extra", set()), now, deep_series=deep,
                                    index_chg={"KOSPI": 0.0},
                                    investor=kwargs.pop("investor", None),
                                    dominance={"sectors": [{"name": "반도체", "share": 12.0}]})
@@ -212,9 +212,35 @@ def test_before_judge_stays_pending():
           "오전장에는 D를 판정하지 않는다", "오전장인데 D가 참인 항목이 있다")
 
 
+def test_candidate_over_budget_is_reported():
+    """후보가 분봉 한도를 넘으면 판정 없이 빠지되, 조용히 사라지지 않고 pmDropped 로 남는다."""
+    real_flow, real_fetch = um.AfternoonFlow, um.fetch_minute_bars
+
+    class Narrow(um.AfternoonFlow):                 # 한도 1종목으로 좁힌 실행
+        def __init__(self, now, limit=1):
+            super().__init__(now, limit=limit)
+
+    um.AfternoonFlow = Narrow
+    um.fetch_minute_bars = fake_minute
+    second = CODES[26]
+    try:
+        scan = run(datetime(2026, 11, 27, 15, 40), hot=(CAND, second))
+    finally:
+        um.AfternoonFlow, um.fetch_minute_bars = real_flow, real_fetch
+    edge = edge_of(scan)
+    check(edge.get("pmDropped") == 1,
+          f"한도 밖 후보 1종목을 pmDropped 로 남긴다 ({edge.get('pmDropped')})",
+          f"한도 밖 후보가 pmDropped 에 없다 {edge.get('pmDropped')}")
+    codes = [h["code"] for h in edge.get("hits") or []]
+    check(CAND in codes and second not in codes,
+          f"한도 안 후보({CAND})만 포착, 한도 밖({second})은 빠짐",
+          f"한도 배분이 어긋남 {codes}")
+
+
 def main():
     for fn in (test_afternoon_candidate_outside_top_value, test_failed_measure_is_not_pending,
-               test_budget_priority, test_before_judge_stays_pending):
+               test_budget_priority, test_before_judge_stays_pending,
+               test_candidate_over_budget_is_reported):
         print(f"[{fn.__name__}]")
         fn()
     print(f"\n결과: 통과 {len(OKS)} · 실패 {len(FAILS)}")
