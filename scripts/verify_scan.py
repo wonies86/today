@@ -416,9 +416,12 @@ def main(argv) -> int:
         for item in edge_items:
             check_edge_item(edge, item)
         # 관찰·카드 종목(모달용)도 다른 조건식 항목에 52주·오후장 기록이 붙었는지
+        # · 화면(scanOf)은 조건식 순서대로 찾아 **먼저 만난 기록**을 쓴다 — 여기서도 같은
+        #   순서로만 채워, 뒤 조건식의 얇은 기록이 앞의 52주·pm 기록을 덮지 않게 한다
         rx_all = {}
         for s in scanners:
-            rx_all.update(s.get("reactions") or {})
+            for code, item in (s.get("reactions") or {}).items():
+                rx_all.setdefault(code, item)
         with52 = sum(1 for v in rx_all.values() if v.get("w52"))
         withpm = sum(1 for v in rx_all.values() if v.get("pm"))
         check(with52 > 0, f"모달용 종목 {with52}건에 52주 지표 기록", "52주 지표가 붙은 모달 항목 없음")
@@ -452,6 +455,47 @@ def main(argv) -> int:
             check(all((item.get("conditions") or {}).get(k) for k in ("A", "B", "C")),
                   f"[주도돌파] {item.get('name')}: A·B·C 충족",
                   f"[주도돌파] {item.get('name')}: A·B·C 미충족 {item.get('conditions')}")
+
+    # ── 급등후 눌림목 — 강의 노트 '눌림 매매' 재현 (2026-11-28 추가) ──
+    pb = next((s for s in scanners if s.get("id") == "pullback"), None)
+    check(bool(pb), "급등후 눌림목 조건식 있음", "급등후 눌림목 조건식 없음")
+    if pb:
+        check(pb.get("formula") == "A and B and C and D",
+              "급등후 눌림목 수식 A and B and C and D", f"수식 다름 {pb.get('formula')}")
+        check(pb.get("minValue") == 100, "급등후 눌림목 교집합 100억",
+              f"교집합 다름 {pb.get('minValue')}")
+        check(len(pb.get("rules") or []) == 4, "급등후 눌림목 필터 기준 4개(A~D)",
+              f"필터 기준 개수 다름 {len(pb.get('rules') or [])}")
+        check(bool(pb.get("summary")) and bool(pb.get("rawNote")),
+              "급등후 눌림목 설명·주의 문구 있음", "급등후 눌림목 설명 없음")
+        pb_hits = pb.get("hits") or []
+        for item in pb_hits:
+            nm = item.get("name")
+            cnd = item.get("conditions") or {}
+            check(all(cnd.get(k) for k in ("A", "B", "C", "D")),
+                  f"[급등후 눌림목] {nm}: A·B·C·D 충족",
+                  f"[급등후 눌림목] {nm}: A·B·C·D 미충족 {cnd}")
+            drop = (item.get("pullback") or {}).get("pct")
+            check(isinstance(drop, (int, float)) and -11.0 <= drop <= -4.0,
+                  f"[급등후 눌림목] {nm}: 고점 대비 {drop}% (-4~-11)",
+                  f"[급등후 눌림목] {nm}: 눌림 폭 이상 {drop}")
+            surge = item.get("surge") or {}
+            check(bool(surge.get("date")) and 2 <= int(surge.get("daysAgo") or 0) <= 5
+                  and (surge.get("pct") or 0) >= 10.0,
+                  f"[급등후 눌림목] {nm}: 급등 {surge.get('date')} {surge.get('pct')}% "
+                  f"({surge.get('daysAgo')}거래일 전)",
+                  f"[급등후 눌림목] {nm}: 급등일 정보 이상 {surge}")
+            check(0 < (item.get("volRatio") or 1) < 1,
+                  f"[급등후 눌림목] {nm}: 거래량 비율 {item.get('volRatio')} (전일보다 감소)",
+                  f"[급등후 눌림목] {nm}: 거래량이 줄지 않음 {item.get('volRatio')}")
+            check((item.get("ma20dist") or 0) >= -3.0,
+                  f"[급등후 눌림목] {nm}: 20일선 이격 {item.get('ma20dist')}% (3% 이내)",
+                  f"[급등후 눌림목] {nm}: 20일선 이탈 {item.get('ma20dist')}%")
+            wr = str(item.get("winRate") or "")
+            check(wr == "표본 없음" or re.fullmatch(r"\d+(\.\d+)?% \(\d+/\d+\)", wr) is not None,
+                  f"[급등후 눌림목] {nm}: D+1 승률 '{wr}'", f"[급등후 눌림목] {nm}: 승률 표기 이상 '{wr}'")
+            check(bool(item.get("line2")), f"[급등후 눌림목] {nm}: 한 줄 요약 있음",
+                  f"[급등후 눌림목] {nm}: 한 줄 요약 없음")
 
     charts = entry.get("charts") or charts_by_date.get(str(entry.get("date"))) or {}
     check("charts" not in entry or not entry.get("charts"),
